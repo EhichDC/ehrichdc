@@ -1,5 +1,4 @@
 /node_modules
-/public/fonts
 /public/storage
 /storage/*.key
 /storage/debugbar
@@ -17,5 +16,3 @@ _ide_helper_models.php
 /public/mix-manifest.json
 /laravel-echo-server.json
 /bower_components
-/public/css/*
-/public/js/*
