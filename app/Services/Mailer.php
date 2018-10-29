@@ -240,7 +240,7 @@ class Mailer
             }
 
         } catch (Exception $e) {
-            $this->logError();
+            $this->logError($e->getMessage());
         }
     }
 
@@ -281,9 +281,17 @@ class Mailer
     /**
      * Log error, generated while sending mail.
      */
-    private function logError()
+    private function logError($message)
     {
-        if ($this->shouldLogError) {
+        $msg = sprintf('[MailError] => Mail an "%s" <%s> [PLZ: %s] konnte nicht verschickt werden.',
+            $this->patient->patientmeta->name,
+            $this->patient->patientmeta->email,
+            $this->patient->patientmeta->zip
+        );
+
+        Log::error($msg . ' [Exception: ' . $message . ']');
+
+        /*if ($this->shouldLogError) {
             $msg = "Leider gab es einen Fehler mit {$this->toAddress}";
 
             Mail::send('emails.system-mail', ['msg' => $msg], function ($message) {
@@ -302,6 +310,6 @@ class Mailer
 
             Log::info($msg);
 //            Activity::log($msg);
-        }
+        }*/
     }
 }
