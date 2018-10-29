@@ -93,11 +93,11 @@ class SMS
 
     public static function sendDateReminders()
     {
-        $dates = Date::whereHas('patient', function ($q) {
-            $q->where('phase', 3);
-        })
-            ->with(['patient.patientmeta', 'lab.labmeta'])
-            ->whereDate('date', '=', Carbon::now()->tomorrow())->get();
+      $dates = Date::whereHas('patient', function ($q) {
+          $q->where('phase', 3);
+      })
+          ->with(['patient.patientmeta', 'lab.labmeta'])
+          ->whereDate('date', '=', Carbon::now()->tomorrow())->get();
 
         $message = "";
         $count   = 0;
@@ -121,9 +121,8 @@ class SMS
                         $time = Carbon::parse($date->date);
                         $time = $time->formatLocalized('%H:%M');
                         // $time = "{$time->hour}:{$time->hour}";
-                        $message = "Ihr Padento-Termin: {$date->patient->patientmeta->salutation} {$date->patient->patientmeta->name}, morgen um {$time} Uhr erwartet Sie {$date->lab->labmeta->contact_person} in {$date->lab->labmeta->zip} {$date->lab->labmeta->city}, {$date->lab->labmeta->street}. Bei Rückfragen nutzen Sie bitte die Telefonnummer: {$date->lab->labmeta->tel}.";
+                        $message = "Ihr Padento-Termin: {$date->patient->patientmeta->salutation} {$date->patient->patientmeta->name}, morgen um {$time} Uhr erwartet Sie {$date->lab->labmeta->contact_person} in {$date->lab->labmeta->zip} {$date->lab->labmeta->city}, {$date->lab->labmeta->street} ihr Labor: {$date->lab->name}. Bei Rückfragen nutzen Sie bitte die Telefonnummer: {$date->lab->labmeta->tel}.";
                         echo "{$date->id} => {$date->date} => " . strlen($message) . " => {$mobile} => " . $message . "<br>";
-
                         if (\App::environment('local')) {
                             $sendedSms = true;
                         } else {

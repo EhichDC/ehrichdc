@@ -57,12 +57,15 @@ export default {
         $('title').text(this.sitename + ' | Padento.de');
         this.getAllLabs();
         this.loadContact();
+        console.log('contacts loaded');
         // this.whoAmI();
         this.getEmployeeDate();
        // this.getTimeline();
         // this.getNoteTimeline();
     },
     ready: function () {
+        this.loadContact();
+        console.log('contacts loaded');
         var that = this;
         $('.contact-data').mouseover(function () {
             that.initDatepicker();

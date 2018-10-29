@@ -22,6 +22,8 @@ class Kernel extends ConsoleKernel
         Commands\DsgvoAutoDeleteReminder::class,
         Commands\DsgvoAutoDelete::class,
         Commands\DeleteArchivedContacts::class,
+        Commands\DeleteArchivedContacts::class,
+        Commands\CleanActivities::class,
     ];
 
     /**

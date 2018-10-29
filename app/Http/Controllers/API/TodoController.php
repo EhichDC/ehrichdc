@@ -82,8 +82,11 @@ class TodoController extends Controller
         $user = auth()->user();
 
         abort_unless($user->hasRole('admin') || $user->hasRole('lab'), 403);
-
-        activity()->causedBy(auth()->user())->performedOn($todo->patient)->withProperties(['task' => $todo->title])->log('task_deleted');
+        if ($todo->patient) {
+          activity()->causedBy(auth()->user())->performedOn($todo->patient)->withProperties(['task' => $todo->title])->log('task_deleted');
+        } else {
+          activity()->causedBy(auth()->user())->withProperties(['task' => $todo->title])->log('task_deleted');
+        }
 
         $todo->delete();
 

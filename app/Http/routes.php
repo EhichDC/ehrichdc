@@ -444,3 +444,20 @@ Route::group(['prefix' => 'api', 'namespace' => 'API'], function () {
 });
 
 Route::get('logs', '\Rap2hpoutre\LaravelLogViewer\LogViewerController@index')->middleware('auth');
+
+Route::get('storage/{filename}', function ($filename)
+{
+    $path = storage_path('app/public/' . $filename);
+
+    if (!File::exists($path)) {
+        abort(404);
+    }
+
+    $file = File::get($path);
+    $type = File::mimeType($path);
+
+    $response = Response::make($file, 200);
+    $response->header("Content-Type", $type);
+
+    return $response;
+})->where(['filename' => '.*']);
