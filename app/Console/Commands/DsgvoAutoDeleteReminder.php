@@ -57,8 +57,6 @@ class DsgvoAutoDeleteReminder extends Command
             $patient->estimated_deletation_at = Carbon::today()->addDays(30);
             $patient->save();
 
-            activity()->performedOn($patient)->log('mailed_dsgvo');
-
             mailer('DSGVOAutoDeleteReminder', $patient)->withoutDeleteLink()->toPatient()->send();
         }
 

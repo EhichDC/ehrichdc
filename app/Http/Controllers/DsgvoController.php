@@ -17,7 +17,7 @@ class DsgvoController extends Controller
             $patient->estimated_deletation_at = null;
             $patient->save();
 
-            activity()->causedBy($patient)->performedOn($patient)->log('accepted_dsgvo');
+            activity()->causedBy($patient)->performedOn($patient)->withProperties(['subject' => 'Daten weiterhin speichern', 'message' => 'Patient möchte seine Daten beibehalten'])->performedOn($patient)->log('accepted_dsgvo');
 
             if ($patient->lab) {
                 mailer('DSGVOAutoDeletePatientMailForLab', $patient, $patient->lab)->toLab()->send();

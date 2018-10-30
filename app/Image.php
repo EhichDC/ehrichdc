@@ -98,7 +98,6 @@ class Image extends Model
     public function move($file)
     {
         Storage::disk('public')->put($this->path, file_get_contents($file));
-
         $this->makeThumbnail();
 
         $this->makeIcon();
@@ -111,9 +110,9 @@ class Image extends Model
      */
     public function makeThumbnail()
     {
-        InterventionImage::make(public_path(Storage::url($this->path)))
+        InterventionImage::make(storage_path('app/public/'.$this->path))
             ->fit($this->thumbSize)
-            ->save(public_path(Storage::url($this->thumbnail_path)));
+            ->save(storage_path('app/public/'.$this->thumbnail_path));
     }
 
     /**
@@ -121,9 +120,9 @@ class Image extends Model
      */
     public function makeIcon()
     {
-        InterventionImage::make(public_path(Storage::url($this->path)))
+        InterventionImage::make(storage_path('app/public/'.$this->path))
             ->fit($this->iconSize)
-            ->save(public_path(Storage::url($this->icon_path)));
+            ->save(storage_path('app/public/'.$this->icon_path));
     }
 
     /**
