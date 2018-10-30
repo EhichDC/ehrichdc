@@ -50,7 +50,11 @@ class TodoController extends Controller
             'creator_id' => $request->user()->id
         ]);
 
-        activity()->causedBy($request->user())->performedOn($todo->patient)->withProperties(['task' => $todo->title])->log('task_created');
+        if($todo->patient) {
+          activity()->causedBy($request->user())->performedOn($todo->patient)->withProperties(['task' => $todo->title])->log('task_created');
+        } else {
+          activity()->causedBy($request->user())->withProperties(['task' => $todo->title])->log('task_created');
+        }
 
         return $todo;
     }
@@ -71,7 +75,11 @@ class TodoController extends Controller
             'is_queued' => $request->is_queued ?: 0,
         ]);
 
-        activity()->causedBy($request->user())->performedOn($todo->patient)->withProperties(['task' => $todo->title])->log('task_updated');
+        if($todo->patient) {
+          activity()->causedBy($request->user())->performedOn($todo->patient)->withProperties(['task' => $todo->title])->log('task_updated');
+        } else {
+          activity()->causedBy($request->user())->withProperties(['task' => $todo->title])->log('task_updated');
+        }
 
         return $todo;
     }
