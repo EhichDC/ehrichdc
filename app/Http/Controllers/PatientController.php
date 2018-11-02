@@ -166,7 +166,7 @@ class PatientController extends Controller
                 $id            = $patient->lab->id;
                 $city          = $patient->lab->labmeta->city;
                 $labor         = $patient->lab->slug;
-                $labtel        = $patient->lab->tel;
+                $labtel        = $patient->lab->labmeta->tel;
                 $contactImage  = $patient->lab->images->where('type', 'kontaktfoto')->first();
                 $image         = $contactImage ? 'storage/' . $contactImage->path : 'images/logo.png';
 
@@ -179,7 +179,7 @@ class PatientController extends Controller
                 $id            = $patient->lab->id;
                 $city          = $patient->lab->labmeta->city;
                 $labor         = $patient->lab->slug;
-                $labtel        = $patient->lab->tel;
+                $labtel        = $patient->lab->labmeta->tel;
                 $contactImage2 = $patient->lab->images->where('type', 'kontaktfoto')->first();
                 $image         = $contactImage2 ? 'storage/' . $contactImage2->path : 'images/logo.png';
 
