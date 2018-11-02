@@ -502,7 +502,7 @@ class ContactController extends Controller
         $date->end        = $request->input('end');
         $date->phase      = $date->patient->phase;
 
-        if ($user->hasRole('admin') || $user->hasRole('user')) {
+        if ($user->hasRole('admin')) {
             $date->phase    = 3;
             $patient->phase = 3;
             $patient->save();
@@ -532,8 +532,6 @@ class ContactController extends Controller
             $patient->removeContactDates([$date->id]);
 //            }
             Event::fire(new NewPatientDate($date));
-        } else {
-          Event::fire(new NewPatientDate($date));
         }
 
         activity()->causedBy($request->user())->performedOn($patient)->withProperties(['date' => $date->date, 'phase' => $date->phase])->log('date_added');
