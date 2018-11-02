@@ -532,8 +532,6 @@ class ContactController extends Controller
             $patient->removeContactDates([$date->id]);
 //            }
             Event::fire(new NewPatientDate($date));
-        } else {
-          Event::fire(new NewPatientDate($date));
         }
 
         activity()->causedBy($request->user())->performedOn($patient)->withProperties(['date' => $date->date, 'phase' => $date->phase])->log('date_added');
