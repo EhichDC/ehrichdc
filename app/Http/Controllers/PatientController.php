@@ -148,7 +148,7 @@ class PatientController extends Controller
             $id            = $patient->lab->id;
             $city          = $patient->lab->labmeta->city;
             $labor         = $patient->lab->slug;
-            $labtel        = $patient->lab->tel;
+            $labtel        = $patient->lab->labmeta->tel;
             $image         = $patient->lab->images->where('type', 'kontaktfoto')->first() ? 'storage/' . $patient->lab->images->where('type', 'kontaktfoto')->first()->path : 'images/logo.png';
 
             session(['patientConfirmed' => $patient]);
@@ -194,69 +194,3 @@ class PatientController extends Controller
         }
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
