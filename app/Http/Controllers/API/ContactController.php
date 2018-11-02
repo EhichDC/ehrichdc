@@ -502,7 +502,7 @@ class ContactController extends Controller
         $date->end        = $request->input('end');
         $date->phase      = $date->patient->phase;
 
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->hasRole('user')) {
             $date->phase    = 3;
             $patient->phase = 3;
             $patient->save();
