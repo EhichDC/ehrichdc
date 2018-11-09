@@ -24,6 +24,9 @@ export default {
                 is_queued: 0
             },
             // whoami: false,
+
+            //scroll
+            scrolling: false
         };
     },
 
@@ -38,6 +41,7 @@ export default {
     ready()
     {
         this.fetch();
+        window.scrollTo(0, 1000);
     },
 
     methods: {
@@ -142,5 +146,19 @@ export default {
                     this.listWithoutWaiting = _.orderBy(response.data, 'order', 'asc');
                 });
         },
+
+        handleTaskMove (/**Event*/evt, /**Event*/originalEvent) {
+            if(evt.relatedRect.top < 100) {
+              let self = this;
+              if(!this.scrolling) {
+                var container = $(".content");
+                $(".content").animate({ scrollTop:  $(".content").scrollTop()-200}, 1000, function () {
+                  self.scrolling = true
+                }).promise().done(function () {
+                  self.scrolling = false
+                });
+              }
+            }
+      	},
     },
 };

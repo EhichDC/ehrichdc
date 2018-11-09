@@ -14,6 +14,9 @@ export default {
             editLink: {},
             demoData: {},
             linksList: [],
+
+            //link dragging
+            scrolling: false
         };
     },
 
@@ -90,6 +93,20 @@ export default {
                     this.linksList = _.orderBy(response.data, 'order', 'asc');
                 });
         },
+
+        handleLinkMove (/**Event*/evt, /**Event*/originalEvent) {
+            if(evt.relatedRect.top < 100) {
+              let self = this;
+              if(!this.scrolling) {
+                var container = $(".content");
+                $(".content").animate({ scrollTop:  $(".content").scrollTop()-200}, 1000, function () {
+                  self.scrolling = true
+                }).promise().done(function () {
+                  self.scrolling = false
+                });
+              }
+            }
+      	},
     },
 
     computed: {
