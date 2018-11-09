@@ -40,6 +40,7 @@ export default {
                 title: '',
             },
             editTaskForm: false,
+            scrolling: false,
             showresults: false,
             showMap: true,
             map: null,
@@ -730,6 +731,20 @@ export default {
                     this.contact.tasks = response.data;
                 });
         },
+
+        handleTaskMove (/**Event*/evt, /**Event*/originalEvent) {
+            if(evt.relatedRect.top < 100) {
+              let self = this;
+              if(!this.scrolling) {
+                var container = $(".content");
+                $(".content").animate({ scrollTop:  $(".content").scrollTop()-200}, 1000, function () {
+                  self.scrolling = true
+                }).promise().done(function () {
+                  self.scrolling = false
+                });
+              }
+            }
+      	},
 
         filters: {
             linebreaks: function(data) {

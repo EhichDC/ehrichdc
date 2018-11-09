@@ -352,7 +352,7 @@
                             </form>
                             <hr>
                             <ul class="list-group" v-if="sortedTasks.length"
-                                v-sortable="{handle: '.handle', onUpdate: sortTasks}">
+                                v-sortable="{handle: '.handle', onUpdate: sortTasks, onMove: handleTaskMove}">
                                 <li class="list-group-item" v-for="task in sortedTasks" :key="task.id">
                                     <input type="checkbox" :checked="task.completed_at" @change="toggleComplete(task)"
                                            style="width: 5% !important">
@@ -696,74 +696,3 @@
         </div>
     </div>
 </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

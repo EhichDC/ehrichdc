@@ -38,9 +38,12 @@ class TodoController extends Controller
 
         $contact_id = $request->contact_id;
 
-        $latestTodo = Todo::where('contact_id', $contact_id)->orderBy('order', 'desc')->first();
-
-        $order = ($latestTodo && $latestTodo->order) ? $latestTodo->order : 1;
+        $todos = Todo::where('contact_id', $contact_id)->orderBy('order', 'desc')->get();
+        foreach ($todos as $todo) {
+          $todo->order = $todo->order+1;
+          $todo->save();
+        }
+        $order = 1;
 
         $todo = Todo::create([
             'title' => $request->title,

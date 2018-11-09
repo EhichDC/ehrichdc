@@ -27,7 +27,7 @@
     </div>
     <div class="row">
         <div class="col-md-12">
-            <ul class="list-group" v-if="linksList.length" v-sortable="{handle: '.handle', onUpdate: sortLinks}">
+            <ul class="list-group" v-if="linksList.length" v-sortable="{handle: '.handle', onUpdate: sortLinks, onMove: handleLinkMove}">
                 <li class="list-group-item" v-for="link in linksList" :key="link.id">
                     {{ link.title }} - <a :href="link.url" target="_blank">{{ link.url }}</a>
                     <div class="pull-right">

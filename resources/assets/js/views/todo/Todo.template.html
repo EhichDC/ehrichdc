@@ -18,7 +18,7 @@
                             </div>
                         </form>
                         <hr>
-                        <ul class="list-group" v-if="listWithWaiting.length" v-sortable="{handle: '.handle', onUpdate: sortWithWaitingTasks}">
+                        <ul class="list-group" v-if="listWithWaiting.length" v-sortable="{handle: '.handle', onUpdate: sortWithWaitingTasks, onMove: handleTaskMove}">
                             <li class="list-group-item" v-for="todo in listWithWaiting" :key="todo.id">
                                 {{ todo.title }}
                                 <div class="pull-right">
@@ -47,7 +47,7 @@
                             </div>
                         </form>
                         <hr>
-                        <ul class="list-group" v-if="listWithoutWaiting.length" v-sortable="{handle: '.handle', onUpdate: sortWithoutWaitingTasks}">
+                        <ul class="list-group" v-if="listWithoutWaiting.length" v-sortable="{handle: '.handle', onUpdate: sortWithoutWaitingTasks, onMove: handleTaskMove}">
                             <li class="list-group-item" v-for="todo in listWithoutWaiting" :key="todo.id">
                                 {{ todo.title }}
                                 <div class="pull-right">
