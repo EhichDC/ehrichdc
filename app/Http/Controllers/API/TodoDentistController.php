@@ -12,7 +12,7 @@ class TodoDentistController extends Controller
 {
     public function index()
     {
-        return TodoDentist::latest()->orderBy('created_at', 'desc')->get();
+        return TodoDentist::latest()->orderBy('order')->get();
     }
 
     public function getTodoForContact($dentistId)
@@ -35,9 +35,13 @@ class TodoDentistController extends Controller
 
         $contact_id = $request->contact_id;
 
-        $latestTodo = TodoDentist::where('contact_id', $contact_id)->orderBy('order', 'desc')->first();
+        $todos = TodoDentist::where('contact_id', $contact_id)->orderBy('order', 'desc')->get();
 
-        $order = ($latestTodo && $latestTodo->order) ? $latestTodo->order : 1;
+        foreach ($todos as $todo) {
+          $todo->order = $todo->order+1;
+          $todo->save();
+        }
+        $order = 1;
 
         return TodoDentist::create([
             'title' => $request->title,

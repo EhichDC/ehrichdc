@@ -401,6 +401,7 @@ class PublicPageController extends Controller
 
         if ($request->ajax()) {
             $p = $request->input('contact');
+            $salutation = isset($p['salutation']) ? $p['salutation'] : "";
 
             $dentist            = new \App\DentistContact();
             $dentist->token     = Uuid::generate(4);
@@ -416,7 +417,7 @@ class PublicPageController extends Controller
 //            $meta->city       = $p['city'];
             $meta->name       = $p['name'];
             $meta->email      = $p['email'];
-            $meta->salutation = $p['salutation'];
+            $meta->salutation = $salutation;
             $meta->tel        = phone_format($p['phone'], $country_code);
             $meta->ref        = 'Direkteingabe';
             $meta->orig_ref   = 'Direkteingabe';
