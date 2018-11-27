@@ -548,7 +548,7 @@ class ContactController extends Controller
 
             return ['PatiendUsed deleted'];
         }
-        if ($usedPatient == '' && $request->input('user_id') != '') {
+        if ($usedPatient == '' && $request->input('user_id') != '' && $request->input('patient_id') != '') {
             $usedPatient = PatientsUsed::create(['patient_id' => $request->input('patient_id'), 'user_id' => $request->input('user_id')]);
 
             return $usedPatient;

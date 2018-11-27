@@ -580,7 +580,13 @@ class PublicPageController extends Controller
 
     public function videos($lang = 'de')
     {
-        return view('pages.videos', compact('lang'));
+      $setting = new Setting($lang);
+
+      $data = [
+          'lang'               => $lang,
+          'formData'           => $setting->getFormData(),
+      ];
+      return view('pages.videos', $data);
     }
 
     public function impressum()
