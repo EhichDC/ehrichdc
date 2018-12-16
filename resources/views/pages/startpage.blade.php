@@ -313,7 +313,7 @@
                                         </div>
                                     </div>
                                     <div style="margin-top: 36px;">
-                                      <h3 style="text-align: left;"><span style="color: #00aff5;">Wie Sie jetzt am besten vorgehen:</span></h3>
+                                      <h3 style="text-align: center;"><span style="color: #00aff5;">Wie Sie jetzt am besten vorgehen:</span></h3>
                                       <div class="steps" style="text-align: left; margin-top: 12px; padding: 12px;">
                                         <p style="text-align: left;"><img class="check" src="/images/check-solid.svg" width="30" /> <strong>Schritt 1:</strong> Füllen Sie das <strong>Formular</strong> aus und bestätigen Sie die Mail, die Sie kurz darauf von uns bekommen.<br>
                                         </p>
@@ -357,6 +357,9 @@
                             </div>
 
                             <div class="row">
+                              <div class="medium-5 columns" style="float: right;">
+                                @include('common.patient-form', ['lang' => $lang,'formName' => 'form2', 'formData'=> $formData])
+                              </div>
                                 <div class="medium-7 columns">
                                     <div class="padento-box">
                                         <div class="padento-box-head">
@@ -385,9 +388,6 @@
 
                                         </div>
                                     </div-->
-                                </div>
-                                <div class="medium-5 columns">
-                                    @include('common.patient-form', ['lang' => $lang,'formName' => 'form2', 'formData'=> $formData])
                                 </div>
                             </div>
                         </section>
