@@ -8,7 +8,7 @@
           value="Deutschlandweit haben sich knapp 100 ausgewählte Dentallabore der Idee von Padento angeschlossen, Menschen in ihrem Dentallabor vor Ort zahntechnisch zu beraten. ">
     <link rel="alternate" hreflang="de" href="{{url('/')}}"/>
     <link rel="alternate" hreflang="de-AT" href="{{url('/at')}}"/>
-    <link rel="stylesheet" href="{{ URL::asset('assets/css/style.css') }}">
+    <link rel="stylesheet" href="{{ URL::asset('assets/css/style.css?v=1.0') }}">
     @if (app()->environment() == 'local')
         <META NAME="ROBOTS" CONTENT="NOINDEX, NOFOLLOW">
     @endif
