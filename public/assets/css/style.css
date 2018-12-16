@@ -61,7 +61,9 @@ section {
      */
 h1 {
   font-size: 2em;
-  margin: 0.67em 0; }
+  margin: 0.67em 0;
+  color:
+ }
 
 /* Grouping content
        ========================================================================== */
@@ -3998,7 +4000,7 @@ h1, h2 {
     color: #00aff5; }
 
 h3 {
-  color: #55aa32; }
+  color: #00aff5; }
 
 h4 {
   color: #00aff5; }
@@ -4206,5 +4208,19 @@ section.videos {
       margin: 0; }
   section.videos .box1 {
     margin-bottom: 30px; }
+
+.steps > p {
+  padding: 6px;
+}
+
+.steps > p > svg {
+  width: 30px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.steps > p > svg path {
+  fill: #00aff5;
+}
 
 /*# sourceMappingURL=style.css.map */
