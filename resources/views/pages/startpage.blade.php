@@ -18,108 +18,10 @@
                         <div class="row">
                             <div class="small-12 columns">
                                 <h1>{!! $heading !!}</h1>
-                                <p class="centered welcome lead">{!! $welcomeParagraph !!}</p>
                             </div>
                         </div>
                     </header>
                     <div class="entry-content">
-                        <section>
-                            <div class="row">
-                                <div class="small-12 columns">
-
-                                    {!! $findBestDentures !!}
-
-                                    {{-- <h2>Finden Sie Ihren besten Zahnersatz:</h2> --}}
-
-                                    {{--<h3>Fragen, die immer wieder auftauchen:</h3>
-                                    <ul>
-                                        <li>Zeigt der Zahnarzt mir überhaupt <strong>alle Möglichkeiten</strong> und vor allem die für mich besten?</li>
-                                        <li>Erhalte ich einen <strong>fairen Preis</strong>?</li>
-                                        <li>Wird mein neuer Zahnersatz auch<strong> in einem deutschen Meisterlabor</strong> hergestellt?</li>
-                                        <li>Wo bekomme ich eigentlich eine <strong>zweite, unabhängige Meinung?</strong></li>
-                                    </ul>
-
-                                    <h3>Mit Selbstbewusstsein Lachen, Sprechen und Essen:</h3>
-
-                                    <ol>
-                                        <li>Wir sind der Überzeugung, dass Zahnersatz <strong>nur in Begleitung des Zahntechnikers</strong> richtig gut werden kann.</li>
-                                        <li>Unsere Partner sind ausgewählte Dentallabore und Zahnärzte aus</strong> <strong>ganz</strong> Deutschland.</strong></li>
-                                        <li>Wir sind <strong>kein</strong> Billiganbieter und dennoch gibt es <strong>immer eine Lösung</strong>.</li>
-                                        <li>Mit der Unterstützung des Zahntechnikermeisters bekommen Sie Infos vom <strong>Hersteller.</strong> Er ist der <strong>Profi für Zahnersatz.</strong></li>
-                                        <li>Obwohl die <strong>Beratung sehr wertvoll</strong> für den Patienten ist, bieten wir diese <strong>kostenlos</strong> an.<br>
-                                        </li>
-                                    </ol>--}}
-                                </div>
-                            </div>
-                        </section>
-                        <section class="section cta-row">
-                            <div class="row">
-                                <div class="medium-7 columns">
-                                    <div class="padento-box">
-                                        <div class="padento-box-head">
-
-                                            <p>
-                                                Mit Padento an Ihrer Seite finden Sie den <strong class="green">Zahnersatz</strong>,
-                                                der wirklich zu Ihnen passt.
-                                                Lassen Sie sich ab sofort aus <strong class="green">zwei
-                                                    Perspektiven</strong> beraten. Vom Zahnarzt <strong class="green">und</strong>
-                                                vom
-                                                Zahntechniker.
-                                            </p>
-
-                                        </div>
-                                        <div class="padento-box-content">
-                                            <div class="flex-video widescreen">
-                                                <iframe src="//fast.wistia.net/embed/iframe/{{ $startPageVideoCode }}?videoFoam=true"
-                                                        allowtransparency="true" frameborder="0" scrolling="no"
-                                                        class="wistia_embed" name="wistia_embed" allowfullscreen
-                                                        mozallowfullscreen webkitallowfullscreen oallowfullscreen
-                                                        msallowfullscreen width="720" height="405"></iframe>
-                                                <script src="//fast.wistia.net/assets/external/iframe-api-v1.js"></script>
-                                            </div>
-
-                                            <!--
-                                            <div class="box-wrap" style="margin-bottom: 15px;">
-                                                <h3 style="text-align: center; padding-bottom: 5px;">Padento ist ein
-                                                    Familienunternehmen</h3>
-                                                <p style="text-align: center;"><img
-                                                            src="https://padento.de/wissen/c/uploads/2016/11/IMG_0080.jpg"
-                                                            width="90%"/>
-                                            </div>
-
-                                            -->
-
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="medium-5 columns">
-                                    @include('common.patient-form', ['lang' => $lang, 'formName' => 'form1', 'formData'=> $formData])
-                                </div>
-                            </div>
-                        </section>
-
-
-                        @if($sequence)
-                            <section class="section">
-                                <div class="row">
-                                    <div class="small-12 large-8 large-centered columns">
-                                        {!! $sequence !!}
-                                        {{-- <h2 class="centered">Der Ablauf:</h2> --}}
-
-                                        {{--<ol>
-                                            <li>Füllen Sie das <strong>Formular</strong> aus und tragen Sie Ihre Daten dort ein.</li>
-                                            <li>Sie werden von uns telefonisch kontaktiert, um einen <strong>Termin</strong> zu machen.</li>
-                                            <li>Sie gehen <strong>zusammen mit dem Zahntechniker zu einem ausgewählten Zahnarzt</strong>, von dem sich auch der Zahntechniker behandeln lassen würde.</li>
-                                            <li>Ein ausgewählter Zahnarzt ist nicht teurer als andere Zahnärzte. <strong>Er ist einfach nur sehr gut</strong>.</li>
-                                            <li>Sie bekommen zusätzlich eine <strong>zweite Meinung vom Zahnarzt</strong>, die bei den vielen Möglichkeiten heutzutage absolut wichtig ist.</li>
-                                            <li>Der Zahntechniker lernt Sie als <strong>Mensch</strong> persönlich kennen und sieht nicht nur das Gips-Modell.</li>
-                                            <li>Dadurch werden Ihre neuen Zähne <strong>viel besser zu Ihnen passen</strong>.</li>
-                                            <li>Bei <strong>Angstpatienten</strong> werden spezielle Zahnärzte ausgesucht, die sich damit auskennen.</li>
-                                        </ol>--}}
-                                    </div>
-                                </div>
-                            </section>
-                    @endif
 
 
                     <!--section class="videos section">
