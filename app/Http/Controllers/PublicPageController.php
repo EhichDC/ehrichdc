@@ -24,6 +24,7 @@ use Excel;
 use App\PatientMeta;
 use App\Patient;
 use App\Todo;
+use App\Settings;
 
 class PublicPageController extends Controller
 {
