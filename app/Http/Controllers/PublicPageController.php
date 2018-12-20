@@ -175,6 +175,16 @@ class PublicPageController extends Controller
         ];
     }
 
+    public function addWelcomeVideoSetting ()
+    {
+      if(!Settings::where('name', 'introduction vimeo welcome video')->exists()) {
+          Settings::firstOrCreate([
+              'name' => 'introduction vimeo welcome video',
+              'value' => "https://player.vimeo.com/video/302066309?color=00aff5&title=0&byline=0&portrait=0",
+          ]);
+      }
+    }
+
     public function startpage($lang = 'de')
     {
         $setting = new Setting($lang);

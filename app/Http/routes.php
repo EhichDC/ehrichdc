@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Auth;
 
 /** TEST CSV */
 Route::get('test', 'PublicPageController@test');
+Route::get('addWelcomeVideoSetting', 'PublicPageController@addWelcomeVideoSetting');
 
 Route::get('migrate/images', 'MigrationController@images');
 
