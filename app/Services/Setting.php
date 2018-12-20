@@ -42,6 +42,16 @@ class Setting
     }
 
     /**
+     * Get welcome video
+     *
+     * @return string|null
+     */
+    public function getWelcomeVideo()
+    {
+        return $this->getSettingValue('introduction vimeo welcome video');
+    }
+
+    /**
      * Get start page heading
      *
      * @return string|null
@@ -113,4 +123,3 @@ class Setting
     }
 
 }
-

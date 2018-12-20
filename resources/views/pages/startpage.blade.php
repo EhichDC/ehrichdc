@@ -21,8 +21,23 @@
                             </div>
                         </div>
                     </header>
+                    <div class="medium-7 columns text-center" style="width: 100%">
+                      <div class="padento-box-content">
+                        <div class="flex-video widescreen">
+                          <iframe src="{!! $welcomeVideo !!}" width="604" height="405" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
+                        </div>
+                      </div>
+                    </div>
                     <div class="entry-content">
+                          <!--div class="padento-box">
+                              <div class="padento-box-head">
+                                  <p>Zahnersatz ist oft eine unvorhergesehene, finanzielle Belastung. <strong>Sie wissen nicht wie Sie Ihren Zahnersatz finanzieren sollen?</strong> Wir bieten Ihnen die Lösung:</p>
+                              </div>
+                              <div class="padento-box-content">
 
+                              </div>
+                          </div-->
+                      </div>
 
                     <!--section class="videos section">
 						<div class="row">

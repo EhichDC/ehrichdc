@@ -181,6 +181,7 @@ class PublicPageController extends Controller
 
         $data = [
             'lang'               => $lang,
+            'welcomeVideo'       => $setting->getWelcomeVideo(),
             'heading'            => $setting->getStartPageHeading(),
             'welcomeParagraph'   => $setting->getStartPageParagraph(),
             'findBestDentures'   => $setting->getFindBestDentures(),
