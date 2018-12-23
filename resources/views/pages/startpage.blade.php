@@ -327,28 +327,6 @@
                                             @endif
                                         </div>
                                     </div>
-                                    <div style="margin-top: 36px;">
-                                      <h3 style="text-align: center;"><span style="color: #00aff5;">Wie Sie jetzt am besten vorgehen:</span></h3>
-                                      <div class="steps" style="text-align: left; margin-top: 12px; padding: 12px;">
-                                        <p style="text-align: left;"><img class="check" src="/images/check-solid.svg" width="30" /> <strong>Schritt 1:</strong> Füllen Sie das <strong>Formular</strong> aus und bestätigen Sie die Mail, die Sie kurz darauf von uns bekommen.<br>
-                                        </p>
-                                          <p>
-                                            <img class="check" src="/images/check-solid.svg" width="30" /> <strong>Schritt 2:</strong> Wir rufen Sie an wegen eines <strong>Termins bei einem Zahntechniker</strong> in einem Dentallabor vor Ort.<br>
-                                          </p>
-                                          <p>
-                                            <img class="check" src="/images/check-solid.svg" width="30" /> <strong>Schritt 3:</strong> Im Dentallabor können Sie <strong>Zahnersatz wirklich "begreifen"</strong> - im wahrsten Sinne des Wortes.<br>
-                                          </p>
-                                          <p>
-                                            <img class="check" src="/images/check-solid.svg" width="30" /> <strong>Schritt 4:</strong> Sie bekommen eine <strong>zweite Meinung</strong> von einem sehr guten Zahnarzt.<br>
-                                          </p>
-                                          <p>
-                                            <img class="check" src="/images/check-solid.svg" width="30" /> <strong>Schritt 5:</strong> Sie <strong>wählen Ihren neuen Zahnersat</strong>z zusammen mit dem Zahntechniker und Zahnarzt aus.<br>
-                                          </p>
-                                          <p class="" style="text-align: left;">
-                                            <img class="check" src="/images/check-solid.svg" width="30" /> <strong>Schritt 6:</strong> Sie bestimmen nun Ihre <strong>Raten und Ihre Laufzeit der Finanzierung</strong>.
-                                          </p>
-                                      </div>
-                                    </div>
                                 </div>
                             </div>
                         </section>
