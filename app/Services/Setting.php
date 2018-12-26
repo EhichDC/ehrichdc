@@ -22,7 +22,10 @@ class Setting
     private function getSetting($name)
     {
         if ($this->lang != 'de') {
-            $name = $name . ' ' . strtoupper($this->lang);
+            $name_at = $name . ' ' . strtoupper($this->lang);
+            if (Settings::where('name', $name_at)->first()) {
+              $name = $name_at;
+            }
         }
 
         return Settings::where('name', $name)->first();
