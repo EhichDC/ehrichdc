@@ -55,6 +55,16 @@ class Setting
     }
 
     /**
+     * Get form video
+     *
+     * @return string|null
+     */
+    public function getFormVideo()
+    {
+        return $this->getSettingValue('Padento Formular Video');
+    }
+
+    /**
      * Get start page heading
      *
      * @return string|null

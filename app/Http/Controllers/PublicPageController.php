@@ -185,6 +185,16 @@ class PublicPageController extends Controller
       }
     }
 
+    public function addFormVideoSetting ()
+    {
+      if(! \App\Settings::where('name', 'Padento Formular Video')->exists()) {
+          \App\Settings::firstOrCreate([
+              'name' => 'Padento Formular Video',
+              'value' => "//fast.wistia.net/embed/iframe/k41j7v41lk?videoFoam=true",
+          ]);
+      }
+    }
+
     public function startpage($lang = 'de')
     {
         $setting = new Setting($lang);
@@ -192,6 +202,7 @@ class PublicPageController extends Controller
         $data = [
             'lang'               => $lang,
             'welcomeVideo'       => $setting->getWelcomeVideo(),
+            'formVideo'          => $setting->getFormVideo(),
             'heading'            => $setting->getStartPageHeading(),
             'welcomeParagraph'   => $setting->getStartPageParagraph(),
             'findBestDentures'   => $setting->getFindBestDentures(),
