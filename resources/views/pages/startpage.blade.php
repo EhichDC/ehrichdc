@@ -364,7 +364,7 @@
                                         </div>
                                         <div class="padento-box-content">
                                             <div class="flex-video widescreen">
-                                                <iframe src="//fast.wistia.net/embed/iframe/k41j7v41lk?videoFoam=true"
+                                                <iframe src="{!! $formVideo !!}"
                                                         allowtransparency="true" frameborder="0" scrolling="no"
                                                         class="wistia_embed" name="wistia_embed" allowfullscreen
                                                         mozallowfullscreen webkitallowfullscreen oallowfullscreen
