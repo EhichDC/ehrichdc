@@ -13,14 +13,13 @@ Chart.defaults = require('./core/core.defaults');
 Chart.Element = require('./core/core.element');
 Chart.elements = require('./elements/index');
 Chart.Interaction = require('./core/core.interaction');
-Chart.layouts = require('./core/core.layouts');
 Chart.platform = require('./platforms/platform');
-Chart.plugins = require('./core/core.plugins');
-Chart.Ticks = require('./core/core.ticks');
 
+require('./core/core.plugin')(Chart);
 require('./core/core.animation')(Chart);
 require('./core/core.controller')(Chart);
 require('./core/core.datasetController')(Chart);
+require('./core/core.layoutService')(Chart);
 require('./core/core.scaleService')(Chart);
 require('./core/core.scale')(Chart);
 require('./core/core.tooltip')(Chart);
@@ -51,12 +50,15 @@ require('./charts/Chart.Radar')(Chart);
 require('./charts/Chart.Scatter')(Chart);
 
 // Loading built-it plugins
-var plugins = require('./plugins');
-for (var k in plugins) {
-	if (plugins.hasOwnProperty(k)) {
-		Chart.plugins.register(plugins[k]);
-	}
-}
+var plugins = [];
+
+plugins.push(
+	require('./plugins/plugin.filler')(Chart),
+	require('./plugins/plugin.legend')(Chart),
+	require('./plugins/plugin.title')(Chart)
+);
+
+Chart.plugins.register(plugins);
 
 Chart.platform.initialize();
 
@@ -68,43 +70,6 @@ if (typeof window !== 'undefined') {
 // DEPRECATIONS
 
 /**
- * Provided for backward compatibility, not available anymore
- * @namespace Chart.Legend
- * @deprecated since version 2.1.5
- * @todo remove at version 3
- * @private
- */
-Chart.Legend = plugins.legend._element;
-
-/**
- * Provided for backward compatibility, not available anymore
- * @namespace Chart.Title
- * @deprecated since version 2.1.5
- * @todo remove at version 3
- * @private
- */
-Chart.Title = plugins.title._element;
-
-/**
- * Provided for backward compatibility, use Chart.plugins instead
- * @namespace Chart.pluginService
- * @deprecated since version 2.1.5
- * @todo remove at version 3
- * @private
- */
-Chart.pluginService = Chart.plugins;
-
-/**
- * Provided for backward compatibility, inheriting from Chart.PlugingBase has no
- * effect, instead simply create/register plugins via plain JavaScript objects.
- * @interface Chart.PluginBase
- * @deprecated since version 2.5.0
- * @todo remove at version 3
- * @private
- */
-Chart.PluginBase = Chart.Element.extend({});
-
-/**
  * Provided for backward compatibility, use Chart.helpers.canvas instead.
  * @namespace Chart.canvasHelpers
  * @deprecated since version 2.6.0
@@ -113,16 +78,7 @@ Chart.PluginBase = Chart.Element.extend({});
  */
 Chart.canvasHelpers = Chart.helpers.canvas;
 
-/**
- * Provided for backward compatibility, use Chart.layouts instead.
- * @namespace Chart.layoutService
- * @deprecated since version 2.8.0
- * @todo remove at version 3
- * @private
- */
-Chart.layoutService = Chart.layouts;
-
-},{"./charts/Chart.Bar":2,"./charts/Chart.Bubble":3,"./charts/Chart.Doughnut":4,"./charts/Chart.Line":5,"./charts/Chart.PolarArea":6,"./charts/Chart.Radar":7,"./charts/Chart.Scatter":8,"./controllers/controller.bar":9,"./controllers/controller.bubble":10,"./controllers/controller.doughnut":11,"./controllers/controller.line":12,"./controllers/controller.polarArea":13,"./controllers/controller.radar":14,"./controllers/controller.scatter":15,"./core/core":23,"./core/core.animation":16,"./core/core.controller":17,"./core/core.datasetController":18,"./core/core.defaults":19,"./core/core.element":20,"./core/core.helpers":21,"./core/core.interaction":22,"./core/core.layouts":24,"./core/core.plugins":25,"./core/core.scale":26,"./core/core.scaleService":27,"./core/core.ticks":28,"./core/core.tooltip":29,"./elements/index":34,"./helpers/index":39,"./platforms/platform":42,"./plugins":43,"./scales/scale.category":47,"./scales/scale.linear":48,"./scales/scale.linearbase":49,"./scales/scale.logarithmic":50,"./scales/scale.radialLinear":51,"./scales/scale.time":52}],2:[function(require,module,exports){
+},{"./charts/Chart.Bar":2,"./charts/Chart.Bubble":3,"./charts/Chart.Doughnut":4,"./charts/Chart.Line":5,"./charts/Chart.PolarArea":6,"./charts/Chart.Radar":7,"./charts/Chart.Scatter":8,"./controllers/controller.bar":9,"./controllers/controller.bubble":10,"./controllers/controller.doughnut":11,"./controllers/controller.line":12,"./controllers/controller.polarArea":13,"./controllers/controller.radar":14,"./controllers/controller.scatter":15,"./core/core":23,"./core/core.animation":16,"./core/core.controller":17,"./core/core.datasetController":18,"./core/core.defaults":19,"./core/core.element":20,"./core/core.helpers":21,"./core/core.interaction":22,"./core/core.layoutService":24,"./core/core.plugin":25,"./core/core.scale":26,"./core/core.scaleService":27,"./core/core.tooltip":29,"./elements/index":34,"./helpers/index":39,"./platforms/platform":42,"./plugins/plugin.filler":43,"./plugins/plugin.legend":44,"./plugins/plugin.title":45,"./scales/scale.category":46,"./scales/scale.linear":47,"./scales/scale.linearbase":48,"./scales/scale.logarithmic":49,"./scales/scale.radialLinear":50,"./scales/scale.time":51}],2:[function(require,module,exports){
 'use strict';
 
 module.exports = function(Chart) {
@@ -307,93 +263,6 @@ defaults._set('horizontalBar', {
 	}
 });
 
-/**
- * Computes the "optimal" sample size to maintain bars equally sized while preventing overlap.
- * @private
- */
-function computeMinSampleSize(scale, pixels) {
-	var min = scale.isHorizontal() ? scale.width : scale.height;
-	var ticks = scale.getTicks();
-	var prev, curr, i, ilen;
-
-	for (i = 1, ilen = pixels.length; i < ilen; ++i) {
-		min = Math.min(min, pixels[i] - pixels[i - 1]);
-	}
-
-	for (i = 0, ilen = ticks.length; i < ilen; ++i) {
-		curr = scale.getPixelForTick(i);
-		min = i > 0 ? Math.min(min, curr - prev) : min;
-		prev = curr;
-	}
-
-	return min;
-}
-
-/**
- * Computes an "ideal" category based on the absolute bar thickness or, if undefined or null,
- * uses the smallest interval (see computeMinSampleSize) that prevents bar overlapping. This
- * mode currently always generates bars equally sized (until we introduce scriptable options?).
- * @private
- */
-function computeFitCategoryTraits(index, ruler, options) {
-	var thickness = options.barThickness;
-	var count = ruler.stackCount;
-	var curr = ruler.pixels[index];
-	var size, ratio;
-
-	if (helpers.isNullOrUndef(thickness)) {
-		size = ruler.min * options.categoryPercentage;
-		ratio = options.barPercentage;
-	} else {
-		// When bar thickness is enforced, category and bar percentages are ignored.
-		// Note(SB): we could add support for relative bar thickness (e.g. barThickness: '50%')
-		// and deprecate barPercentage since this value is ignored when thickness is absolute.
-		size = thickness * count;
-		ratio = 1;
-	}
-
-	return {
-		chunk: size / count,
-		ratio: ratio,
-		start: curr - (size / 2)
-	};
-}
-
-/**
- * Computes an "optimal" category that globally arranges bars side by side (no gap when
- * percentage options are 1), based on the previous and following categories. This mode
- * generates bars with different widths when data are not evenly spaced.
- * @private
- */
-function computeFlexCategoryTraits(index, ruler, options) {
-	var pixels = ruler.pixels;
-	var curr = pixels[index];
-	var prev = index > 0 ? pixels[index - 1] : null;
-	var next = index < pixels.length - 1 ? pixels[index + 1] : null;
-	var percent = options.categoryPercentage;
-	var start, size;
-
-	if (prev === null) {
-		// first data: its size is double based on the next point or,
-		// if it's also the last data, we use the scale end extremity.
-		prev = curr - (next === null ? ruler.end - curr : next - curr);
-	}
-
-	if (next === null) {
-		// last data: its size is also double based on the previous point.
-		next = curr + curr - prev;
-	}
-
-	start = curr - ((curr - prev) / 2) * percent;
-	size = ((next - prev) / 2) * percent;
-
-	return {
-		chunk: size / ruler.stackCount,
-		ratio: options.barPercentage,
-		start: start
-	};
-}
-
 module.exports = function(Chart) {
 
 	Chart.controllers.bar = Chart.DatasetController.extend({
@@ -500,12 +369,10 @@ module.exports = function(Chart) {
 		},
 
 		/**
-		 * Returns the stacks based on groups and bar visibility.
-		 * @param {Number} [last] - The dataset index
-		 * @returns {Array} The stack list
+		 * Returns the effective number of stacks based on groups and bar visibility.
 		 * @private
 		 */
-		_getStacks: function(last) {
+		getStackCount: function(last) {
 			var me = this;
 			var chart = me.chart;
 			var scale = me.getIndexScale();
@@ -524,33 +391,15 @@ module.exports = function(Chart) {
 				}
 			}
 
-			return stacks;
-		},
-
-		/**
-		 * Returns the effective number of stacks based on groups and bar visibility.
-		 * @private
-		 */
-		getStackCount: function() {
-			return this._getStacks().length;
+			return stacks.length;
 		},
 
 		/**
 		 * Returns the stack index for the given dataset based on groups and bar visibility.
-		 * @param {Number} [datasetIndex] - The dataset index
-		 * @param {String} [name] - The stack name to find
-		 * @returns {Number} The stack index
 		 * @private
 		 */
-		getStackIndex: function(datasetIndex, name) {
-			var stacks = this._getStacks(datasetIndex);
-			var index = (name !== undefined)
-				? stacks.indexOf(name)
-				: -1; // indexOf returns -1 if element is not present
-
-			return (index === -1)
-				? stacks.length - 1
-				: index;
+		getStackIndex: function(datasetIndex) {
+			return this.getStackCount(datasetIndex) - 1;
 		},
 
 		/**
@@ -561,22 +410,17 @@ module.exports = function(Chart) {
 			var scale = me.getIndexScale();
 			var stackCount = me.getStackCount();
 			var datasetIndex = me.index;
+			var pixels = [];
 			var isHorizontal = scale.isHorizontal();
 			var start = isHorizontal ? scale.left : scale.top;
 			var end = start + (isHorizontal ? scale.width : scale.height);
-			var pixels = [];
-			var i, ilen, min;
+			var i, ilen;
 
 			for (i = 0, ilen = me.getMeta().data.length; i < ilen; ++i) {
 				pixels.push(scale.getPixelForValue(null, i, datasetIndex));
 			}
 
-			min = helpers.isNullOrUndef(scale.options.barThickness)
-				? computeMinSampleSize(scale, pixels)
-				: -1;
-
 			return {
-				min: min,
 				pixels: pixels,
 				start: start,
 				end: end,
@@ -636,21 +480,50 @@ module.exports = function(Chart) {
 		calculateBarIndexPixels: function(datasetIndex, index, ruler) {
 			var me = this;
 			var options = ruler.scale.options;
-			var range = options.barThickness === 'flex'
-				? computeFlexCategoryTraits(index, ruler, options)
-				: computeFitCategoryTraits(index, ruler, options);
+			var stackIndex = me.getStackIndex(datasetIndex);
+			var pixels = ruler.pixels;
+			var base = pixels[index];
+			var length = pixels.length;
+			var start = ruler.start;
+			var end = ruler.end;
+			var leftSampleSize, rightSampleSize, leftCategorySize, rightCategorySize, fullBarSize, size;
 
-			var stackIndex = me.getStackIndex(datasetIndex, me.getMeta().stack);
-			var center = range.start + (range.chunk * stackIndex) + (range.chunk / 2);
-			var size = Math.min(
-				helpers.valueOrDefault(options.maxBarThickness, Infinity),
-				range.chunk * range.ratio);
+			if (length === 1) {
+				leftSampleSize = base > start ? base - start : end - base;
+				rightSampleSize = base < end ? end - base : base - start;
+			} else {
+				if (index > 0) {
+					leftSampleSize = (base - pixels[index - 1]) / 2;
+					if (index === length - 1) {
+						rightSampleSize = leftSampleSize;
+					}
+				}
+				if (index < length - 1) {
+					rightSampleSize = (pixels[index + 1] - base) / 2;
+					if (index === 0) {
+						leftSampleSize = rightSampleSize;
+					}
+				}
+			}
+
+			leftCategorySize = leftSampleSize * options.categoryPercentage;
+			rightCategorySize = rightSampleSize * options.categoryPercentage;
+			fullBarSize = (leftCategorySize + rightCategorySize) / ruler.stackCount;
+			size = fullBarSize * options.barPercentage;
+
+			size = Math.min(
+				helpers.valueOrDefault(options.barThickness, size),
+				helpers.valueOrDefault(options.maxBarThickness, Infinity));
+
+			base -= leftCategorySize;
+			base += fullBarSize * stackIndex;
+			base += (fullBarSize - size) / 2;
 
 			return {
-				base: center - size / 2,
-				head: center + size / 2,
-				center: center,
-				size: size
+				size: size,
+				base: base,
+				head: base + size,
+				center: base + size / 2
 			};
 		},
 
@@ -1173,7 +1046,7 @@ module.exports = function(Chart) {
 		calculateCircumference: function(value) {
 			var total = this.getMeta().total;
 			if (total > 0 && !isNaN(value)) {
-				return (Math.PI * 2.0) * (Math.abs(value) / total);
+				return (Math.PI * 2.0) * (value / total);
 			}
 			return 0;
 		},
@@ -2151,11 +2024,10 @@ module.exports = function(Chart) {
 var defaults = require('./core.defaults');
 var helpers = require('../helpers/index');
 var Interaction = require('./core.interaction');
-var layouts = require('./core.layouts');
 var platform = require('../platforms/platform');
-var plugins = require('./core.plugins');
 
 module.exports = function(Chart) {
+	var plugins = Chart.plugins;
 
 	// Create a dictionary of chart types, to allow for extension of existing types
 	Chart.types = {};
@@ -2194,21 +2066,17 @@ module.exports = function(Chart) {
 	function updateConfig(chart) {
 		var newOptions = chart.options;
 
-		helpers.each(chart.scales, function(scale) {
-			layouts.removeBox(chart, scale);
-		});
+		// Update Scale(s) with options
+		if (newOptions.scale) {
+			chart.scale.options = newOptions.scale;
+		} else if (newOptions.scales) {
+			newOptions.scales.xAxes.concat(newOptions.scales.yAxes).forEach(function(scaleOptions) {
+				chart.scales[scaleOptions.id].options = scaleOptions;
+			});
+		}
 
-		newOptions = helpers.configMerge(
-			Chart.defaults.global,
-			Chart.defaults[chart.config.type],
-			newOptions);
-
-		chart.options = chart.config.options = newOptions;
-		chart.ensureScalesHaveIDs();
-		chart.buildOrUpdateScales();
 		// Tooltip
 		chart.tooltip._options = newOptions.tooltips;
-		chart.tooltip.initialize();
 	}
 
 	function positionIsHorizontal(position) {
@@ -2296,7 +2164,7 @@ module.exports = function(Chart) {
 
 			// Make sure scales have IDs and are built before we build any controllers.
 			me.ensureScalesHaveIDs();
-			me.buildOrUpdateScales();
+			me.buildScales();
 			me.initToolTip();
 
 			// After init plugin notification
@@ -2376,15 +2244,11 @@ module.exports = function(Chart) {
 		/**
 		 * Builds a map of scale ID to scale object for future lookup.
 		 */
-		buildOrUpdateScales: function() {
+		buildScales: function() {
 			var me = this;
 			var options = me.options;
-			var scales = me.scales || {};
+			var scales = me.scales = {};
 			var items = [];
-			var updated = Object.keys(scales).reduce(function(obj, id) {
-				obj[id] = false;
-				return obj;
-			}, {});
 
 			if (options.scales) {
 				items = items.concat(
@@ -2408,35 +2272,24 @@ module.exports = function(Chart) {
 
 			helpers.each(items, function(item) {
 				var scaleOptions = item.options;
-				var id = scaleOptions.id;
 				var scaleType = helpers.valueOrDefault(scaleOptions.type, item.dtype);
+				var scaleClass = Chart.scaleService.getScaleConstructor(scaleType);
+				if (!scaleClass) {
+					return;
+				}
 
 				if (positionIsHorizontal(scaleOptions.position) !== positionIsHorizontal(item.dposition)) {
 					scaleOptions.position = item.dposition;
 				}
 
-				updated[id] = true;
-				var scale = null;
-				if (id in scales && scales[id].type === scaleType) {
-					scale = scales[id];
-					scale.options = scaleOptions;
-					scale.ctx = me.ctx;
-					scale.chart = me;
-				} else {
-					var scaleClass = Chart.scaleService.getScaleConstructor(scaleType);
-					if (!scaleClass) {
-						return;
-					}
-					scale = new scaleClass({
-						id: id,
-						type: scaleType,
-						options: scaleOptions,
-						ctx: me.ctx,
-						chart: me
-					});
-					scales[scale.id] = scale;
-				}
+				var scale = new scaleClass({
+					id: scaleOptions.id,
+					options: scaleOptions,
+					ctx: me.ctx,
+					chart: me
+				});
 
+				scales[scale.id] = scale;
 				scale.mergeTicksOptions();
 
 				// TODO(SB): I think we should be able to remove this custom case (options.scale)
@@ -2446,14 +2299,6 @@ module.exports = function(Chart) {
 					me.scale = scale;
 				}
 			});
-			// clear up discarded scales
-			helpers.each(updated, function(hasUpdated, id) {
-				if (!hasUpdated) {
-					delete scales[id];
-				}
-			});
-
-			me.scales = scales;
 
 			Chart.scaleService.addScalesToLayout(this);
 		},
@@ -2477,7 +2322,6 @@ module.exports = function(Chart) {
 
 				if (meta.controller) {
 					meta.controller.updateIndex(datasetIndex);
-					meta.controller.linkScales();
 				} else {
 					var ControllerClass = Chart.controllers[meta.type];
 					if (ControllerClass === undefined) {
@@ -2524,10 +2368,6 @@ module.exports = function(Chart) {
 
 			updateConfig(me);
 
-			// plugins options references might have change, let's invalidate the cache
-			// https://github.com/chartjs/Chart.js/issues/5111#issuecomment-355934167
-			plugins._invalidate(me);
-
 			if (plugins.notify(me, 'beforeUpdate') === false) {
 				return;
 			}
@@ -2546,21 +2386,11 @@ module.exports = function(Chart) {
 			me.updateLayout();
 
 			// Can only reset the new controllers after the scales have been updated
-			if (me.options.animation && me.options.animation.duration) {
-				helpers.each(newControllers, function(controller) {
-					controller.reset();
-				});
-			}
+			helpers.each(newControllers, function(controller) {
+				controller.reset();
+			});
 
 			me.updateDatasets();
-
-			// Need to reset tooltip in case it is displayed with elements that are removed
-			// after update.
-			me.tooltip.initialize();
-
-			// Last active contains items that were previously in the tooltip.
-			// When we reset the tooltip, we need to clear it
-			me.lastActive = [];
 
 			// Do this before render so that any plugins that need final scale updates can use it
 			plugins.notify(me, 'afterUpdate');
@@ -2588,7 +2418,7 @@ module.exports = function(Chart) {
 				return;
 			}
 
-			layouts.update(this, this.width, this.height);
+			Chart.layoutService.update(this, this.width, this.height);
 
 			/**
 			 * Provided for backward compatibility, use `afterLayout` instead.
@@ -2719,7 +2549,9 @@ module.exports = function(Chart) {
 			}
 
 			me.drawDatasets(easingValue);
-			me._drawTooltip(easingValue);
+
+			// Finally draw the tooltip
+			me.tooltip.draw();
 
 			plugins.notify(me, 'afterDraw', [easingValue]);
 		},
@@ -2782,28 +2614,6 @@ module.exports = function(Chart) {
 			meta.controller.draw(easingValue);
 
 			plugins.notify(me, 'afterDatasetDraw', [args]);
-		},
-
-		/**
-		 * Draws tooltip unless a plugin returns `false` to the `beforeTooltipDraw`
-		 * hook, in which case, plugins will not be called on `afterTooltipDraw`.
-		 * @private
-		 */
-		_drawTooltip: function(easingValue) {
-			var me = this;
-			var tooltip = me.tooltip;
-			var args = {
-				tooltip: tooltip,
-				easingValue: easingValue
-			};
-
-			if (plugins.notify(me, 'beforeTooltipDraw', [args]) === false) {
-				return;
-			}
-
-			tooltip.draw();
-
-			plugins.notify(me, 'afterTooltipDraw', [args]);
 		},
 
 		// Get the single element that was clicked on
@@ -3002,15 +2812,7 @@ module.exports = function(Chart) {
 			me._bufferedRequest = null;
 
 			var changed = me.handleEvent(e);
-			// for smooth tooltip animations issue #4989
-			// the tooltip should be the source of change
-			// Animation check workaround:
-			// tooltip._start will be null when tooltip isn't animating
-			if (tooltip) {
-				changed = tooltip._start
-					? tooltip.handleEvent(e)
-					: changed | tooltip.handleEvent(e);
-			}
+			changed |= tooltip && tooltip.handleEvent(e);
 
 			plugins.notify(me, 'afterEvent', [e]);
 
@@ -3094,7 +2896,7 @@ module.exports = function(Chart) {
 	Chart.Controller = Chart;
 };
 
-},{"../helpers/index":39,"../platforms/platform":42,"./core.defaults":19,"./core.interaction":22,"./core.layouts":24,"./core.plugins":25}],18:[function(require,module,exports){
+},{"../helpers/index":39,"../platforms/platform":42,"./core.defaults":19,"./core.interaction":22}],18:[function(require,module,exports){
 'use strict';
 
 var helpers = require('../helpers/index');
@@ -3208,10 +3010,10 @@ module.exports = function(Chart) {
 			var meta = me.getMeta();
 			var dataset = me.getDataset();
 
-			if (meta.xAxisID === null || !(meta.xAxisID in me.chart.scales)) {
+			if (meta.xAxisID === null) {
 				meta.xAxisID = dataset.xAxisID || me.chart.options.scales.xAxes[0].id;
 			}
-			if (meta.yAxisID === null || !(meta.yAxisID in me.chart.scales)) {
+			if (meta.yAxisID === null) {
 				meta.yAxisID = dataset.yAxisID || me.chart.options.scales.yAxes[0].id;
 			}
 		},
@@ -3557,7 +3359,7 @@ Element.extend = helpers.inherits;
 
 module.exports = Element;
 
-},{"../helpers/index":39,"chartjs-color":54}],21:[function(require,module,exports){
+},{"../helpers/index":39,"chartjs-color":53}],21:[function(require,module,exports){
 /* global window: false */
 /* global document: false */
 'use strict';
@@ -3569,6 +3371,16 @@ var helpers = require('../helpers/index');
 module.exports = function(Chart) {
 
 	// -- Basic js utility methods
+
+	helpers.extend = function(base) {
+		var setFn = function(value, key) {
+			base[key] = value;
+		};
+		for (var i = 1, ilen = arguments.length; i < ilen; i++) {
+			helpers.each(arguments[i], setFn);
+		}
+		return base;
+	};
 
 	helpers.configMerge = function(/* objects ... */) {
 		return helpers.merge(helpers.clone(arguments[0]), [].slice.call(arguments, 1), {
@@ -3675,7 +3487,29 @@ module.exports = function(Chart) {
 			}
 		}
 	};
+	helpers.inherits = function(extensions) {
+		// Basic javascript inheritance based on the model created in Backbone.js
+		var me = this;
+		var ChartElement = (extensions && extensions.hasOwnProperty('constructor')) ? extensions.constructor : function() {
+			return me.apply(this, arguments);
+		};
 
+		var Surrogate = function() {
+			this.constructor = ChartElement;
+		};
+		Surrogate.prototype = me.prototype;
+		ChartElement.prototype = new Surrogate();
+
+		ChartElement.extend = helpers.inherits;
+
+		if (extensions) {
+			helpers.extend(ChartElement.prototype, extensions);
+		}
+
+		ChartElement.__super__ = me.prototype;
+
+		return ChartElement;
+	};
 	// -- Math methods
 	helpers.isNumber = function(n) {
 		return !isNaN(parseFloat(n)) && isFinite(n);
@@ -3719,13 +3553,7 @@ module.exports = function(Chart) {
 			return Math.log10(x);
 		} :
 		function(x) {
-			var exponent = Math.log(x) * Math.LOG10E; // Math.LOG10E = 1 / Math.LN10.
-			// Check for whole powers of 10,
-			// which due to floating point rounding error should be corrected.
-			var powerOf10 = Math.round(exponent);
-			var isPowerOf10 = x === Math.pow(10, powerOf10);
-
-			return isPowerOf10 ? powerOf10 : exponent;
+			return Math.log(x) / Math.LN10;
 		};
 	helpers.toRadians = function(degrees) {
 		return degrees * (Math.PI / 180);
@@ -4078,10 +3906,8 @@ module.exports = function(Chart) {
 		// If no style has been set on the canvas, the render size is used as display size,
 		// making the chart visually bigger, so let's enforce it to the "correct" values.
 		// See https://github.com/chartjs/Chart.js/issues/3575
-		if (!canvas.style.height && !canvas.style.width) {
-			canvas.style.height = height + 'px';
-			canvas.style.width = width + 'px';
-		}
+		canvas.style.height = height + 'px';
+		canvas.style.width = width + 'px';
 	};
 	// -- Canvas methods
 	helpers.fontString = function(pixelSize, fontStyle, fontFamily) {
@@ -4170,7 +3996,7 @@ module.exports = function(Chart) {
 	};
 };
 
-},{"../helpers/index":39,"./core.defaults":19,"chartjs-color":54}],22:[function(require,module,exports){
+},{"../helpers/index":39,"./core.defaults":19,"chartjs-color":53}],22:[function(require,module,exports){
 'use strict';
 
 var helpers = require('../helpers/index');
@@ -4388,7 +4214,7 @@ module.exports = {
 		 * @private
 		 */
 		'x-axis': function(chart, e) {
-			return indexMode(chart, e, {intersect: false});
+			return indexMode(chart, e, {intersect: true});
 		},
 
 		/**
@@ -4558,807 +4384,802 @@ module.exports = function() {
 
 var helpers = require('../helpers/index');
 
-function filterByPosition(array, position) {
-	return helpers.where(array, function(v) {
-		return v.position === position;
-	});
-}
+module.exports = function(Chart) {
 
-function sortByWeight(array, reverse) {
-	array.forEach(function(v, i) {
-		v._tmpIndex_ = i;
-		return v;
-	});
-	array.sort(function(a, b) {
-		var v0 = reverse ? b : a;
-		var v1 = reverse ? a : b;
-		return v0.weight === v1.weight ?
-			v0._tmpIndex_ - v1._tmpIndex_ :
-			v0.weight - v1.weight;
-	});
-	array.forEach(function(v) {
-		delete v._tmpIndex_;
-	});
-}
-
-/**
- * @interface ILayoutItem
- * @prop {String} position - The position of the item in the chart layout. Possible values are
- * 'left', 'top', 'right', 'bottom', and 'chartArea'
- * @prop {Number} weight - The weight used to sort the item. Higher weights are further away from the chart area
- * @prop {Boolean} fullWidth - if true, and the item is horizontal, then push vertical boxes down
- * @prop {Function} isHorizontal - returns true if the layout item is horizontal (ie. top or bottom)
- * @prop {Function} update - Takes two parameters: width and height. Returns size of item
- * @prop {Function} getPadding -  Returns an object with padding on the edges
- * @prop {Number} width - Width of item. Must be valid after update()
- * @prop {Number} height - Height of item. Must be valid after update()
- * @prop {Number} left - Left edge of the item. Set by layout system and cannot be used in update
- * @prop {Number} top - Top edge of the item. Set by layout system and cannot be used in update
- * @prop {Number} right - Right edge of the item. Set by layout system and cannot be used in update
- * @prop {Number} bottom - Bottom edge of the item. Set by layout system and cannot be used in update
- */
-
-// The layout service is very self explanatory.  It's responsible for the layout within a chart.
-// Scales, Legends and Plugins all rely on the layout service and can easily register to be placed anywhere they need
-// It is this service's responsibility of carrying out that layout.
-module.exports = {
-	defaults: {},
-
-	/**
-	 * Register a box to a chart.
-	 * A box is simply a reference to an object that requires layout. eg. Scales, Legend, Title.
-	 * @param {Chart} chart - the chart to use
-	 * @param {ILayoutItem} item - the item to add to be layed out
-	 */
-	addBox: function(chart, item) {
-		if (!chart.boxes) {
-			chart.boxes = [];
-		}
-
-		// initialize item with default values
-		item.fullWidth = item.fullWidth || false;
-		item.position = item.position || 'top';
-		item.weight = item.weight || 0;
-
-		chart.boxes.push(item);
-	},
-
-	/**
-	 * Remove a layoutItem from a chart
-	 * @param {Chart} chart - the chart to remove the box from
-	 * @param {Object} layoutItem - the item to remove from the layout
-	 */
-	removeBox: function(chart, layoutItem) {
-		var index = chart.boxes ? chart.boxes.indexOf(layoutItem) : -1;
-		if (index !== -1) {
-			chart.boxes.splice(index, 1);
-		}
-	},
-
-	/**
-	 * Sets (or updates) options on the given `item`.
-	 * @param {Chart} chart - the chart in which the item lives (or will be added to)
-	 * @param {Object} item - the item to configure with the given options
-	 * @param {Object} options - the new item options.
-	 */
-	configure: function(chart, item, options) {
-		var props = ['fullWidth', 'position', 'weight'];
-		var ilen = props.length;
-		var i = 0;
-		var prop;
-
-		for (; i < ilen; ++i) {
-			prop = props[i];
-			if (options.hasOwnProperty(prop)) {
-				item[prop] = options[prop];
-			}
-		}
-	},
-
-	/**
-	 * Fits boxes of the given chart into the given size by having each box measure itself
-	 * then running a fitting algorithm
-	 * @param {Chart} chart - the chart
-	 * @param {Number} width - the width to fit into
-	 * @param {Number} height - the height to fit into
-	 */
-	update: function(chart, width, height) {
-		if (!chart) {
-			return;
-		}
-
-		var layoutOptions = chart.options.layout || {};
-		var padding = helpers.options.toPadding(layoutOptions.padding);
-		var leftPadding = padding.left;
-		var rightPadding = padding.right;
-		var topPadding = padding.top;
-		var bottomPadding = padding.bottom;
-
-		var leftBoxes = filterByPosition(chart.boxes, 'left');
-		var rightBoxes = filterByPosition(chart.boxes, 'right');
-		var topBoxes = filterByPosition(chart.boxes, 'top');
-		var bottomBoxes = filterByPosition(chart.boxes, 'bottom');
-		var chartAreaBoxes = filterByPosition(chart.boxes, 'chartArea');
-
-		// Sort boxes by weight. A higher weight is further away from the chart area
-		sortByWeight(leftBoxes, true);
-		sortByWeight(rightBoxes, false);
-		sortByWeight(topBoxes, true);
-		sortByWeight(bottomBoxes, false);
-
-		// Essentially we now have any number of boxes on each of the 4 sides.
-		// Our canvas looks like the following.
-		// The areas L1 and L2 are the left axes. R1 is the right axis, T1 is the top axis and
-		// B1 is the bottom axis
-		// There are also 4 quadrant-like locations (left to right instead of clockwise) reserved for chart overlays
-		// These locations are single-box locations only, when trying to register a chartArea location that is already taken,
-		// an error will be thrown.
-		//
-		// |----------------------------------------------------|
-		// |                  T1 (Full Width)                   |
-		// |----------------------------------------------------|
-		// |    |    |                 T2                  |    |
-		// |    |----|-------------------------------------|----|
-		// |    |    | C1 |                           | C2 |    |
-		// |    |    |----|                           |----|    |
-		// |    |    |                                     |    |
-		// | L1 | L2 |           ChartArea (C0)            | R1 |
-		// |    |    |                                     |    |
-		// |    |    |----|                           |----|    |
-		// |    |    | C3 |                           | C4 |    |
-		// |    |----|-------------------------------------|----|
-		// |    |    |                 B1                  |    |
-		// |----------------------------------------------------|
-		// |                  B2 (Full Width)                   |
-		// |----------------------------------------------------|
-		//
-		// What we do to find the best sizing, we do the following
-		// 1. Determine the minimum size of the chart area.
-		// 2. Split the remaining width equally between each vertical axis
-		// 3. Split the remaining height equally between each horizontal axis
-		// 4. Give each layout the maximum size it can be. The layout will return it's minimum size
-		// 5. Adjust the sizes of each axis based on it's minimum reported size.
-		// 6. Refit each axis
-		// 7. Position each axis in the final location
-		// 8. Tell the chart the final location of the chart area
-		// 9. Tell any axes that overlay the chart area the positions of the chart area
-
-		// Step 1
-		var chartWidth = width - leftPadding - rightPadding;
-		var chartHeight = height - topPadding - bottomPadding;
-		var chartAreaWidth = chartWidth / 2; // min 50%
-		var chartAreaHeight = chartHeight / 2; // min 50%
-
-		// Step 2
-		var verticalBoxWidth = (width - chartAreaWidth) / (leftBoxes.length + rightBoxes.length);
-
-		// Step 3
-		var horizontalBoxHeight = (height - chartAreaHeight) / (topBoxes.length + bottomBoxes.length);
-
-		// Step 4
-		var maxChartAreaWidth = chartWidth;
-		var maxChartAreaHeight = chartHeight;
-		var minBoxSizes = [];
-
-		function getMinimumBoxSize(box) {
-			var minSize;
-			var isHorizontal = box.isHorizontal();
-
-			if (isHorizontal) {
-				minSize = box.update(box.fullWidth ? chartWidth : maxChartAreaWidth, horizontalBoxHeight);
-				maxChartAreaHeight -= minSize.height;
-			} else {
-				minSize = box.update(verticalBoxWidth, maxChartAreaHeight);
-				maxChartAreaWidth -= minSize.width;
-			}
-
-			minBoxSizes.push({
-				horizontal: isHorizontal,
-				minSize: minSize,
-				box: box,
-			});
-		}
-
-		helpers.each(leftBoxes.concat(rightBoxes, topBoxes, bottomBoxes), getMinimumBoxSize);
-
-		// If a horizontal box has padding, we move the left boxes over to avoid ugly charts (see issue #2478)
-		var maxHorizontalLeftPadding = 0;
-		var maxHorizontalRightPadding = 0;
-		var maxVerticalTopPadding = 0;
-		var maxVerticalBottomPadding = 0;
-
-		helpers.each(topBoxes.concat(bottomBoxes), function(horizontalBox) {
-			if (horizontalBox.getPadding) {
-				var boxPadding = horizontalBox.getPadding();
-				maxHorizontalLeftPadding = Math.max(maxHorizontalLeftPadding, boxPadding.left);
-				maxHorizontalRightPadding = Math.max(maxHorizontalRightPadding, boxPadding.right);
-			}
+	function filterByPosition(array, position) {
+		return helpers.where(array, function(v) {
+			return v.position === position;
 		});
+	}
 
-		helpers.each(leftBoxes.concat(rightBoxes), function(verticalBox) {
-			if (verticalBox.getPadding) {
-				var boxPadding = verticalBox.getPadding();
-				maxVerticalTopPadding = Math.max(maxVerticalTopPadding, boxPadding.top);
-				maxVerticalBottomPadding = Math.max(maxVerticalBottomPadding, boxPadding.bottom);
-			}
+	function sortByWeight(array, reverse) {
+		array.forEach(function(v, i) {
+			v._tmpIndex_ = i;
+			return v;
 		});
+		array.sort(function(a, b) {
+			var v0 = reverse ? b : a;
+			var v1 = reverse ? a : b;
+			return v0.weight === v1.weight ?
+				v0._tmpIndex_ - v1._tmpIndex_ :
+				v0.weight - v1.weight;
+		});
+		array.forEach(function(v) {
+			delete v._tmpIndex_;
+		});
+	}
 
-		// At this point, maxChartAreaHeight and maxChartAreaWidth are the size the chart area could
-		// be if the axes are drawn at their minimum sizes.
-		// Steps 5 & 6
-		var totalLeftBoxesWidth = leftPadding;
-		var totalRightBoxesWidth = rightPadding;
-		var totalTopBoxesHeight = topPadding;
-		var totalBottomBoxesHeight = bottomPadding;
+	/**
+	 * @interface ILayoutItem
+	 * @prop {String} position - The position of the item in the chart layout. Possible values are
+	 * 'left', 'top', 'right', 'bottom', and 'chartArea'
+	 * @prop {Number} weight - The weight used to sort the item. Higher weights are further away from the chart area
+	 * @prop {Boolean} fullWidth - if true, and the item is horizontal, then push vertical boxes down
+	 * @prop {Function} isHorizontal - returns true if the layout item is horizontal (ie. top or bottom)
+	 * @prop {Function} update - Takes two parameters: width and height. Returns size of item
+	 * @prop {Function} getPadding -  Returns an object with padding on the edges
+	 * @prop {Number} width - Width of item. Must be valid after update()
+	 * @prop {Number} height - Height of item. Must be valid after update()
+	 * @prop {Number} left - Left edge of the item. Set by layout system and cannot be used in update
+	 * @prop {Number} top - Top edge of the item. Set by layout system and cannot be used in update
+	 * @prop {Number} right - Right edge of the item. Set by layout system and cannot be used in update
+	 * @prop {Number} bottom - Bottom edge of the item. Set by layout system and cannot be used in update
+	 */
 
-		// Function to fit a box
-		function fitBox(box) {
-			var minBoxSize = helpers.findNextWhere(minBoxSizes, function(minBox) {
-				return minBox.box === box;
-			});
+	// The layout service is very self explanatory.  It's responsible for the layout within a chart.
+	// Scales, Legends and Plugins all rely on the layout service and can easily register to be placed anywhere they need
+	// It is this service's responsibility of carrying out that layout.
+	Chart.layoutService = {
+		defaults: {},
 
-			if (minBoxSize) {
-				if (box.isHorizontal()) {
-					var scaleMargin = {
-						left: Math.max(totalLeftBoxesWidth, maxHorizontalLeftPadding),
-						right: Math.max(totalRightBoxesWidth, maxHorizontalRightPadding),
-						top: 0,
-						bottom: 0
-					};
+		/**
+		 * Register a box to a chart.
+		 * A box is simply a reference to an object that requires layout. eg. Scales, Legend, Title.
+		 * @param {Chart} chart - the chart to use
+		 * @param {ILayoutItem} item - the item to add to be layed out
+		 */
+		addBox: function(chart, item) {
+			if (!chart.boxes) {
+				chart.boxes = [];
+			}
 
-					// Don't use min size here because of label rotation. When the labels are rotated, their rotation highly depends
-					// on the margin. Sometimes they need to increase in size slightly
-					box.update(box.fullWidth ? chartWidth : maxChartAreaWidth, chartHeight / 2, scaleMargin);
-				} else {
-					box.update(minBoxSize.minSize.width, maxChartAreaHeight);
+			// initialize item with default values
+			item.fullWidth = item.fullWidth || false;
+			item.position = item.position || 'top';
+			item.weight = item.weight || 0;
+
+			chart.boxes.push(item);
+		},
+
+		/**
+		 * Remove a layoutItem from a chart
+		 * @param {Chart} chart - the chart to remove the box from
+		 * @param {Object} layoutItem - the item to remove from the layout
+		 */
+		removeBox: function(chart, layoutItem) {
+			var index = chart.boxes ? chart.boxes.indexOf(layoutItem) : -1;
+			if (index !== -1) {
+				chart.boxes.splice(index, 1);
+			}
+		},
+
+		/**
+		 * Sets (or updates) options on the given `item`.
+		 * @param {Chart} chart - the chart in which the item lives (or will be added to)
+		 * @param {Object} item - the item to configure with the given options
+		 * @param {Object} options - the new item options.
+		 */
+		configure: function(chart, item, options) {
+			var props = ['fullWidth', 'position', 'weight'];
+			var ilen = props.length;
+			var i = 0;
+			var prop;
+
+			for (; i < ilen; ++i) {
+				prop = props[i];
+				if (options.hasOwnProperty(prop)) {
+					item[prop] = options[prop];
 				}
 			}
-		}
+		},
 
-		// Update, and calculate the left and right margins for the horizontal boxes
-		helpers.each(leftBoxes.concat(rightBoxes), fitBox);
+		/**
+		 * Fits boxes of the given chart into the given size by having each box measure itself
+		 * then running a fitting algorithm
+		 * @param {Chart} chart - the chart
+		 * @param {Number} width - the width to fit into
+		 * @param {Number} height - the height to fit into
+		 */
+		update: function(chart, width, height) {
+			if (!chart) {
+				return;
+			}
 
-		helpers.each(leftBoxes, function(box) {
-			totalLeftBoxesWidth += box.width;
-		});
+			var layoutOptions = chart.options.layout || {};
+			var padding = helpers.options.toPadding(layoutOptions.padding);
+			var leftPadding = padding.left;
+			var rightPadding = padding.right;
+			var topPadding = padding.top;
+			var bottomPadding = padding.bottom;
 
-		helpers.each(rightBoxes, function(box) {
-			totalRightBoxesWidth += box.width;
-		});
+			var leftBoxes = filterByPosition(chart.boxes, 'left');
+			var rightBoxes = filterByPosition(chart.boxes, 'right');
+			var topBoxes = filterByPosition(chart.boxes, 'top');
+			var bottomBoxes = filterByPosition(chart.boxes, 'bottom');
+			var chartAreaBoxes = filterByPosition(chart.boxes, 'chartArea');
 
-		// Set the Left and Right margins for the horizontal boxes
-		helpers.each(topBoxes.concat(bottomBoxes), fitBox);
+			// Sort boxes by weight. A higher weight is further away from the chart area
+			sortByWeight(leftBoxes, true);
+			sortByWeight(rightBoxes, false);
+			sortByWeight(topBoxes, true);
+			sortByWeight(bottomBoxes, false);
 
-		// Figure out how much margin is on the top and bottom of the vertical boxes
-		helpers.each(topBoxes, function(box) {
-			totalTopBoxesHeight += box.height;
-		});
+			// Essentially we now have any number of boxes on each of the 4 sides.
+			// Our canvas looks like the following.
+			// The areas L1 and L2 are the left axes. R1 is the right axis, T1 is the top axis and
+			// B1 is the bottom axis
+			// There are also 4 quadrant-like locations (left to right instead of clockwise) reserved for chart overlays
+			// These locations are single-box locations only, when trying to register a chartArea location that is already taken,
+			// an error will be thrown.
+			//
+			// |----------------------------------------------------|
+			// |                  T1 (Full Width)                   |
+			// |----------------------------------------------------|
+			// |    |    |                 T2                  |    |
+			// |    |----|-------------------------------------|----|
+			// |    |    | C1 |                           | C2 |    |
+			// |    |    |----|                           |----|    |
+			// |    |    |                                     |    |
+			// | L1 | L2 |           ChartArea (C0)            | R1 |
+			// |    |    |                                     |    |
+			// |    |    |----|                           |----|    |
+			// |    |    | C3 |                           | C4 |    |
+			// |    |----|-------------------------------------|----|
+			// |    |    |                 B1                  |    |
+			// |----------------------------------------------------|
+			// |                  B2 (Full Width)                   |
+			// |----------------------------------------------------|
+			//
+			// What we do to find the best sizing, we do the following
+			// 1. Determine the minimum size of the chart area.
+			// 2. Split the remaining width equally between each vertical axis
+			// 3. Split the remaining height equally between each horizontal axis
+			// 4. Give each layout the maximum size it can be. The layout will return it's minimum size
+			// 5. Adjust the sizes of each axis based on it's minimum reported size.
+			// 6. Refit each axis
+			// 7. Position each axis in the final location
+			// 8. Tell the chart the final location of the chart area
+			// 9. Tell any axes that overlay the chart area the positions of the chart area
 
-		helpers.each(bottomBoxes, function(box) {
-			totalBottomBoxesHeight += box.height;
-		});
+			// Step 1
+			var chartWidth = width - leftPadding - rightPadding;
+			var chartHeight = height - topPadding - bottomPadding;
+			var chartAreaWidth = chartWidth / 2; // min 50%
+			var chartAreaHeight = chartHeight / 2; // min 50%
 
-		function finalFitVerticalBox(box) {
-			var minBoxSize = helpers.findNextWhere(minBoxSizes, function(minSize) {
-				return minSize.box === box;
+			// Step 2
+			var verticalBoxWidth = (width - chartAreaWidth) / (leftBoxes.length + rightBoxes.length);
+
+			// Step 3
+			var horizontalBoxHeight = (height - chartAreaHeight) / (topBoxes.length + bottomBoxes.length);
+
+			// Step 4
+			var maxChartAreaWidth = chartWidth;
+			var maxChartAreaHeight = chartHeight;
+			var minBoxSizes = [];
+
+			function getMinimumBoxSize(box) {
+				var minSize;
+				var isHorizontal = box.isHorizontal();
+
+				if (isHorizontal) {
+					minSize = box.update(box.fullWidth ? chartWidth : maxChartAreaWidth, horizontalBoxHeight);
+					maxChartAreaHeight -= minSize.height;
+				} else {
+					minSize = box.update(verticalBoxWidth, chartAreaHeight);
+					maxChartAreaWidth -= minSize.width;
+				}
+
+				minBoxSizes.push({
+					horizontal: isHorizontal,
+					minSize: minSize,
+					box: box,
+				});
+			}
+
+			helpers.each(leftBoxes.concat(rightBoxes, topBoxes, bottomBoxes), getMinimumBoxSize);
+
+			// If a horizontal box has padding, we move the left boxes over to avoid ugly charts (see issue #2478)
+			var maxHorizontalLeftPadding = 0;
+			var maxHorizontalRightPadding = 0;
+			var maxVerticalTopPadding = 0;
+			var maxVerticalBottomPadding = 0;
+
+			helpers.each(topBoxes.concat(bottomBoxes), function(horizontalBox) {
+				if (horizontalBox.getPadding) {
+					var boxPadding = horizontalBox.getPadding();
+					maxHorizontalLeftPadding = Math.max(maxHorizontalLeftPadding, boxPadding.left);
+					maxHorizontalRightPadding = Math.max(maxHorizontalRightPadding, boxPadding.right);
+				}
 			});
 
-			var scaleMargin = {
-				left: 0,
-				right: 0,
-				top: totalTopBoxesHeight,
-				bottom: totalBottomBoxesHeight
-			};
+			helpers.each(leftBoxes.concat(rightBoxes), function(verticalBox) {
+				if (verticalBox.getPadding) {
+					var boxPadding = verticalBox.getPadding();
+					maxVerticalTopPadding = Math.max(maxVerticalTopPadding, boxPadding.top);
+					maxVerticalBottomPadding = Math.max(maxVerticalBottomPadding, boxPadding.bottom);
+				}
+			});
 
-			if (minBoxSize) {
-				box.update(minBoxSize.minSize.width, maxChartAreaHeight, scaleMargin);
+			// At this point, maxChartAreaHeight and maxChartAreaWidth are the size the chart area could
+			// be if the axes are drawn at their minimum sizes.
+			// Steps 5 & 6
+			var totalLeftBoxesWidth = leftPadding;
+			var totalRightBoxesWidth = rightPadding;
+			var totalTopBoxesHeight = topPadding;
+			var totalBottomBoxesHeight = bottomPadding;
+
+			// Function to fit a box
+			function fitBox(box) {
+				var minBoxSize = helpers.findNextWhere(minBoxSizes, function(minBox) {
+					return minBox.box === box;
+				});
+
+				if (minBoxSize) {
+					if (box.isHorizontal()) {
+						var scaleMargin = {
+							left: Math.max(totalLeftBoxesWidth, maxHorizontalLeftPadding),
+							right: Math.max(totalRightBoxesWidth, maxHorizontalRightPadding),
+							top: 0,
+							bottom: 0
+						};
+
+						// Don't use min size here because of label rotation. When the labels are rotated, their rotation highly depends
+						// on the margin. Sometimes they need to increase in size slightly
+						box.update(box.fullWidth ? chartWidth : maxChartAreaWidth, chartHeight / 2, scaleMargin);
+					} else {
+						box.update(minBoxSize.minSize.width, maxChartAreaHeight);
+					}
+				}
 			}
-		}
 
-		// Let the left layout know the final margin
-		helpers.each(leftBoxes.concat(rightBoxes), finalFitVerticalBox);
+			// Update, and calculate the left and right margins for the horizontal boxes
+			helpers.each(leftBoxes.concat(rightBoxes), fitBox);
 
-		// Recalculate because the size of each layout might have changed slightly due to the margins (label rotation for instance)
-		totalLeftBoxesWidth = leftPadding;
-		totalRightBoxesWidth = rightPadding;
-		totalTopBoxesHeight = topPadding;
-		totalBottomBoxesHeight = bottomPadding;
-
-		helpers.each(leftBoxes, function(box) {
-			totalLeftBoxesWidth += box.width;
-		});
-
-		helpers.each(rightBoxes, function(box) {
-			totalRightBoxesWidth += box.width;
-		});
-
-		helpers.each(topBoxes, function(box) {
-			totalTopBoxesHeight += box.height;
-		});
-		helpers.each(bottomBoxes, function(box) {
-			totalBottomBoxesHeight += box.height;
-		});
-
-		// We may be adding some padding to account for rotated x axis labels
-		var leftPaddingAddition = Math.max(maxHorizontalLeftPadding - totalLeftBoxesWidth, 0);
-		totalLeftBoxesWidth += leftPaddingAddition;
-		totalRightBoxesWidth += Math.max(maxHorizontalRightPadding - totalRightBoxesWidth, 0);
-
-		var topPaddingAddition = Math.max(maxVerticalTopPadding - totalTopBoxesHeight, 0);
-		totalTopBoxesHeight += topPaddingAddition;
-		totalBottomBoxesHeight += Math.max(maxVerticalBottomPadding - totalBottomBoxesHeight, 0);
-
-		// Figure out if our chart area changed. This would occur if the dataset layout label rotation
-		// changed due to the application of the margins in step 6. Since we can only get bigger, this is safe to do
-		// without calling `fit` again
-		var newMaxChartAreaHeight = height - totalTopBoxesHeight - totalBottomBoxesHeight;
-		var newMaxChartAreaWidth = width - totalLeftBoxesWidth - totalRightBoxesWidth;
-
-		if (newMaxChartAreaWidth !== maxChartAreaWidth || newMaxChartAreaHeight !== maxChartAreaHeight) {
 			helpers.each(leftBoxes, function(box) {
-				box.height = newMaxChartAreaHeight;
+				totalLeftBoxesWidth += box.width;
 			});
 
 			helpers.each(rightBoxes, function(box) {
-				box.height = newMaxChartAreaHeight;
+				totalRightBoxesWidth += box.width;
 			});
 
+			// Set the Left and Right margins for the horizontal boxes
+			helpers.each(topBoxes.concat(bottomBoxes), fitBox);
+
+			// Figure out how much margin is on the top and bottom of the vertical boxes
 			helpers.each(topBoxes, function(box) {
-				if (!box.fullWidth) {
-					box.width = newMaxChartAreaWidth;
-				}
+				totalTopBoxesHeight += box.height;
 			});
 
 			helpers.each(bottomBoxes, function(box) {
-				if (!box.fullWidth) {
-					box.width = newMaxChartAreaWidth;
-				}
+				totalBottomBoxesHeight += box.height;
 			});
 
-			maxChartAreaHeight = newMaxChartAreaHeight;
-			maxChartAreaWidth = newMaxChartAreaWidth;
-		}
+			function finalFitVerticalBox(box) {
+				var minBoxSize = helpers.findNextWhere(minBoxSizes, function(minSize) {
+					return minSize.box === box;
+				});
 
-		// Step 7 - Position the boxes
-		var left = leftPadding + leftPaddingAddition;
-		var top = topPadding + topPaddingAddition;
+				var scaleMargin = {
+					left: 0,
+					right: 0,
+					top: totalTopBoxesHeight,
+					bottom: totalBottomBoxesHeight
+				};
 
-		function placeBox(box) {
-			if (box.isHorizontal()) {
-				box.left = box.fullWidth ? leftPadding : totalLeftBoxesWidth;
-				box.right = box.fullWidth ? width - rightPadding : totalLeftBoxesWidth + maxChartAreaWidth;
-				box.top = top;
-				box.bottom = top + box.height;
-
-				// Move to next point
-				top = box.bottom;
-
-			} else {
-
-				box.left = left;
-				box.right = left + box.width;
-				box.top = totalTopBoxesHeight;
-				box.bottom = totalTopBoxesHeight + maxChartAreaHeight;
-
-				// Move to next point
-				left = box.right;
+				if (minBoxSize) {
+					box.update(minBoxSize.minSize.width, maxChartAreaHeight, scaleMargin);
+				}
 			}
+
+			// Let the left layout know the final margin
+			helpers.each(leftBoxes.concat(rightBoxes), finalFitVerticalBox);
+
+			// Recalculate because the size of each layout might have changed slightly due to the margins (label rotation for instance)
+			totalLeftBoxesWidth = leftPadding;
+			totalRightBoxesWidth = rightPadding;
+			totalTopBoxesHeight = topPadding;
+			totalBottomBoxesHeight = bottomPadding;
+
+			helpers.each(leftBoxes, function(box) {
+				totalLeftBoxesWidth += box.width;
+			});
+
+			helpers.each(rightBoxes, function(box) {
+				totalRightBoxesWidth += box.width;
+			});
+
+			helpers.each(topBoxes, function(box) {
+				totalTopBoxesHeight += box.height;
+			});
+			helpers.each(bottomBoxes, function(box) {
+				totalBottomBoxesHeight += box.height;
+			});
+
+			// We may be adding some padding to account for rotated x axis labels
+			var leftPaddingAddition = Math.max(maxHorizontalLeftPadding - totalLeftBoxesWidth, 0);
+			totalLeftBoxesWidth += leftPaddingAddition;
+			totalRightBoxesWidth += Math.max(maxHorizontalRightPadding - totalRightBoxesWidth, 0);
+
+			var topPaddingAddition = Math.max(maxVerticalTopPadding - totalTopBoxesHeight, 0);
+			totalTopBoxesHeight += topPaddingAddition;
+			totalBottomBoxesHeight += Math.max(maxVerticalBottomPadding - totalBottomBoxesHeight, 0);
+
+			// Figure out if our chart area changed. This would occur if the dataset layout label rotation
+			// changed due to the application of the margins in step 6. Since we can only get bigger, this is safe to do
+			// without calling `fit` again
+			var newMaxChartAreaHeight = height - totalTopBoxesHeight - totalBottomBoxesHeight;
+			var newMaxChartAreaWidth = width - totalLeftBoxesWidth - totalRightBoxesWidth;
+
+			if (newMaxChartAreaWidth !== maxChartAreaWidth || newMaxChartAreaHeight !== maxChartAreaHeight) {
+				helpers.each(leftBoxes, function(box) {
+					box.height = newMaxChartAreaHeight;
+				});
+
+				helpers.each(rightBoxes, function(box) {
+					box.height = newMaxChartAreaHeight;
+				});
+
+				helpers.each(topBoxes, function(box) {
+					if (!box.fullWidth) {
+						box.width = newMaxChartAreaWidth;
+					}
+				});
+
+				helpers.each(bottomBoxes, function(box) {
+					if (!box.fullWidth) {
+						box.width = newMaxChartAreaWidth;
+					}
+				});
+
+				maxChartAreaHeight = newMaxChartAreaHeight;
+				maxChartAreaWidth = newMaxChartAreaWidth;
+			}
+
+			// Step 7 - Position the boxes
+			var left = leftPadding + leftPaddingAddition;
+			var top = topPadding + topPaddingAddition;
+
+			function placeBox(box) {
+				if (box.isHorizontal()) {
+					box.left = box.fullWidth ? leftPadding : totalLeftBoxesWidth;
+					box.right = box.fullWidth ? width - rightPadding : totalLeftBoxesWidth + maxChartAreaWidth;
+					box.top = top;
+					box.bottom = top + box.height;
+
+					// Move to next point
+					top = box.bottom;
+
+				} else {
+
+					box.left = left;
+					box.right = left + box.width;
+					box.top = totalTopBoxesHeight;
+					box.bottom = totalTopBoxesHeight + maxChartAreaHeight;
+
+					// Move to next point
+					left = box.right;
+				}
+			}
+
+			helpers.each(leftBoxes.concat(topBoxes), placeBox);
+
+			// Account for chart width and height
+			left += maxChartAreaWidth;
+			top += maxChartAreaHeight;
+
+			helpers.each(rightBoxes, placeBox);
+			helpers.each(bottomBoxes, placeBox);
+
+			// Step 8
+			chart.chartArea = {
+				left: totalLeftBoxesWidth,
+				top: totalTopBoxesHeight,
+				right: totalLeftBoxesWidth + maxChartAreaWidth,
+				bottom: totalTopBoxesHeight + maxChartAreaHeight
+			};
+
+			// Step 9
+			helpers.each(chartAreaBoxes, function(box) {
+				box.left = chart.chartArea.left;
+				box.top = chart.chartArea.top;
+				box.right = chart.chartArea.right;
+				box.bottom = chart.chartArea.bottom;
+
+				box.update(maxChartAreaWidth, maxChartAreaHeight);
+			});
 		}
-
-		helpers.each(leftBoxes.concat(topBoxes), placeBox);
-
-		// Account for chart width and height
-		left += maxChartAreaWidth;
-		top += maxChartAreaHeight;
-
-		helpers.each(rightBoxes, placeBox);
-		helpers.each(bottomBoxes, placeBox);
-
-		// Step 8
-		chart.chartArea = {
-			left: totalLeftBoxesWidth,
-			top: totalTopBoxesHeight,
-			right: totalLeftBoxesWidth + maxChartAreaWidth,
-			bottom: totalTopBoxesHeight + maxChartAreaHeight
-		};
-
-		// Step 9
-		helpers.each(chartAreaBoxes, function(box) {
-			box.left = chart.chartArea.left;
-			box.top = chart.chartArea.top;
-			box.right = chart.chartArea.right;
-			box.bottom = chart.chartArea.bottom;
-
-			box.update(maxChartAreaWidth, maxChartAreaHeight);
-		});
-	}
+	};
 };
 
 },{"../helpers/index":39}],25:[function(require,module,exports){
 'use strict';
 
 var defaults = require('./core.defaults');
+var Element = require('./core.element');
 var helpers = require('../helpers/index');
 
 defaults._set('global', {
 	plugins: {}
 });
 
-/**
- * The plugin service singleton
- * @namespace Chart.plugins
- * @since 2.1.0
- */
-module.exports = {
-	/**
-	 * Globally registered plugins.
-	 * @private
-	 */
-	_plugins: [],
+module.exports = function(Chart) {
 
 	/**
-	 * This identifier is used to invalidate the descriptors cache attached to each chart
-	 * when a global plugin is registered or unregistered. In this case, the cache ID is
-	 * incremented and descriptors are regenerated during following API calls.
-	 * @private
+	 * The plugin service singleton
+	 * @namespace Chart.plugins
+	 * @since 2.1.0
 	 */
-	_cacheId: 0,
+	Chart.plugins = {
+		/**
+		 * Globally registered plugins.
+		 * @private
+		 */
+		_plugins: [],
 
-	/**
-	 * Registers the given plugin(s) if not already registered.
-	 * @param {Array|Object} plugins plugin instance(s).
-	 */
-	register: function(plugins) {
-		var p = this._plugins;
-		([]).concat(plugins).forEach(function(plugin) {
-			if (p.indexOf(plugin) === -1) {
-				p.push(plugin);
-			}
-		});
+		/**
+		 * This identifier is used to invalidate the descriptors cache attached to each chart
+		 * when a global plugin is registered or unregistered. In this case, the cache ID is
+		 * incremented and descriptors are regenerated during following API calls.
+		 * @private
+		 */
+		_cacheId: 0,
 
-		this._cacheId++;
-	},
+		/**
+		 * Registers the given plugin(s) if not already registered.
+		 * @param {Array|Object} plugins plugin instance(s).
+		 */
+		register: function(plugins) {
+			var p = this._plugins;
+			([]).concat(plugins).forEach(function(plugin) {
+				if (p.indexOf(plugin) === -1) {
+					p.push(plugin);
+				}
+			});
 
-	/**
-	 * Unregisters the given plugin(s) only if registered.
-	 * @param {Array|Object} plugins plugin instance(s).
-	 */
-	unregister: function(plugins) {
-		var p = this._plugins;
-		([]).concat(plugins).forEach(function(plugin) {
-			var idx = p.indexOf(plugin);
-			if (idx !== -1) {
-				p.splice(idx, 1);
-			}
-		});
+			this._cacheId++;
+		},
 
-		this._cacheId++;
-	},
+		/**
+		 * Unregisters the given plugin(s) only if registered.
+		 * @param {Array|Object} plugins plugin instance(s).
+		 */
+		unregister: function(plugins) {
+			var p = this._plugins;
+			([]).concat(plugins).forEach(function(plugin) {
+				var idx = p.indexOf(plugin);
+				if (idx !== -1) {
+					p.splice(idx, 1);
+				}
+			});
 
-	/**
-	 * Remove all registered plugins.
-	 * @since 2.1.5
-	 */
-	clear: function() {
-		this._plugins = [];
-		this._cacheId++;
-	},
+			this._cacheId++;
+		},
 
-	/**
-	 * Returns the number of registered plugins?
-	 * @returns {Number}
-	 * @since 2.1.5
-	 */
-	count: function() {
-		return this._plugins.length;
-	},
+		/**
+		 * Remove all registered plugins.
+		 * @since 2.1.5
+		 */
+		clear: function() {
+			this._plugins = [];
+			this._cacheId++;
+		},
 
-	/**
-	 * Returns all registered plugin instances.
-	 * @returns {Array} array of plugin objects.
-	 * @since 2.1.5
-	 */
-	getAll: function() {
-		return this._plugins;
-	},
+		/**
+		 * Returns the number of registered plugins?
+		 * @returns {Number}
+		 * @since 2.1.5
+		 */
+		count: function() {
+			return this._plugins.length;
+		},
 
-	/**
-	 * Calls enabled plugins for `chart` on the specified hook and with the given args.
-	 * This method immediately returns as soon as a plugin explicitly returns false. The
-	 * returned value can be used, for instance, to interrupt the current action.
-	 * @param {Object} chart - The chart instance for which plugins should be called.
-	 * @param {String} hook - The name of the plugin method to call (e.g. 'beforeUpdate').
-	 * @param {Array} [args] - Extra arguments to apply to the hook call.
-	 * @returns {Boolean} false if any of the plugins return false, else returns true.
-	 */
-	notify: function(chart, hook, args) {
-		var descriptors = this.descriptors(chart);
-		var ilen = descriptors.length;
-		var i, descriptor, plugin, params, method;
+		/**
+		 * Returns all registered plugin instances.
+		 * @returns {Array} array of plugin objects.
+		 * @since 2.1.5
+		 */
+		getAll: function() {
+			return this._plugins;
+		},
 
-		for (i = 0; i < ilen; ++i) {
-			descriptor = descriptors[i];
-			plugin = descriptor.plugin;
-			method = plugin[hook];
-			if (typeof method === 'function') {
-				params = [chart].concat(args || []);
-				params.push(descriptor.options);
-				if (method.apply(plugin, params) === false) {
-					return false;
+		/**
+		 * Calls enabled plugins for `chart` on the specified hook and with the given args.
+		 * This method immediately returns as soon as a plugin explicitly returns false. The
+		 * returned value can be used, for instance, to interrupt the current action.
+		 * @param {Object} chart - The chart instance for which plugins should be called.
+		 * @param {String} hook - The name of the plugin method to call (e.g. 'beforeUpdate').
+		 * @param {Array} [args] - Extra arguments to apply to the hook call.
+		 * @returns {Boolean} false if any of the plugins return false, else returns true.
+		 */
+		notify: function(chart, hook, args) {
+			var descriptors = this.descriptors(chart);
+			var ilen = descriptors.length;
+			var i, descriptor, plugin, params, method;
+
+			for (i = 0; i < ilen; ++i) {
+				descriptor = descriptors[i];
+				plugin = descriptor.plugin;
+				method = plugin[hook];
+				if (typeof method === 'function') {
+					params = [chart].concat(args || []);
+					params.push(descriptor.options);
+					if (method.apply(plugin, params) === false) {
+						return false;
+					}
 				}
 			}
-		}
 
-		return true;
-	},
+			return true;
+		},
 
-	/**
-	 * Returns descriptors of enabled plugins for the given chart.
-	 * @returns {Array} [{ plugin, options }]
-	 * @private
-	 */
-	descriptors: function(chart) {
-		var cache = chart.$plugins || (chart.$plugins = {});
-		if (cache.id === this._cacheId) {
-			return cache.descriptors;
-		}
-
-		var plugins = [];
-		var descriptors = [];
-		var config = (chart && chart.config) || {};
-		var options = (config.options && config.options.plugins) || {};
-
-		this._plugins.concat(config.plugins || []).forEach(function(plugin) {
-			var idx = plugins.indexOf(plugin);
-			if (idx !== -1) {
-				return;
+		/**
+		 * Returns descriptors of enabled plugins for the given chart.
+		 * @returns {Array} [{ plugin, options }]
+		 * @private
+		 */
+		descriptors: function(chart) {
+			var cache = chart._plugins || (chart._plugins = {});
+			if (cache.id === this._cacheId) {
+				return cache.descriptors;
 			}
 
-			var id = plugin.id;
-			var opts = options[id];
-			if (opts === false) {
-				return;
-			}
+			var plugins = [];
+			var descriptors = [];
+			var config = (chart && chart.config) || {};
+			var options = (config.options && config.options.plugins) || {};
 
-			if (opts === true) {
-				opts = helpers.clone(defaults.global.plugins[id]);
-			}
+			this._plugins.concat(config.plugins || []).forEach(function(plugin) {
+				var idx = plugins.indexOf(plugin);
+				if (idx !== -1) {
+					return;
+				}
 
-			plugins.push(plugin);
-			descriptors.push({
-				plugin: plugin,
-				options: opts || {}
+				var id = plugin.id;
+				var opts = options[id];
+				if (opts === false) {
+					return;
+				}
+
+				if (opts === true) {
+					opts = helpers.clone(defaults.global.plugins[id]);
+				}
+
+				plugins.push(plugin);
+				descriptors.push({
+					plugin: plugin,
+					options: opts || {}
+				});
 			});
-		});
 
-		cache.descriptors = descriptors;
-		cache.id = this._cacheId;
-		return descriptors;
-	},
+			cache.descriptors = descriptors;
+			cache.id = this._cacheId;
+			return descriptors;
+		}
+	};
 
 	/**
-	 * Invalidates cache for the given chart: descriptors hold a reference on plugin option,
-	 * but in some cases, this reference can be changed by the user when updating options.
-	 * https://github.com/chartjs/Chart.js/issues/5111#issuecomment-355934167
+	 * Plugin extension hooks.
+	 * @interface IPlugin
+	 * @since 2.1.0
+	 */
+	/**
+	 * @method IPlugin#beforeInit
+	 * @desc Called before initializing `chart`.
+	 * @param {Chart.Controller} chart - The chart instance.
+	 * @param {Object} options - The plugin options.
+	 */
+	/**
+	 * @method IPlugin#afterInit
+	 * @desc Called after `chart` has been initialized and before the first update.
+	 * @param {Chart.Controller} chart - The chart instance.
+	 * @param {Object} options - The plugin options.
+	 */
+	/**
+	 * @method IPlugin#beforeUpdate
+	 * @desc Called before updating `chart`. If any plugin returns `false`, the update
+	 * is cancelled (and thus subsequent render(s)) until another `update` is triggered.
+	 * @param {Chart.Controller} chart - The chart instance.
+	 * @param {Object} options - The plugin options.
+	 * @returns {Boolean} `false` to cancel the chart update.
+	 */
+	/**
+	 * @method IPlugin#afterUpdate
+	 * @desc Called after `chart` has been updated and before rendering. Note that this
+	 * hook will not be called if the chart update has been previously cancelled.
+	 * @param {Chart.Controller} chart - The chart instance.
+	 * @param {Object} options - The plugin options.
+	 */
+	/**
+	 * @method IPlugin#beforeDatasetsUpdate
+ 	 * @desc Called before updating the `chart` datasets. If any plugin returns `false`,
+	 * the datasets update is cancelled until another `update` is triggered.
+	 * @param {Chart.Controller} chart - The chart instance.
+	 * @param {Object} options - The plugin options.
+	 * @returns {Boolean} false to cancel the datasets update.
+	 * @since version 2.1.5
+	 */
+	/**
+	 * @method IPlugin#afterDatasetsUpdate
+	 * @desc Called after the `chart` datasets have been updated. Note that this hook
+	 * will not be called if the datasets update has been previously cancelled.
+	 * @param {Chart.Controller} chart - The chart instance.
+	 * @param {Object} options - The plugin options.
+	 * @since version 2.1.5
+	 */
+	/**
+	 * @method IPlugin#beforeDatasetUpdate
+ 	 * @desc Called before updating the `chart` dataset at the given `args.index`. If any plugin
+	 * returns `false`, the datasets update is cancelled until another `update` is triggered.
+	 * @param {Chart} chart - The chart instance.
+	 * @param {Object} args - The call arguments.
+	 * @param {Number} args.index - The dataset index.
+	 * @param {Object} args.meta - The dataset metadata.
+	 * @param {Object} options - The plugin options.
+	 * @returns {Boolean} `false` to cancel the chart datasets drawing.
+	 */
+	/**
+	 * @method IPlugin#afterDatasetUpdate
+ 	 * @desc Called after the `chart` datasets at the given `args.index` has been updated. Note
+	 * that this hook will not be called if the datasets update has been previously cancelled.
+	 * @param {Chart} chart - The chart instance.
+	 * @param {Object} args - The call arguments.
+	 * @param {Number} args.index - The dataset index.
+	 * @param {Object} args.meta - The dataset metadata.
+	 * @param {Object} options - The plugin options.
+	 */
+	/**
+	 * @method IPlugin#beforeLayout
+	 * @desc Called before laying out `chart`. If any plugin returns `false`,
+	 * the layout update is cancelled until another `update` is triggered.
+	 * @param {Chart.Controller} chart - The chart instance.
+	 * @param {Object} options - The plugin options.
+	 * @returns {Boolean} `false` to cancel the chart layout.
+	 */
+	/**
+	 * @method IPlugin#afterLayout
+	 * @desc Called after the `chart` has been layed out. Note that this hook will not
+	 * be called if the layout update has been previously cancelled.
+	 * @param {Chart.Controller} chart - The chart instance.
+	 * @param {Object} options - The plugin options.
+	 */
+	/**
+	 * @method IPlugin#beforeRender
+	 * @desc Called before rendering `chart`. If any plugin returns `false`,
+	 * the rendering is cancelled until another `render` is triggered.
+	 * @param {Chart.Controller} chart - The chart instance.
+	 * @param {Object} options - The plugin options.
+	 * @returns {Boolean} `false` to cancel the chart rendering.
+	 */
+	/**
+	 * @method IPlugin#afterRender
+	 * @desc Called after the `chart` has been fully rendered (and animation completed). Note
+	 * that this hook will not be called if the rendering has been previously cancelled.
+	 * @param {Chart.Controller} chart - The chart instance.
+	 * @param {Object} options - The plugin options.
+	 */
+	/**
+	 * @method IPlugin#beforeDraw
+	 * @desc Called before drawing `chart` at every animation frame specified by the given
+	 * easing value. If any plugin returns `false`, the frame drawing is cancelled until
+	 * another `render` is triggered.
+	 * @param {Chart.Controller} chart - The chart instance.
+	 * @param {Number} easingValue - The current animation value, between 0.0 and 1.0.
+	 * @param {Object} options - The plugin options.
+	 * @returns {Boolean} `false` to cancel the chart drawing.
+	 */
+	/**
+	 * @method IPlugin#afterDraw
+	 * @desc Called after the `chart` has been drawn for the specific easing value. Note
+	 * that this hook will not be called if the drawing has been previously cancelled.
+	 * @param {Chart.Controller} chart - The chart instance.
+	 * @param {Number} easingValue - The current animation value, between 0.0 and 1.0.
+	 * @param {Object} options - The plugin options.
+	 */
+	/**
+	 * @method IPlugin#beforeDatasetsDraw
+ 	 * @desc Called before drawing the `chart` datasets. If any plugin returns `false`,
+	 * the datasets drawing is cancelled until another `render` is triggered.
+	 * @param {Chart.Controller} chart - The chart instance.
+	 * @param {Number} easingValue - The current animation value, between 0.0 and 1.0.
+	 * @param {Object} options - The plugin options.
+	 * @returns {Boolean} `false` to cancel the chart datasets drawing.
+	 */
+	/**
+	 * @method IPlugin#afterDatasetsDraw
+	 * @desc Called after the `chart` datasets have been drawn. Note that this hook
+	 * will not be called if the datasets drawing has been previously cancelled.
+	 * @param {Chart.Controller} chart - The chart instance.
+	 * @param {Number} easingValue - The current animation value, between 0.0 and 1.0.
+	 * @param {Object} options - The plugin options.
+	 */
+	/**
+	 * @method IPlugin#beforeDatasetDraw
+ 	 * @desc Called before drawing the `chart` dataset at the given `args.index` (datasets
+	 * are drawn in the reverse order). If any plugin returns `false`, the datasets drawing
+	 * is cancelled until another `render` is triggered.
+	 * @param {Chart} chart - The chart instance.
+	 * @param {Object} args - The call arguments.
+	 * @param {Number} args.index - The dataset index.
+	 * @param {Object} args.meta - The dataset metadata.
+	 * @param {Number} args.easingValue - The current animation value, between 0.0 and 1.0.
+	 * @param {Object} options - The plugin options.
+	 * @returns {Boolean} `false` to cancel the chart datasets drawing.
+	 */
+	/**
+	 * @method IPlugin#afterDatasetDraw
+ 	 * @desc Called after the `chart` datasets at the given `args.index` have been drawn
+	 * (datasets are drawn in the reverse order). Note that this hook will not be called
+	 * if the datasets drawing has been previously cancelled.
+	 * @param {Chart} chart - The chart instance.
+	 * @param {Object} args - The call arguments.
+	 * @param {Number} args.index - The dataset index.
+	 * @param {Object} args.meta - The dataset metadata.
+	 * @param {Number} args.easingValue - The current animation value, between 0.0 and 1.0.
+	 * @param {Object} options - The plugin options.
+	 */
+	/**
+	 * @method IPlugin#beforeEvent
+ 	 * @desc Called before processing the specified `event`. If any plugin returns `false`,
+	 * the event will be discarded.
+	 * @param {Chart.Controller} chart - The chart instance.
+	 * @param {IEvent} event - The event object.
+	 * @param {Object} options - The plugin options.
+	 */
+	/**
+	 * @method IPlugin#afterEvent
+	 * @desc Called after the `event` has been consumed. Note that this hook
+	 * will not be called if the `event` has been previously discarded.
+	 * @param {Chart.Controller} chart - The chart instance.
+	 * @param {IEvent} event - The event object.
+	 * @param {Object} options - The plugin options.
+	 */
+	/**
+	 * @method IPlugin#resize
+	 * @desc Called after the chart as been resized.
+	 * @param {Chart.Controller} chart - The chart instance.
+	 * @param {Number} size - The new canvas display size (eq. canvas.style width & height).
+	 * @param {Object} options - The plugin options.
+	 */
+	/**
+	 * @method IPlugin#destroy
+	 * @desc Called after the chart as been destroyed.
+	 * @param {Chart.Controller} chart - The chart instance.
+	 * @param {Object} options - The plugin options.
+	 */
+
+	/**
+	 * Provided for backward compatibility, use Chart.plugins instead
+	 * @namespace Chart.pluginService
+	 * @deprecated since version 2.1.5
+	 * @todo remove at version 3
 	 * @private
 	 */
-	_invalidate: function(chart) {
-		delete chart.$plugins;
-	}
+	Chart.pluginService = Chart.plugins;
+
+	/**
+	 * Provided for backward compatibility, inheriting from Chart.PlugingBase has no
+	 * effect, instead simply create/register plugins via plain JavaScript objects.
+	 * @interface Chart.PluginBase
+	 * @deprecated since version 2.5.0
+	 * @todo remove at version 3
+	 * @private
+	 */
+	Chart.PluginBase = Element.extend({});
 };
 
-/**
- * Plugin extension hooks.
- * @interface IPlugin
- * @since 2.1.0
- */
-/**
- * @method IPlugin#beforeInit
- * @desc Called before initializing `chart`.
- * @param {Chart.Controller} chart - The chart instance.
- * @param {Object} options - The plugin options.
- */
-/**
- * @method IPlugin#afterInit
- * @desc Called after `chart` has been initialized and before the first update.
- * @param {Chart.Controller} chart - The chart instance.
- * @param {Object} options - The plugin options.
- */
-/**
- * @method IPlugin#beforeUpdate
- * @desc Called before updating `chart`. If any plugin returns `false`, the update
- * is cancelled (and thus subsequent render(s)) until another `update` is triggered.
- * @param {Chart.Controller} chart - The chart instance.
- * @param {Object} options - The plugin options.
- * @returns {Boolean} `false` to cancel the chart update.
- */
-/**
- * @method IPlugin#afterUpdate
- * @desc Called after `chart` has been updated and before rendering. Note that this
- * hook will not be called if the chart update has been previously cancelled.
- * @param {Chart.Controller} chart - The chart instance.
- * @param {Object} options - The plugin options.
- */
-/**
- * @method IPlugin#beforeDatasetsUpdate
- * @desc Called before updating the `chart` datasets. If any plugin returns `false`,
- * the datasets update is cancelled until another `update` is triggered.
- * @param {Chart.Controller} chart - The chart instance.
- * @param {Object} options - The plugin options.
- * @returns {Boolean} false to cancel the datasets update.
- * @since version 2.1.5
-*/
-/**
- * @method IPlugin#afterDatasetsUpdate
- * @desc Called after the `chart` datasets have been updated. Note that this hook
- * will not be called if the datasets update has been previously cancelled.
- * @param {Chart.Controller} chart - The chart instance.
- * @param {Object} options - The plugin options.
- * @since version 2.1.5
- */
-/**
- * @method IPlugin#beforeDatasetUpdate
- * @desc Called before updating the `chart` dataset at the given `args.index`. If any plugin
- * returns `false`, the datasets update is cancelled until another `update` is triggered.
- * @param {Chart} chart - The chart instance.
- * @param {Object} args - The call arguments.
- * @param {Number} args.index - The dataset index.
- * @param {Object} args.meta - The dataset metadata.
- * @param {Object} options - The plugin options.
- * @returns {Boolean} `false` to cancel the chart datasets drawing.
- */
-/**
- * @method IPlugin#afterDatasetUpdate
- * @desc Called after the `chart` datasets at the given `args.index` has been updated. Note
- * that this hook will not be called if the datasets update has been previously cancelled.
- * @param {Chart} chart - The chart instance.
- * @param {Object} args - The call arguments.
- * @param {Number} args.index - The dataset index.
- * @param {Object} args.meta - The dataset metadata.
- * @param {Object} options - The plugin options.
- */
-/**
- * @method IPlugin#beforeLayout
- * @desc Called before laying out `chart`. If any plugin returns `false`,
- * the layout update is cancelled until another `update` is triggered.
- * @param {Chart.Controller} chart - The chart instance.
- * @param {Object} options - The plugin options.
- * @returns {Boolean} `false` to cancel the chart layout.
- */
-/**
- * @method IPlugin#afterLayout
- * @desc Called after the `chart` has been layed out. Note that this hook will not
- * be called if the layout update has been previously cancelled.
- * @param {Chart.Controller} chart - The chart instance.
- * @param {Object} options - The plugin options.
- */
-/**
- * @method IPlugin#beforeRender
- * @desc Called before rendering `chart`. If any plugin returns `false`,
- * the rendering is cancelled until another `render` is triggered.
- * @param {Chart.Controller} chart - The chart instance.
- * @param {Object} options - The plugin options.
- * @returns {Boolean} `false` to cancel the chart rendering.
- */
-/**
- * @method IPlugin#afterRender
- * @desc Called after the `chart` has been fully rendered (and animation completed). Note
- * that this hook will not be called if the rendering has been previously cancelled.
- * @param {Chart.Controller} chart - The chart instance.
- * @param {Object} options - The plugin options.
- */
-/**
- * @method IPlugin#beforeDraw
- * @desc Called before drawing `chart` at every animation frame specified by the given
- * easing value. If any plugin returns `false`, the frame drawing is cancelled until
- * another `render` is triggered.
- * @param {Chart.Controller} chart - The chart instance.
- * @param {Number} easingValue - The current animation value, between 0.0 and 1.0.
- * @param {Object} options - The plugin options.
- * @returns {Boolean} `false` to cancel the chart drawing.
- */
-/**
- * @method IPlugin#afterDraw
- * @desc Called after the `chart` has been drawn for the specific easing value. Note
- * that this hook will not be called if the drawing has been previously cancelled.
- * @param {Chart.Controller} chart - The chart instance.
- * @param {Number} easingValue - The current animation value, between 0.0 and 1.0.
- * @param {Object} options - The plugin options.
- */
-/**
- * @method IPlugin#beforeDatasetsDraw
- * @desc Called before drawing the `chart` datasets. If any plugin returns `false`,
- * the datasets drawing is cancelled until another `render` is triggered.
- * @param {Chart.Controller} chart - The chart instance.
- * @param {Number} easingValue - The current animation value, between 0.0 and 1.0.
- * @param {Object} options - The plugin options.
- * @returns {Boolean} `false` to cancel the chart datasets drawing.
- */
-/**
- * @method IPlugin#afterDatasetsDraw
- * @desc Called after the `chart` datasets have been drawn. Note that this hook
- * will not be called if the datasets drawing has been previously cancelled.
- * @param {Chart.Controller} chart - The chart instance.
- * @param {Number} easingValue - The current animation value, between 0.0 and 1.0.
- * @param {Object} options - The plugin options.
- */
-/**
- * @method IPlugin#beforeDatasetDraw
- * @desc Called before drawing the `chart` dataset at the given `args.index` (datasets
- * are drawn in the reverse order). If any plugin returns `false`, the datasets drawing
- * is cancelled until another `render` is triggered.
- * @param {Chart} chart - The chart instance.
- * @param {Object} args - The call arguments.
- * @param {Number} args.index - The dataset index.
- * @param {Object} args.meta - The dataset metadata.
- * @param {Number} args.easingValue - The current animation value, between 0.0 and 1.0.
- * @param {Object} options - The plugin options.
- * @returns {Boolean} `false` to cancel the chart datasets drawing.
- */
-/**
- * @method IPlugin#afterDatasetDraw
- * @desc Called after the `chart` datasets at the given `args.index` have been drawn
- * (datasets are drawn in the reverse order). Note that this hook will not be called
- * if the datasets drawing has been previously cancelled.
- * @param {Chart} chart - The chart instance.
- * @param {Object} args - The call arguments.
- * @param {Number} args.index - The dataset index.
- * @param {Object} args.meta - The dataset metadata.
- * @param {Number} args.easingValue - The current animation value, between 0.0 and 1.0.
- * @param {Object} options - The plugin options.
- */
-/**
- * @method IPlugin#beforeTooltipDraw
- * @desc Called before drawing the `tooltip`. If any plugin returns `false`,
- * the tooltip drawing is cancelled until another `render` is triggered.
- * @param {Chart} chart - The chart instance.
- * @param {Object} args - The call arguments.
- * @param {Object} args.tooltip - The tooltip.
- * @param {Number} args.easingValue - The current animation value, between 0.0 and 1.0.
- * @param {Object} options - The plugin options.
- * @returns {Boolean} `false` to cancel the chart tooltip drawing.
- */
-/**
- * @method IPlugin#afterTooltipDraw
- * @desc Called after drawing the `tooltip`. Note that this hook will not
- * be called if the tooltip drawing has been previously cancelled.
- * @param {Chart} chart - The chart instance.
- * @param {Object} args - The call arguments.
- * @param {Object} args.tooltip - The tooltip.
- * @param {Number} args.easingValue - The current animation value, between 0.0 and 1.0.
- * @param {Object} options - The plugin options.
- */
-/**
- * @method IPlugin#beforeEvent
- * @desc Called before processing the specified `event`. If any plugin returns `false`,
- * the event will be discarded.
- * @param {Chart.Controller} chart - The chart instance.
- * @param {IEvent} event - The event object.
- * @param {Object} options - The plugin options.
- */
-/**
- * @method IPlugin#afterEvent
- * @desc Called after the `event` has been consumed. Note that this hook
- * will not be called if the `event` has been previously discarded.
- * @param {Chart.Controller} chart - The chart instance.
- * @param {IEvent} event - The event object.
- * @param {Object} options - The plugin options.
- */
-/**
- * @method IPlugin#resize
- * @desc Called after the chart as been resized.
- * @param {Chart.Controller} chart - The chart instance.
- * @param {Number} size - The new canvas display size (eq. canvas.style width & height).
- * @param {Object} options - The plugin options.
- */
-/**
- * @method IPlugin#destroy
- * @desc Called after the chart as been destroyed.
- * @param {Chart.Controller} chart - The chart instance.
- * @param {Object} options - The plugin options.
- */
-
-},{"../helpers/index":39,"./core.defaults":19}],26:[function(require,module,exports){
+},{"../helpers/index":39,"./core.defaults":19,"./core.element":20}],26:[function(require,module,exports){
 'use strict';
 
 var defaults = require('./core.defaults');
@@ -5899,33 +5720,17 @@ module.exports = function(Chart) {
 			return rawValue;
 		},
 
-		/**
-		 * Used to get the value to display in the tooltip for the data at the given index
-		 * @param index
-		 * @param datasetIndex
-		 */
+		// Used to get the value to display in the tooltip for the data at the given index
+		// function getLabelForIndex(index, datasetIndex)
 		getLabelForIndex: helpers.noop,
 
-		/**
-		 * Returns the location of the given data point. Value can either be an index or a numerical value
-		 * The coordinate (0, 0) is at the upper-left corner of the canvas
-		 * @param value
-		 * @param index
-		 * @param datasetIndex
-		 */
+		// Used to get data value locations.  Value can either be an index or a numerical value
 		getPixelForValue: helpers.noop,
 
-		/**
-		 * Used to get the data value from a given pixel. This is the inverse of getPixelForValue
-		 * The coordinate (0, 0) is at the upper-left corner of the canvas
-		 * @param pixel
-		 */
+		// Used to get the data value from a given pixel. This is the inverse of getPixelForValue
 		getValueForPixel: helpers.noop,
 
-		/**
-		 * Returns the location of the tick at the given index
-		 * The coordinate (0, 0) is at the upper-left corner of the canvas
-		 */
+		// Used for tick location, should
 		getPixelForTick: function(index) {
 			var me = this;
 			var offset = me.options.offset;
@@ -5946,10 +5751,7 @@ module.exports = function(Chart) {
 			return me.top + (index * (innerHeight / (me._ticks.length - 1)));
 		},
 
-		/**
-		 * Utility for getting the pixel location of a percentage of scale
-		 * The coordinate (0, 0) is at the upper-left corner of the canvas
-		 */
+		// Utility for getting the pixel location of a percentage of scale
 		getPixelForDecimal: function(decimal) {
 			var me = this;
 			if (me.isHorizontal()) {
@@ -5963,10 +5765,6 @@ module.exports = function(Chart) {
 			return me.top + (decimal * me.height);
 		},
 
-		/**
-		 * Returns the pixel for the minimum chart value
-		 * The coordinate (0, 0) is at the upper-left corner of the canvas
-		 */
 		getBasePixel: function() {
 			return this.getPixelForValue(this.getBaseValue());
 		},
@@ -6023,7 +5821,7 @@ module.exports = function(Chart) {
 
 				// Since we always show the last tick,we need may need to hide the last shown one before
 				shouldSkip = (skipRatio > 1 && i % skipRatio > 0) || (i % skipRatio === 0 && i + skipRatio >= tickCount);
-				if (shouldSkip && i !== tickCount - 1) {
+				if (shouldSkip && i !== tickCount - 1 || helpers.isNullOrUndef(tick.label)) {
 					// leave tick in place but make sure it's not displayed (#4635)
 					delete tick.label;
 				}
@@ -6066,15 +5864,14 @@ module.exports = function(Chart) {
 
 			var itemsToDraw = [];
 
-			var axisWidth = me.options.gridLines.lineWidth;
-			var xTickStart = options.position === 'right' ? me.right : me.right - axisWidth - tl;
-			var xTickEnd = options.position === 'right' ? me.right + tl : me.right;
-			var yTickStart = options.position === 'bottom' ? me.top + axisWidth : me.bottom - tl - axisWidth;
-			var yTickEnd = options.position === 'bottom' ? me.top + axisWidth + tl : me.bottom + axisWidth;
+			var xTickStart = options.position === 'right' ? me.left : me.right - tl;
+			var xTickEnd = options.position === 'right' ? me.left + tl : me.right;
+			var yTickStart = options.position === 'bottom' ? me.top : me.bottom - tl;
+			var yTickEnd = options.position === 'bottom' ? me.top + tl : me.bottom;
 
 			helpers.each(ticks, function(tick, index) {
 				// autoskipper skipped this tick (#4635)
-				if (helpers.isNullOrUndef(tick.label)) {
+				if (tick.label === undefined) {
 					return;
 				}
 
@@ -6126,7 +5923,7 @@ module.exports = function(Chart) {
 					ty1 = yTickStart;
 					ty2 = yTickEnd;
 					y1 = chartArea.top;
-					y2 = chartArea.bottom + axisWidth;
+					y2 = chartArea.bottom;
 				} else {
 					var isLeft = options.position === 'left';
 					var labelXOffset;
@@ -6152,7 +5949,7 @@ module.exports = function(Chart) {
 					tx1 = xTickStart;
 					tx2 = xTickEnd;
 					x1 = chartArea.left;
-					x2 = chartArea.right + axisWidth;
+					x2 = chartArea.right;
 					ty1 = ty2 = y1 = y2 = yLineValue;
 				}
 
@@ -6218,15 +6015,11 @@ module.exports = function(Chart) {
 
 					var label = itemToDraw.label;
 					if (helpers.isArray(label)) {
-						var lineCount = label.length;
-						var lineHeight = tickFont.size * 1.5;
-						var y = me.isHorizontal() ? 0 : -lineHeight * (lineCount - 1) / 2;
-
-						for (var i = 0; i < lineCount; ++i) {
+						for (var i = 0, y = 0; i < label.length; ++i) {
 							// We just make sure the multiline element is a string here..
 							context.fillText('' + label[i], 0, y);
 							// apply same lineSpacing as calculated @ L#320
-							y += lineHeight;
+							y += (tickFont.size * 1.5);
 						}
 					} else {
 						context.fillText(label, 0, 0);
@@ -6272,9 +6065,9 @@ module.exports = function(Chart) {
 				context.lineWidth = helpers.valueAtIndexOrDefault(gridLines.lineWidth, 0);
 				context.strokeStyle = helpers.valueAtIndexOrDefault(gridLines.color, 0);
 				var x1 = me.left;
-				var x2 = me.right + axisWidth;
+				var x2 = me.right;
 				var y1 = me.top;
-				var y2 = me.bottom + axisWidth;
+				var y2 = me.bottom;
 
 				var aliasPixel = helpers.aliasPixel(context.lineWidth);
 				if (isHorizontal) {
@@ -6301,7 +6094,6 @@ module.exports = function(Chart) {
 
 var defaults = require('./core.defaults');
 var helpers = require('../helpers/index');
-var layouts = require('./core.layouts');
 
 module.exports = function(Chart) {
 
@@ -6338,13 +6130,13 @@ module.exports = function(Chart) {
 				scale.fullWidth = scale.options.fullWidth;
 				scale.position = scale.options.position;
 				scale.weight = scale.options.weight;
-				layouts.addBox(chart, scale);
+				Chart.layoutService.addBox(chart, scale);
 			});
 		}
 	};
 };
 
-},{"../helpers/index":39,"./core.defaults":19,"./core.layouts":24}],28:[function(require,module,exports){
+},{"../helpers/index":39,"./core.defaults":19}],28:[function(require,module,exports){
 'use strict';
 
 var helpers = require('../helpers/index');
@@ -6354,6 +6146,140 @@ var helpers = require('../helpers/index');
  * @namespace Chart.Ticks
  */
 module.exports = {
+	/**
+	 * Namespace to hold generators for different types of ticks
+	 * @namespace Chart.Ticks.generators
+	 */
+	generators: {
+		/**
+		 * Interface for the options provided to the numeric tick generator
+		 * @interface INumericTickGenerationOptions
+		 */
+		/**
+		 * The maximum number of ticks to display
+		 * @name INumericTickGenerationOptions#maxTicks
+		 * @type Number
+		 */
+		/**
+		 * The distance between each tick.
+		 * @name INumericTickGenerationOptions#stepSize
+		 * @type Number
+		 * @optional
+		 */
+		/**
+		 * Forced minimum for the ticks. If not specified, the minimum of the data range is used to calculate the tick minimum
+		 * @name INumericTickGenerationOptions#min
+		 * @type Number
+		 * @optional
+		 */
+		/**
+		 * The maximum value of the ticks. If not specified, the maximum of the data range is used to calculate the tick maximum
+		 * @name INumericTickGenerationOptions#max
+		 * @type Number
+		 * @optional
+		 */
+
+		/**
+		 * Generate a set of linear ticks
+		 * @method Chart.Ticks.generators.linear
+		 * @param generationOptions {INumericTickGenerationOptions} the options used to generate the ticks
+		 * @param dataRange {IRange} the range of the data
+		 * @returns {Array<Number>} array of tick values
+		 */
+		linear: function(generationOptions, dataRange) {
+			var ticks = [];
+			// To get a "nice" value for the tick spacing, we will use the appropriately named
+			// "nice number" algorithm. See http://stackoverflow.com/questions/8506881/nice-label-algorithm-for-charts-with-minimum-ticks
+			// for details.
+
+			var spacing;
+			if (generationOptions.stepSize && generationOptions.stepSize > 0) {
+				spacing = generationOptions.stepSize;
+			} else {
+				var niceRange = helpers.niceNum(dataRange.max - dataRange.min, false);
+				spacing = helpers.niceNum(niceRange / (generationOptions.maxTicks - 1), true);
+			}
+			var niceMin = Math.floor(dataRange.min / spacing) * spacing;
+			var niceMax = Math.ceil(dataRange.max / spacing) * spacing;
+
+			// If min, max and stepSize is set and they make an evenly spaced scale use it.
+			if (generationOptions.min && generationOptions.max && generationOptions.stepSize) {
+				// If very close to our whole number, use it.
+				if (helpers.almostWhole((generationOptions.max - generationOptions.min) / generationOptions.stepSize, spacing / 1000)) {
+					niceMin = generationOptions.min;
+					niceMax = generationOptions.max;
+				}
+			}
+
+			var numSpaces = (niceMax - niceMin) / spacing;
+			// If very close to our rounded value, use it.
+			if (helpers.almostEquals(numSpaces, Math.round(numSpaces), spacing / 1000)) {
+				numSpaces = Math.round(numSpaces);
+			} else {
+				numSpaces = Math.ceil(numSpaces);
+			}
+
+			// Put the values into the ticks array
+			ticks.push(generationOptions.min !== undefined ? generationOptions.min : niceMin);
+			for (var j = 1; j < numSpaces; ++j) {
+				ticks.push(niceMin + (j * spacing));
+			}
+			ticks.push(generationOptions.max !== undefined ? generationOptions.max : niceMax);
+
+			return ticks;
+		},
+
+		/**
+		 * Generate a set of logarithmic ticks
+		 * @method Chart.Ticks.generators.logarithmic
+		 * @param generationOptions {INumericTickGenerationOptions} the options used to generate the ticks
+		 * @param dataRange {IRange} the range of the data
+		 * @returns {Array<Number>} array of tick values
+		 */
+		logarithmic: function(generationOptions, dataRange) {
+			var ticks = [];
+			var valueOrDefault = helpers.valueOrDefault;
+
+			// Figure out what the max number of ticks we can support it is based on the size of
+			// the axis area. For now, we say that the minimum tick spacing in pixels must be 50
+			// We also limit the maximum number of ticks to 11 which gives a nice 10 squares on
+			// the graph
+			var tickVal = valueOrDefault(generationOptions.min, Math.pow(10, Math.floor(helpers.log10(dataRange.min))));
+
+			var endExp = Math.floor(helpers.log10(dataRange.max));
+			var endSignificand = Math.ceil(dataRange.max / Math.pow(10, endExp));
+			var exp, significand;
+
+			if (tickVal === 0) {
+				exp = Math.floor(helpers.log10(dataRange.minNotZero));
+				significand = Math.floor(dataRange.minNotZero / Math.pow(10, exp));
+
+				ticks.push(tickVal);
+				tickVal = significand * Math.pow(10, exp);
+			} else {
+				exp = Math.floor(helpers.log10(tickVal));
+				significand = Math.floor(tickVal / Math.pow(10, exp));
+			}
+
+			do {
+				ticks.push(tickVal);
+
+				++significand;
+				if (significand === 10) {
+					significand = 1;
+					++exp;
+				}
+
+				tickVal = significand * Math.pow(10, exp);
+			} while (exp < endExp || (exp === endExp && significand < endSignificand));
+
+			var lastTick = valueOrDefault(generationOptions.max, tickVal);
+			ticks.push(lastTick);
+
+			return ticks;
+		}
+	},
+
 	/**
 	 * Namespace to hold formatters for different types of ticks
 	 * @namespace Chart.Ticks.formatters
@@ -6718,10 +6644,10 @@ module.exports = function(Chart) {
 		}
 
 		olf = function(x) {
-			return x + size.width + model.caretSize + model.caretPadding > chart.width;
+			return x + size.width > chart.width;
 		};
 		orf = function(x) {
-			return x - size.width - model.caretSize - model.caretPadding < 0;
+			return x - size.width < 0;
 		};
 		yf = function(y) {
 			return y <= midY ? 'top' : 'bottom';
@@ -6755,7 +6681,7 @@ module.exports = function(Chart) {
 	/**
 	 * @Helper to get the location a tooltip needs to be placed at given the initial position (via the vm) and the size and alignment
 	 */
-	function getBackgroundPoint(vm, size, alignment, chart) {
+	function getBackgroundPoint(vm, size, alignment) {
 		// Background Position
 		var x = vm.x;
 		var y = vm.y;
@@ -6772,12 +6698,6 @@ module.exports = function(Chart) {
 			x -= size.width;
 		} else if (xAlign === 'center') {
 			x -= (size.width / 2);
-			if (x + size.width > chart.width) {
-				x = chart.width - size.width;
-			}
-			if (x < 0) {
-				x = 0;
-			}
 		}
 
 		if (yAlign === 'top') {
@@ -6809,7 +6729,6 @@ module.exports = function(Chart) {
 	Chart.Tooltip = Element.extend({
 		initialize: function() {
 			this._model = getBaseModel(this._options);
-			this._lastActive = [];
 		},
 
 		// Get the title
@@ -6921,7 +6840,7 @@ module.exports = function(Chart) {
 
 				var labelColors = [];
 				var labelTextColors = [];
-				tooltipPosition = Chart.Tooltip.positioners[opts.position].call(me, active, me._eventPosition);
+				tooltipPosition = Chart.Tooltip.positioners[opts.position](active, me._eventPosition);
 
 				var tooltipItems = [];
 				for (i = 0, len = active.length; i < len; ++i) {
@@ -6970,7 +6889,7 @@ module.exports = function(Chart) {
 				tooltipSize = getTooltipSize(this, model);
 				alignment = determineAlignment(this, tooltipSize);
 				// Final Size and Position
-				backgroundPoint = getBackgroundPoint(model, tooltipSize, alignment, me._chart);
+				backgroundPoint = getBackgroundPoint(model, tooltipSize, alignment);
 			} else {
 				model.opacity = 0;
 			}
@@ -7042,7 +6961,7 @@ module.exports = function(Chart) {
 					x1 = x2 - caretSize;
 					x3 = x2 + caretSize;
 				} else {
-					x2 = vm.caretX;
+					x2 = ptX + (width / 2);
 					x1 = x2 - caretSize;
 					x3 = x2 + caretSize;
 				}
@@ -7103,7 +7022,6 @@ module.exports = function(Chart) {
 			};
 
 			// Before body lines
-			ctx.fillStyle = mergeOpacity(vm.bodyFontColor, opacity);
 			helpers.each(vm.beforeBody, fillLineOfText);
 
 			var drawColorBoxes = vm.displayColors;
@@ -7111,8 +7029,6 @@ module.exports = function(Chart) {
 
 			// Draw body lines now
 			helpers.each(body, function(bodyItem, i) {
-				var textColor = mergeOpacity(vm.labelTextColors[i], opacity);
-				ctx.fillStyle = textColor;
 				helpers.each(bodyItem.before, fillLineOfText);
 
 				helpers.each(bodyItem.lines, function(line) {
@@ -7130,6 +7046,7 @@ module.exports = function(Chart) {
 						// Inner square
 						ctx.fillStyle = mergeOpacity(vm.labelColors[i].backgroundColor, opacity);
 						ctx.fillRect(pt.x + 1, pt.y + 1, bodyFontSize - 2, bodyFontSize - 2);
+						var textColor = mergeOpacity(vm.labelTextColors[i], opacity);
 						ctx.fillStyle = textColor;
 					}
 
@@ -7271,19 +7188,25 @@ module.exports = function(Chart) {
 			// Remember Last Actives
 			changed = !helpers.arrayEquals(me._active, me._lastActive);
 
-			// Only handle target event on tooltip change
-			if (changed) {
-				me._lastActive = me._active;
+			// If tooltip didn't change, do not handle the target event
+			if (!changed) {
+				return false;
+			}
 
-				if (options.enabled || options.custom) {
-					me._eventPosition = {
-						x: e.x,
-						y: e.y
-					};
+			me._lastActive = me._active;
 
-					me.update(true);
-					me.pivot();
-				}
+			if (options.enabled || options.custom) {
+				me._eventPosition = {
+					x: e.x,
+					y: e.y
+				};
+
+				var model = me._model;
+				me.update(true);
+				me.pivot();
+
+				// See if our tooltip position changed
+				changed |= (model.x !== me._model.x) || (model.y !== me._model.y);
 			}
 
 			return changed;
@@ -7595,12 +7518,12 @@ defaults._set('global', {
 
 function xRange(mouseX) {
 	var vm = this._view;
-	return vm ? (Math.abs(mouseX - vm.x) < vm.radius + vm.hitRadius) : false;
+	return vm ? (Math.pow(mouseX - vm.x, 2) < Math.pow(vm.radius + vm.hitRadius, 2)) : false;
 }
 
 function yRange(mouseY) {
 	var vm = this._view;
-	return vm ? (Math.abs(mouseY - vm.y) < vm.radius + vm.hitRadius) : false;
+	return vm ? (Math.pow(mouseY - vm.y, 2) < Math.pow(vm.radius + vm.hitRadius, 2)) : false;
 }
 
 module.exports = Element.extend({
@@ -7954,7 +7877,7 @@ var exports = module.exports = {
 	drawPoint: function(ctx, style, radius, x, y) {
 		var type, edgeLength, xOffset, yOffset, height, size;
 
-		if (style && typeof style === 'object') {
+		if (typeof style === 'object') {
 			type = style.toString();
 			if (type === '[object HTMLImageElement]' || type === '[object HTMLCanvasElement]') {
 				ctx.drawImage(style, x - style.width / 2, y - style.height / 2, style.width, style.height);
@@ -8373,48 +8296,6 @@ var helpers = {
 	 */
 	mergeIf: function(target, source) {
 		return helpers.merge(target, source, {merger: helpers._mergerIf});
-	},
-
-	/**
-	 * Applies the contents of two or more objects together into the first object.
-	 * @param {Object} target - The target object in which all objects are merged into.
-	 * @param {Object} arg1 - Object containing additional properties to merge in target.
-	 * @param {Object} argN - Additional objects containing properties to merge in target.
-	 * @returns {Object} The `target` object.
-	 */
-	extend: function(target) {
-		var setFn = function(value, key) {
-			target[key] = value;
-		};
-		for (var i = 1, ilen = arguments.length; i < ilen; ++i) {
-			helpers.each(arguments[i], setFn);
-		}
-		return target;
-	},
-
-	/**
-	 * Basic javascript inheritance based on the model created in Backbone.js
-	 */
-	inherits: function(extensions) {
-		var me = this;
-		var ChartElement = (extensions && extensions.hasOwnProperty('constructor')) ? extensions.constructor : function() {
-			return me.apply(this, arguments);
-		};
-
-		var Surrogate = function() {
-			this.constructor = ChartElement;
-		};
-
-		Surrogate.prototype = me.prototype;
-		ChartElement.prototype = new Surrogate();
-		ChartElement.extend = helpers.inherits;
-
-		if (extensions) {
-			helpers.extend(ChartElement.prototype, extensions);
-		}
-
-		ChartElement.__super__ = me.prototype;
-		return ChartElement;
 	}
 };
 
@@ -9075,13 +8956,6 @@ function watchForRender(node, handler) {
 		addEventListener(node, type, proxy);
 	});
 
-	// #4737: Chrome might skip the CSS animation when the CSS_RENDER_MONITOR class
-	// is removed then added back immediately (same animation frame?). Accessing the
-	// `offsetParent` property will force a reflow and re-evaluate the CSS animation.
-	// https://gist.github.com/paulirish/5d52fb081b3570c81e3a#box-metrics
-	// https://github.com/chartjs/Chart.js/issues/4737
-	expando.reflow = !!node.offsetParent;
-
 	node.classList.add(CSS_RENDER_MONITOR);
 }
 
@@ -9372,14 +9246,6 @@ module.exports = helpers.extend({
  */
 
 },{"../helpers/index":39,"./platform.basic":40,"./platform.dom":41}],43:[function(require,module,exports){
-'use strict';
-
-module.exports = {};
-module.exports.filler = require('./plugin.filler');
-module.exports.legend = require('./plugin.legend');
-module.exports.title = require('./plugin.title');
-
-},{"./plugin.filler":44,"./plugin.legend":45,"./plugin.title":46}],44:[function(require,module,exports){
 /**
  * Plugin based on discussion from the following Chart.js issues:
  * @see https://github.com/chartjs/Chart.js/issues/2380#issuecomment-279961569
@@ -9400,314 +9266,314 @@ defaults._set('global', {
 	}
 });
 
-var mappers = {
-	dataset: function(source) {
-		var index = source.fill;
-		var chart = source.chart;
-		var meta = chart.getDatasetMeta(index);
-		var visible = meta && chart.isDatasetVisible(index);
-		var points = (visible && meta.dataset._children) || [];
-		var length = points.length || 0;
+module.exports = function() {
 
-		return !length ? null : function(point, i) {
-			return (i < length && points[i]._view) || null;
-		};
-	},
+	var mappers = {
+		dataset: function(source) {
+			var index = source.fill;
+			var chart = source.chart;
+			var meta = chart.getDatasetMeta(index);
+			var visible = meta && chart.isDatasetVisible(index);
+			var points = (visible && meta.dataset._children) || [];
+			var length = points.length || 0;
 
-	boundary: function(source) {
-		var boundary = source.boundary;
-		var x = boundary ? boundary.x : null;
-		var y = boundary ? boundary.y : null;
-
-		return function(point) {
-			return {
-				x: x === null ? point.x : x,
-				y: y === null ? point.y : y,
+			return !length ? null : function(point, i) {
+				return (i < length && points[i]._view) || null;
 			};
-		};
-	}
-};
+		},
 
-// @todo if (fill[0] === '#')
-function decodeFill(el, index, count) {
-	var model = el._model || {};
-	var fill = model.fill;
-	var target;
+		boundary: function(source) {
+			var boundary = source.boundary;
+			var x = boundary ? boundary.x : null;
+			var y = boundary ? boundary.y : null;
 
-	if (fill === undefined) {
-		fill = !!model.backgroundColor;
-	}
+			return function(point) {
+				return {
+					x: x === null ? point.x : x,
+					y: y === null ? point.y : y,
+				};
+			};
+		}
+	};
 
-	if (fill === false || fill === null) {
-		return false;
-	}
+	// @todo if (fill[0] === '#')
+	function decodeFill(el, index, count) {
+		var model = el._model || {};
+		var fill = model.fill;
+		var target;
 
-	if (fill === true) {
-		return 'origin';
-	}
-
-	target = parseFloat(fill, 10);
-	if (isFinite(target) && Math.floor(target) === target) {
-		if (fill[0] === '-' || fill[0] === '+') {
-			target = index + target;
+		if (fill === undefined) {
+			fill = !!model.backgroundColor;
 		}
 
-		if (target === index || target < 0 || target >= count) {
+		if (fill === false || fill === null) {
 			return false;
 		}
 
-		return target;
-	}
+		if (fill === true) {
+			return 'origin';
+		}
 
-	switch (fill) {
-	// compatibility
-	case 'bottom':
-		return 'start';
-	case 'top':
-		return 'end';
-	case 'zero':
-		return 'origin';
-	// supported boundaries
-	case 'origin':
-	case 'start':
-	case 'end':
-		return fill;
-	// invalid fill values
-	default:
-		return false;
-	}
-}
+		target = parseFloat(fill, 10);
+		if (isFinite(target) && Math.floor(target) === target) {
+			if (fill[0] === '-' || fill[0] === '+') {
+				target = index + target;
+			}
 
-function computeBoundary(source) {
-	var model = source.el._model || {};
-	var scale = source.el._scale || {};
-	var fill = source.fill;
-	var target = null;
-	var horizontal;
+			if (target === index || target < 0 || target >= count) {
+				return false;
+			}
 
-	if (isFinite(fill)) {
-		return null;
-	}
-
-	// Backward compatibility: until v3, we still need to support boundary values set on
-	// the model (scaleTop, scaleBottom and scaleZero) because some external plugins and
-	// controllers might still use it (e.g. the Smith chart).
-
-	if (fill === 'start') {
-		target = model.scaleBottom === undefined ? scale.bottom : model.scaleBottom;
-	} else if (fill === 'end') {
-		target = model.scaleTop === undefined ? scale.top : model.scaleTop;
-	} else if (model.scaleZero !== undefined) {
-		target = model.scaleZero;
-	} else if (scale.getBasePosition) {
-		target = scale.getBasePosition();
-	} else if (scale.getBasePixel) {
-		target = scale.getBasePixel();
-	}
-
-	if (target !== undefined && target !== null) {
-		if (target.x !== undefined && target.y !== undefined) {
 			return target;
 		}
 
-		if (typeof target === 'number' && isFinite(target)) {
-			horizontal = scale.isHorizontal();
-			return {
-				x: horizontal ? target : null,
-				y: horizontal ? null : target
-			};
-		}
-	}
-
-	return null;
-}
-
-function resolveTarget(sources, index, propagate) {
-	var source = sources[index];
-	var fill = source.fill;
-	var visited = [index];
-	var target;
-
-	if (!propagate) {
-		return fill;
-	}
-
-	while (fill !== false && visited.indexOf(fill) === -1) {
-		if (!isFinite(fill)) {
+		switch (fill) {
+		// compatibility
+		case 'bottom':
+			return 'start';
+		case 'top':
+			return 'end';
+		case 'zero':
+			return 'origin';
+		// supported boundaries
+		case 'origin':
+		case 'start':
+		case 'end':
 			return fill;
-		}
-
-		target = sources[fill];
-		if (!target) {
+		// invalid fill values
+		default:
 			return false;
 		}
-
-		if (target.visible) {
-			return fill;
-		}
-
-		visited.push(fill);
-		fill = target.fill;
 	}
 
-	return false;
-}
+	function computeBoundary(source) {
+		var model = source.el._model || {};
+		var scale = source.el._scale || {};
+		var fill = source.fill;
+		var target = null;
+		var horizontal;
 
-function createMapper(source) {
-	var fill = source.fill;
-	var type = 'dataset';
+		if (isFinite(fill)) {
+			return null;
+		}
 
-	if (fill === false) {
+		// Backward compatibility: until v3, we still need to support boundary values set on
+		// the model (scaleTop, scaleBottom and scaleZero) because some external plugins and
+		// controllers might still use it (e.g. the Smith chart).
+
+		if (fill === 'start') {
+			target = model.scaleBottom === undefined ? scale.bottom : model.scaleBottom;
+		} else if (fill === 'end') {
+			target = model.scaleTop === undefined ? scale.top : model.scaleTop;
+		} else if (model.scaleZero !== undefined) {
+			target = model.scaleZero;
+		} else if (scale.getBasePosition) {
+			target = scale.getBasePosition();
+		} else if (scale.getBasePixel) {
+			target = scale.getBasePixel();
+		}
+
+		if (target !== undefined && target !== null) {
+			if (target.x !== undefined && target.y !== undefined) {
+				return target;
+			}
+
+			if (typeof target === 'number' && isFinite(target)) {
+				horizontal = scale.isHorizontal();
+				return {
+					x: horizontal ? target : null,
+					y: horizontal ? null : target
+				};
+			}
+		}
+
 		return null;
 	}
 
-	if (!isFinite(fill)) {
-		type = 'boundary';
-	}
+	function resolveTarget(sources, index, propagate) {
+		var source = sources[index];
+		var fill = source.fill;
+		var visited = [index];
+		var target;
 
-	return mappers[type](source);
-}
-
-function isDrawable(point) {
-	return point && !point.skip;
-}
-
-function drawArea(ctx, curve0, curve1, len0, len1) {
-	var i;
-
-	if (!len0 || !len1) {
-		return;
-	}
-
-	// building first area curve (normal)
-	ctx.moveTo(curve0[0].x, curve0[0].y);
-	for (i = 1; i < len0; ++i) {
-		helpers.canvas.lineTo(ctx, curve0[i - 1], curve0[i]);
-	}
-
-	// joining the two area curves
-	ctx.lineTo(curve1[len1 - 1].x, curve1[len1 - 1].y);
-
-	// building opposite area curve (reverse)
-	for (i = len1 - 1; i > 0; --i) {
-		helpers.canvas.lineTo(ctx, curve1[i], curve1[i - 1], true);
-	}
-}
-
-function doFill(ctx, points, mapper, view, color, loop) {
-	var count = points.length;
-	var span = view.spanGaps;
-	var curve0 = [];
-	var curve1 = [];
-	var len0 = 0;
-	var len1 = 0;
-	var i, ilen, index, p0, p1, d0, d1;
-
-	ctx.beginPath();
-
-	for (i = 0, ilen = (count + !!loop); i < ilen; ++i) {
-		index = i % count;
-		p0 = points[index]._view;
-		p1 = mapper(p0, index, view);
-		d0 = isDrawable(p0);
-		d1 = isDrawable(p1);
-
-		if (d0 && d1) {
-			len0 = curve0.push(p0);
-			len1 = curve1.push(p1);
-		} else if (len0 && len1) {
-			if (!span) {
-				drawArea(ctx, curve0, curve1, len0, len1);
-				len0 = len1 = 0;
-				curve0 = [];
-				curve1 = [];
-			} else {
-				if (d0) {
-					curve0.push(p0);
-				}
-				if (d1) {
-					curve1.push(p1);
-				}
-			}
-		}
-	}
-
-	drawArea(ctx, curve0, curve1, len0, len1);
-
-	ctx.closePath();
-	ctx.fillStyle = color;
-	ctx.fill();
-}
-
-module.exports = {
-	id: 'filler',
-
-	afterDatasetsUpdate: function(chart, options) {
-		var count = (chart.data.datasets || []).length;
-		var propagate = options.propagate;
-		var sources = [];
-		var meta, i, el, source;
-
-		for (i = 0; i < count; ++i) {
-			meta = chart.getDatasetMeta(i);
-			el = meta.dataset;
-			source = null;
-
-			if (el && el._model && el instanceof elements.Line) {
-				source = {
-					visible: chart.isDatasetVisible(i),
-					fill: decodeFill(el, i, count),
-					chart: chart,
-					el: el
-				};
-			}
-
-			meta.$filler = source;
-			sources.push(source);
+		if (!propagate) {
+			return fill;
 		}
 
-		for (i = 0; i < count; ++i) {
-			source = sources[i];
-			if (!source) {
-				continue;
+		while (fill !== false && visited.indexOf(fill) === -1) {
+			if (!isFinite(fill)) {
+				return fill;
 			}
 
-			source.fill = resolveTarget(sources, i, propagate);
-			source.boundary = computeBoundary(source);
-			source.mapper = createMapper(source);
-		}
-	},
+			target = sources[fill];
+			if (!target) {
+				return false;
+			}
 
-	beforeDatasetDraw: function(chart, args) {
-		var meta = args.meta.$filler;
-		if (!meta) {
+			if (target.visible) {
+				return fill;
+			}
+
+			visited.push(fill);
+			fill = target.fill;
+		}
+
+		return false;
+	}
+
+	function createMapper(source) {
+		var fill = source.fill;
+		var type = 'dataset';
+
+		if (fill === false) {
+			return null;
+		}
+
+		if (!isFinite(fill)) {
+			type = 'boundary';
+		}
+
+		return mappers[type](source);
+	}
+
+	function isDrawable(point) {
+		return point && !point.skip;
+	}
+
+	function drawArea(ctx, curve0, curve1, len0, len1) {
+		var i;
+
+		if (!len0 || !len1) {
 			return;
 		}
 
-		var ctx = chart.ctx;
-		var el = meta.el;
-		var view = el._view;
-		var points = el._children || [];
-		var mapper = meta.mapper;
-		var color = view.backgroundColor || defaults.global.defaultColor;
+		// building first area curve (normal)
+		ctx.moveTo(curve0[0].x, curve0[0].y);
+		for (i = 1; i < len0; ++i) {
+			helpers.canvas.lineTo(ctx, curve0[i - 1], curve0[i]);
+		}
 
-		if (mapper && color && points.length) {
-			helpers.canvas.clipArea(ctx, chart.chartArea);
-			doFill(ctx, points, mapper, view, color, el._loop);
-			helpers.canvas.unclipArea(ctx);
+		// joining the two area curves
+		ctx.lineTo(curve1[len1 - 1].x, curve1[len1 - 1].y);
+
+		// building opposite area curve (reverse)
+		for (i = len1 - 1; i > 0; --i) {
+			helpers.canvas.lineTo(ctx, curve1[i], curve1[i - 1], true);
 		}
 	}
+
+	function doFill(ctx, points, mapper, view, color, loop) {
+		var count = points.length;
+		var span = view.spanGaps;
+		var curve0 = [];
+		var curve1 = [];
+		var len0 = 0;
+		var len1 = 0;
+		var i, ilen, index, p0, p1, d0, d1;
+
+		ctx.beginPath();
+
+		for (i = 0, ilen = (count + !!loop); i < ilen; ++i) {
+			index = i % count;
+			p0 = points[index]._view;
+			p1 = mapper(p0, index, view);
+			d0 = isDrawable(p0);
+			d1 = isDrawable(p1);
+
+			if (d0 && d1) {
+				len0 = curve0.push(p0);
+				len1 = curve1.push(p1);
+			} else if (len0 && len1) {
+				if (!span) {
+					drawArea(ctx, curve0, curve1, len0, len1);
+					len0 = len1 = 0;
+					curve0 = [];
+					curve1 = [];
+				} else {
+					if (d0) {
+						curve0.push(p0);
+					}
+					if (d1) {
+						curve1.push(p1);
+					}
+				}
+			}
+		}
+
+		drawArea(ctx, curve0, curve1, len0, len1);
+
+		ctx.closePath();
+		ctx.fillStyle = color;
+		ctx.fill();
+	}
+
+	return {
+		id: 'filler',
+
+		afterDatasetsUpdate: function(chart, options) {
+			var count = (chart.data.datasets || []).length;
+			var propagate = options.propagate;
+			var sources = [];
+			var meta, i, el, source;
+
+			for (i = 0; i < count; ++i) {
+				meta = chart.getDatasetMeta(i);
+				el = meta.dataset;
+				source = null;
+
+				if (el && el._model && el instanceof elements.Line) {
+					source = {
+						visible: chart.isDatasetVisible(i),
+						fill: decodeFill(el, i, count),
+						chart: chart,
+						el: el
+					};
+				}
+
+				meta.$filler = source;
+				sources.push(source);
+			}
+
+			for (i = 0; i < count; ++i) {
+				source = sources[i];
+				if (!source) {
+					continue;
+				}
+
+				source.fill = resolveTarget(sources, i, propagate);
+				source.boundary = computeBoundary(source);
+				source.mapper = createMapper(source);
+			}
+		},
+
+		beforeDatasetDraw: function(chart, args) {
+			var meta = args.meta.$filler;
+			if (!meta) {
+				return;
+			}
+
+			var ctx = chart.ctx;
+			var el = meta.el;
+			var view = el._view;
+			var points = el._children || [];
+			var mapper = meta.mapper;
+			var color = view.backgroundColor || defaults.global.defaultColor;
+
+			if (mapper && color && points.length) {
+				helpers.canvas.clipArea(ctx, chart.chartArea);
+				doFill(ctx, points, mapper, view, color, el._loop);
+				helpers.canvas.unclipArea(ctx);
+			}
+		}
+	};
 };
 
-},{"../core/core.defaults":19,"../elements/index":34,"../helpers/index":39}],45:[function(require,module,exports){
+},{"../core/core.defaults":19,"../elements/index":34,"../helpers/index":39}],44:[function(require,module,exports){
 'use strict';
 
 var defaults = require('../core/core.defaults');
 var Element = require('../core/core.element');
 var helpers = require('../helpers/index');
-var layouts = require('../core/core.layouts');
-
-var noop = helpers.noop;
 
 defaults._set('global', {
 	legend: {
@@ -9784,508 +9650,499 @@ defaults._set('global', {
 	}
 });
 
-/**
- * Helper function to get the box width based on the usePointStyle option
- * @param labelopts {Object} the label options on the legend
- * @param fontSize {Number} the label font size
- * @return {Number} width of the color box area
- */
-function getBoxWidth(labelOpts, fontSize) {
-	return labelOpts.usePointStyle ?
-		fontSize * Math.SQRT2 :
-		labelOpts.boxWidth;
-}
+module.exports = function(Chart) {
 
-/**
- * IMPORTANT: this class is exposed publicly as Chart.Legend, backward compatibility required!
- */
-var Legend = Element.extend({
+	var layout = Chart.layoutService;
+	var noop = helpers.noop;
 
-	initialize: function(config) {
-		helpers.extend(this, config);
+	/**
+	 * Helper function to get the box width based on the usePointStyle option
+	 * @param labelopts {Object} the label options on the legend
+	 * @param fontSize {Number} the label font size
+	 * @return {Number} width of the color box area
+	 */
+	function getBoxWidth(labelOpts, fontSize) {
+		return labelOpts.usePointStyle ?
+			fontSize * Math.SQRT2 :
+			labelOpts.boxWidth;
+	}
 
-		// Contains hit boxes for each dataset (in dataset order)
-		this.legendHitBoxes = [];
+	Chart.Legend = Element.extend({
 
-		// Are we in doughnut mode which has a different data type
-		this.doughnutMode = false;
-	},
+		initialize: function(config) {
+			helpers.extend(this, config);
 
-	// These methods are ordered by lifecycle. Utilities then follow.
-	// Any function defined here is inherited by all legend types.
-	// Any function can be extended by the legend type
+			// Contains hit boxes for each dataset (in dataset order)
+			this.legendHitBoxes = [];
 
-	beforeUpdate: noop,
-	update: function(maxWidth, maxHeight, margins) {
-		var me = this;
+			// Are we in doughnut mode which has a different data type
+			this.doughnutMode = false;
+		},
 
-		// Update Lifecycle - Probably don't want to ever extend or overwrite this function ;)
-		me.beforeUpdate();
+		// These methods are ordered by lifecycle. Utilities then follow.
+		// Any function defined here is inherited by all legend types.
+		// Any function can be extended by the legend type
 
-		// Absorb the master measurements
-		me.maxWidth = maxWidth;
-		me.maxHeight = maxHeight;
-		me.margins = margins;
+		beforeUpdate: noop,
+		update: function(maxWidth, maxHeight, margins) {
+			var me = this;
 
-		// Dimensions
-		me.beforeSetDimensions();
-		me.setDimensions();
-		me.afterSetDimensions();
-		// Labels
-		me.beforeBuildLabels();
-		me.buildLabels();
-		me.afterBuildLabels();
+			// Update Lifecycle - Probably don't want to ever extend or overwrite this function ;)
+			me.beforeUpdate();
 
-		// Fit
-		me.beforeFit();
-		me.fit();
-		me.afterFit();
+			// Absorb the master measurements
+			me.maxWidth = maxWidth;
+			me.maxHeight = maxHeight;
+			me.margins = margins;
+
+			// Dimensions
+			me.beforeSetDimensions();
+			me.setDimensions();
+			me.afterSetDimensions();
+			// Labels
+			me.beforeBuildLabels();
+			me.buildLabels();
+			me.afterBuildLabels();
+
+			// Fit
+			me.beforeFit();
+			me.fit();
+			me.afterFit();
+			//
+			me.afterUpdate();
+
+			return me.minSize;
+		},
+		afterUpdate: noop,
+
 		//
-		me.afterUpdate();
 
-		return me.minSize;
-	},
-	afterUpdate: noop,
-
-	//
-
-	beforeSetDimensions: noop,
-	setDimensions: function() {
-		var me = this;
-		// Set the unconstrained dimension before label rotation
-		if (me.isHorizontal()) {
-			// Reset position before calculating rotation
-			me.width = me.maxWidth;
-			me.left = 0;
-			me.right = me.width;
-		} else {
-			me.height = me.maxHeight;
-
-			// Reset position before calculating rotation
-			me.top = 0;
-			me.bottom = me.height;
-		}
-
-		// Reset padding
-		me.paddingLeft = 0;
-		me.paddingTop = 0;
-		me.paddingRight = 0;
-		me.paddingBottom = 0;
-
-		// Reset minSize
-		me.minSize = {
-			width: 0,
-			height: 0
-		};
-	},
-	afterSetDimensions: noop,
-
-	//
-
-	beforeBuildLabels: noop,
-	buildLabels: function() {
-		var me = this;
-		var labelOpts = me.options.labels || {};
-		var legendItems = helpers.callback(labelOpts.generateLabels, [me.chart], me) || [];
-
-		if (labelOpts.filter) {
-			legendItems = legendItems.filter(function(item) {
-				return labelOpts.filter(item, me.chart.data);
-			});
-		}
-
-		if (me.options.reverse) {
-			legendItems.reverse();
-		}
-
-		me.legendItems = legendItems;
-	},
-	afterBuildLabels: noop,
-
-	//
-
-	beforeFit: noop,
-	fit: function() {
-		var me = this;
-		var opts = me.options;
-		var labelOpts = opts.labels;
-		var display = opts.display;
-
-		var ctx = me.ctx;
-
-		var globalDefault = defaults.global;
-		var valueOrDefault = helpers.valueOrDefault;
-		var fontSize = valueOrDefault(labelOpts.fontSize, globalDefault.defaultFontSize);
-		var fontStyle = valueOrDefault(labelOpts.fontStyle, globalDefault.defaultFontStyle);
-		var fontFamily = valueOrDefault(labelOpts.fontFamily, globalDefault.defaultFontFamily);
-		var labelFont = helpers.fontString(fontSize, fontStyle, fontFamily);
-
-		// Reset hit boxes
-		var hitboxes = me.legendHitBoxes = [];
-
-		var minSize = me.minSize;
-		var isHorizontal = me.isHorizontal();
-
-		if (isHorizontal) {
-			minSize.width = me.maxWidth; // fill all the width
-			minSize.height = display ? 10 : 0;
-		} else {
-			minSize.width = display ? 10 : 0;
-			minSize.height = me.maxHeight; // fill all the height
-		}
-
-		// Increase sizes here
-		if (display) {
-			ctx.font = labelFont;
-
-			if (isHorizontal) {
-				// Labels
-
-				// Width of each line of legend boxes. Labels wrap onto multiple lines when there are too many to fit on one
-				var lineWidths = me.lineWidths = [0];
-				var totalHeight = me.legendItems.length ? fontSize + (labelOpts.padding) : 0;
-
-				ctx.textAlign = 'left';
-				ctx.textBaseline = 'top';
-
-				helpers.each(me.legendItems, function(legendItem, i) {
-					var boxWidth = getBoxWidth(labelOpts, fontSize);
-					var width = boxWidth + (fontSize / 2) + ctx.measureText(legendItem.text).width;
-
-					if (lineWidths[lineWidths.length - 1] + width + labelOpts.padding >= me.width) {
-						totalHeight += fontSize + (labelOpts.padding);
-						lineWidths[lineWidths.length] = me.left;
-					}
-
-					// Store the hitbox width and height here. Final position will be updated in `draw`
-					hitboxes[i] = {
-						left: 0,
-						top: 0,
-						width: width,
-						height: fontSize
-					};
-
-					lineWidths[lineWidths.length - 1] += width + labelOpts.padding;
-				});
-
-				minSize.height += totalHeight;
-
+		beforeSetDimensions: noop,
+		setDimensions: function() {
+			var me = this;
+			// Set the unconstrained dimension before label rotation
+			if (me.isHorizontal()) {
+				// Reset position before calculating rotation
+				me.width = me.maxWidth;
+				me.left = 0;
+				me.right = me.width;
 			} else {
-				var vPadding = labelOpts.padding;
-				var columnWidths = me.columnWidths = [];
-				var totalWidth = labelOpts.padding;
-				var currentColWidth = 0;
-				var currentColHeight = 0;
-				var itemHeight = fontSize + vPadding;
+				me.height = me.maxHeight;
 
-				helpers.each(me.legendItems, function(legendItem, i) {
-					var boxWidth = getBoxWidth(labelOpts, fontSize);
-					var itemWidth = boxWidth + (fontSize / 2) + ctx.measureText(legendItem.text).width;
-
-					// If too tall, go to new column
-					if (currentColHeight + itemHeight > minSize.height) {
-						totalWidth += currentColWidth + labelOpts.padding;
-						columnWidths.push(currentColWidth); // previous column width
-
-						currentColWidth = 0;
-						currentColHeight = 0;
-					}
-
-					// Get max width
-					currentColWidth = Math.max(currentColWidth, itemWidth);
-					currentColHeight += itemHeight;
-
-					// Store the hitbox width and height here. Final position will be updated in `draw`
-					hitboxes[i] = {
-						left: 0,
-						top: 0,
-						width: itemWidth,
-						height: fontSize
-					};
-				});
-
-				totalWidth += currentColWidth;
-				columnWidths.push(currentColWidth);
-				minSize.width += totalWidth;
+				// Reset position before calculating rotation
+				me.top = 0;
+				me.bottom = me.height;
 			}
-		}
 
-		me.width = minSize.width;
-		me.height = minSize.height;
-	},
-	afterFit: noop,
+			// Reset padding
+			me.paddingLeft = 0;
+			me.paddingTop = 0;
+			me.paddingRight = 0;
+			me.paddingBottom = 0;
 
-	// Shared Methods
-	isHorizontal: function() {
-		return this.options.position === 'top' || this.options.position === 'bottom';
-	},
+			// Reset minSize
+			me.minSize = {
+				width: 0,
+				height: 0
+			};
+		},
+		afterSetDimensions: noop,
 
-	// Actually draw the legend on the canvas
-	draw: function() {
-		var me = this;
-		var opts = me.options;
-		var labelOpts = opts.labels;
-		var globalDefault = defaults.global;
-		var lineDefault = globalDefault.elements.line;
-		var legendWidth = me.width;
-		var lineWidths = me.lineWidths;
+		//
 
-		if (opts.display) {
+		beforeBuildLabels: noop,
+		buildLabels: function() {
+			var me = this;
+			var labelOpts = me.options.labels || {};
+			var legendItems = helpers.callback(labelOpts.generateLabels, [me.chart], me) || [];
+
+			if (labelOpts.filter) {
+				legendItems = legendItems.filter(function(item) {
+					return labelOpts.filter(item, me.chart.data);
+				});
+			}
+
+			if (me.options.reverse) {
+				legendItems.reverse();
+			}
+
+			me.legendItems = legendItems;
+		},
+		afterBuildLabels: noop,
+
+		//
+
+		beforeFit: noop,
+		fit: function() {
+			var me = this;
+			var opts = me.options;
+			var labelOpts = opts.labels;
+			var display = opts.display;
+
 			var ctx = me.ctx;
+
+			var globalDefault = defaults.global;
 			var valueOrDefault = helpers.valueOrDefault;
-			var fontColor = valueOrDefault(labelOpts.fontColor, globalDefault.defaultFontColor);
 			var fontSize = valueOrDefault(labelOpts.fontSize, globalDefault.defaultFontSize);
 			var fontStyle = valueOrDefault(labelOpts.fontStyle, globalDefault.defaultFontStyle);
 			var fontFamily = valueOrDefault(labelOpts.fontFamily, globalDefault.defaultFontFamily);
 			var labelFont = helpers.fontString(fontSize, fontStyle, fontFamily);
-			var cursor;
 
-			// Canvas setup
-			ctx.textAlign = 'left';
-			ctx.textBaseline = 'middle';
-			ctx.lineWidth = 0.5;
-			ctx.strokeStyle = fontColor; // for strikethrough effect
-			ctx.fillStyle = fontColor; // render in correct colour
-			ctx.font = labelFont;
+			// Reset hit boxes
+			var hitboxes = me.legendHitBoxes = [];
 
-			var boxWidth = getBoxWidth(labelOpts, fontSize);
-			var hitboxes = me.legendHitBoxes;
+			var minSize = me.minSize;
+			var isHorizontal = me.isHorizontal();
 
-			// current position
-			var drawLegendBox = function(x, y, legendItem) {
-				if (isNaN(boxWidth) || boxWidth <= 0) {
+			if (isHorizontal) {
+				minSize.width = me.maxWidth; // fill all the width
+				minSize.height = display ? 10 : 0;
+			} else {
+				minSize.width = display ? 10 : 0;
+				minSize.height = me.maxHeight; // fill all the height
+			}
+
+			// Increase sizes here
+			if (display) {
+				ctx.font = labelFont;
+
+				if (isHorizontal) {
+					// Labels
+
+					// Width of each line of legend boxes. Labels wrap onto multiple lines when there are too many to fit on one
+					var lineWidths = me.lineWidths = [0];
+					var totalHeight = me.legendItems.length ? fontSize + (labelOpts.padding) : 0;
+
+					ctx.textAlign = 'left';
+					ctx.textBaseline = 'top';
+
+					helpers.each(me.legendItems, function(legendItem, i) {
+						var boxWidth = getBoxWidth(labelOpts, fontSize);
+						var width = boxWidth + (fontSize / 2) + ctx.measureText(legendItem.text).width;
+
+						if (lineWidths[lineWidths.length - 1] + width + labelOpts.padding >= me.width) {
+							totalHeight += fontSize + (labelOpts.padding);
+							lineWidths[lineWidths.length] = me.left;
+						}
+
+						// Store the hitbox width and height here. Final position will be updated in `draw`
+						hitboxes[i] = {
+							left: 0,
+							top: 0,
+							width: width,
+							height: fontSize
+						};
+
+						lineWidths[lineWidths.length - 1] += width + labelOpts.padding;
+					});
+
+					minSize.height += totalHeight;
+
+				} else {
+					var vPadding = labelOpts.padding;
+					var columnWidths = me.columnWidths = [];
+					var totalWidth = labelOpts.padding;
+					var currentColWidth = 0;
+					var currentColHeight = 0;
+					var itemHeight = fontSize + vPadding;
+
+					helpers.each(me.legendItems, function(legendItem, i) {
+						var boxWidth = getBoxWidth(labelOpts, fontSize);
+						var itemWidth = boxWidth + (fontSize / 2) + ctx.measureText(legendItem.text).width;
+
+						// If too tall, go to new column
+						if (currentColHeight + itemHeight > minSize.height) {
+							totalWidth += currentColWidth + labelOpts.padding;
+							columnWidths.push(currentColWidth); // previous column width
+
+							currentColWidth = 0;
+							currentColHeight = 0;
+						}
+
+						// Get max width
+						currentColWidth = Math.max(currentColWidth, itemWidth);
+						currentColHeight += itemHeight;
+
+						// Store the hitbox width and height here. Final position will be updated in `draw`
+						hitboxes[i] = {
+							left: 0,
+							top: 0,
+							width: itemWidth,
+							height: fontSize
+						};
+					});
+
+					totalWidth += currentColWidth;
+					columnWidths.push(currentColWidth);
+					minSize.width += totalWidth;
+				}
+			}
+
+			me.width = minSize.width;
+			me.height = minSize.height;
+		},
+		afterFit: noop,
+
+		// Shared Methods
+		isHorizontal: function() {
+			return this.options.position === 'top' || this.options.position === 'bottom';
+		},
+
+		// Actually draw the legend on the canvas
+		draw: function() {
+			var me = this;
+			var opts = me.options;
+			var labelOpts = opts.labels;
+			var globalDefault = defaults.global;
+			var lineDefault = globalDefault.elements.line;
+			var legendWidth = me.width;
+			var lineWidths = me.lineWidths;
+
+			if (opts.display) {
+				var ctx = me.ctx;
+				var valueOrDefault = helpers.valueOrDefault;
+				var fontColor = valueOrDefault(labelOpts.fontColor, globalDefault.defaultFontColor);
+				var fontSize = valueOrDefault(labelOpts.fontSize, globalDefault.defaultFontSize);
+				var fontStyle = valueOrDefault(labelOpts.fontStyle, globalDefault.defaultFontStyle);
+				var fontFamily = valueOrDefault(labelOpts.fontFamily, globalDefault.defaultFontFamily);
+				var labelFont = helpers.fontString(fontSize, fontStyle, fontFamily);
+				var cursor;
+
+				// Canvas setup
+				ctx.textAlign = 'left';
+				ctx.textBaseline = 'middle';
+				ctx.lineWidth = 0.5;
+				ctx.strokeStyle = fontColor; // for strikethrough effect
+				ctx.fillStyle = fontColor; // render in correct colour
+				ctx.font = labelFont;
+
+				var boxWidth = getBoxWidth(labelOpts, fontSize);
+				var hitboxes = me.legendHitBoxes;
+
+				// current position
+				var drawLegendBox = function(x, y, legendItem) {
+					if (isNaN(boxWidth) || boxWidth <= 0) {
+						return;
+					}
+
+					// Set the ctx for the box
+					ctx.save();
+
+					ctx.fillStyle = valueOrDefault(legendItem.fillStyle, globalDefault.defaultColor);
+					ctx.lineCap = valueOrDefault(legendItem.lineCap, lineDefault.borderCapStyle);
+					ctx.lineDashOffset = valueOrDefault(legendItem.lineDashOffset, lineDefault.borderDashOffset);
+					ctx.lineJoin = valueOrDefault(legendItem.lineJoin, lineDefault.borderJoinStyle);
+					ctx.lineWidth = valueOrDefault(legendItem.lineWidth, lineDefault.borderWidth);
+					ctx.strokeStyle = valueOrDefault(legendItem.strokeStyle, globalDefault.defaultColor);
+					var isLineWidthZero = (valueOrDefault(legendItem.lineWidth, lineDefault.borderWidth) === 0);
+
+					if (ctx.setLineDash) {
+						// IE 9 and 10 do not support line dash
+						ctx.setLineDash(valueOrDefault(legendItem.lineDash, lineDefault.borderDash));
+					}
+
+					if (opts.labels && opts.labels.usePointStyle) {
+						// Recalculate x and y for drawPoint() because its expecting
+						// x and y to be center of figure (instead of top left)
+						var radius = fontSize * Math.SQRT2 / 2;
+						var offSet = radius / Math.SQRT2;
+						var centerX = x + offSet;
+						var centerY = y + offSet;
+
+						// Draw pointStyle as legend symbol
+						helpers.canvas.drawPoint(ctx, legendItem.pointStyle, radius, centerX, centerY);
+					} else {
+						// Draw box as legend symbol
+						if (!isLineWidthZero) {
+							ctx.strokeRect(x, y, boxWidth, fontSize);
+						}
+						ctx.fillRect(x, y, boxWidth, fontSize);
+					}
+
+					ctx.restore();
+				};
+				var fillText = function(x, y, legendItem, textWidth) {
+					var halfFontSize = fontSize / 2;
+					var xLeft = boxWidth + halfFontSize + x;
+					var yMiddle = y + halfFontSize;
+
+					ctx.fillText(legendItem.text, xLeft, yMiddle);
+
+					if (legendItem.hidden) {
+						// Strikethrough the text if hidden
+						ctx.beginPath();
+						ctx.lineWidth = 2;
+						ctx.moveTo(xLeft, yMiddle);
+						ctx.lineTo(xLeft + textWidth, yMiddle);
+						ctx.stroke();
+					}
+				};
+
+				// Horizontal
+				var isHorizontal = me.isHorizontal();
+				if (isHorizontal) {
+					cursor = {
+						x: me.left + ((legendWidth - lineWidths[0]) / 2),
+						y: me.top + labelOpts.padding,
+						line: 0
+					};
+				} else {
+					cursor = {
+						x: me.left + labelOpts.padding,
+						y: me.top + labelOpts.padding,
+						line: 0
+					};
+				}
+
+				var itemHeight = fontSize + labelOpts.padding;
+				helpers.each(me.legendItems, function(legendItem, i) {
+					var textWidth = ctx.measureText(legendItem.text).width;
+					var width = boxWidth + (fontSize / 2) + textWidth;
+					var x = cursor.x;
+					var y = cursor.y;
+
+					if (isHorizontal) {
+						if (x + width >= legendWidth) {
+							y = cursor.y += itemHeight;
+							cursor.line++;
+							x = cursor.x = me.left + ((legendWidth - lineWidths[cursor.line]) / 2);
+						}
+					} else if (y + itemHeight > me.bottom) {
+						x = cursor.x = x + me.columnWidths[cursor.line] + labelOpts.padding;
+						y = cursor.y = me.top + labelOpts.padding;
+						cursor.line++;
+					}
+
+					drawLegendBox(x, y, legendItem);
+
+					hitboxes[i].left = x;
+					hitboxes[i].top = y;
+
+					// Fill the actual label
+					fillText(x, y, legendItem, textWidth);
+
+					if (isHorizontal) {
+						cursor.x += width + (labelOpts.padding);
+					} else {
+						cursor.y += itemHeight;
+					}
+
+				});
+			}
+		},
+
+		/**
+		 * Handle an event
+		 * @private
+		 * @param {IEvent} event - The event to handle
+		 * @return {Boolean} true if a change occured
+		 */
+		handleEvent: function(e) {
+			var me = this;
+			var opts = me.options;
+			var type = e.type === 'mouseup' ? 'click' : e.type;
+			var changed = false;
+
+			if (type === 'mousemove') {
+				if (!opts.onHover) {
 					return;
 				}
-
-				// Set the ctx for the box
-				ctx.save();
-
-				ctx.fillStyle = valueOrDefault(legendItem.fillStyle, globalDefault.defaultColor);
-				ctx.lineCap = valueOrDefault(legendItem.lineCap, lineDefault.borderCapStyle);
-				ctx.lineDashOffset = valueOrDefault(legendItem.lineDashOffset, lineDefault.borderDashOffset);
-				ctx.lineJoin = valueOrDefault(legendItem.lineJoin, lineDefault.borderJoinStyle);
-				ctx.lineWidth = valueOrDefault(legendItem.lineWidth, lineDefault.borderWidth);
-				ctx.strokeStyle = valueOrDefault(legendItem.strokeStyle, globalDefault.defaultColor);
-				var isLineWidthZero = (valueOrDefault(legendItem.lineWidth, lineDefault.borderWidth) === 0);
-
-				if (ctx.setLineDash) {
-					// IE 9 and 10 do not support line dash
-					ctx.setLineDash(valueOrDefault(legendItem.lineDash, lineDefault.borderDash));
+			} else if (type === 'click') {
+				if (!opts.onClick) {
+					return;
 				}
-
-				if (opts.labels && opts.labels.usePointStyle) {
-					// Recalculate x and y for drawPoint() because its expecting
-					// x and y to be center of figure (instead of top left)
-					var radius = fontSize * Math.SQRT2 / 2;
-					var offSet = radius / Math.SQRT2;
-					var centerX = x + offSet;
-					var centerY = y + offSet;
-
-					// Draw pointStyle as legend symbol
-					helpers.canvas.drawPoint(ctx, legendItem.pointStyle, radius, centerX, centerY);
-				} else {
-					// Draw box as legend symbol
-					if (!isLineWidthZero) {
-						ctx.strokeRect(x, y, boxWidth, fontSize);
-					}
-					ctx.fillRect(x, y, boxWidth, fontSize);
-				}
-
-				ctx.restore();
-			};
-			var fillText = function(x, y, legendItem, textWidth) {
-				var halfFontSize = fontSize / 2;
-				var xLeft = boxWidth + halfFontSize + x;
-				var yMiddle = y + halfFontSize;
-
-				ctx.fillText(legendItem.text, xLeft, yMiddle);
-
-				if (legendItem.hidden) {
-					// Strikethrough the text if hidden
-					ctx.beginPath();
-					ctx.lineWidth = 2;
-					ctx.moveTo(xLeft, yMiddle);
-					ctx.lineTo(xLeft + textWidth, yMiddle);
-					ctx.stroke();
-				}
-			};
-
-			// Horizontal
-			var isHorizontal = me.isHorizontal();
-			if (isHorizontal) {
-				cursor = {
-					x: me.left + ((legendWidth - lineWidths[0]) / 2),
-					y: me.top + labelOpts.padding,
-					line: 0
-				};
 			} else {
-				cursor = {
-					x: me.left + labelOpts.padding,
-					y: me.top + labelOpts.padding,
-					line: 0
-				};
-			}
-
-			var itemHeight = fontSize + labelOpts.padding;
-			helpers.each(me.legendItems, function(legendItem, i) {
-				var textWidth = ctx.measureText(legendItem.text).width;
-				var width = boxWidth + (fontSize / 2) + textWidth;
-				var x = cursor.x;
-				var y = cursor.y;
-
-				if (isHorizontal) {
-					if (x + width >= legendWidth) {
-						y = cursor.y += itemHeight;
-						cursor.line++;
-						x = cursor.x = me.left + ((legendWidth - lineWidths[cursor.line]) / 2);
-					}
-				} else if (y + itemHeight > me.bottom) {
-					x = cursor.x = x + me.columnWidths[cursor.line] + labelOpts.padding;
-					y = cursor.y = me.top + labelOpts.padding;
-					cursor.line++;
-				}
-
-				drawLegendBox(x, y, legendItem);
-
-				hitboxes[i].left = x;
-				hitboxes[i].top = y;
-
-				// Fill the actual label
-				fillText(x, y, legendItem, textWidth);
-
-				if (isHorizontal) {
-					cursor.x += width + (labelOpts.padding);
-				} else {
-					cursor.y += itemHeight;
-				}
-
-			});
-		}
-	},
-
-	/**
-	 * Handle an event
-	 * @private
-	 * @param {IEvent} event - The event to handle
-	 * @return {Boolean} true if a change occured
-	 */
-	handleEvent: function(e) {
-		var me = this;
-		var opts = me.options;
-		var type = e.type === 'mouseup' ? 'click' : e.type;
-		var changed = false;
-
-		if (type === 'mousemove') {
-			if (!opts.onHover) {
 				return;
 			}
-		} else if (type === 'click') {
-			if (!opts.onClick) {
-				return;
-			}
-		} else {
-			return;
-		}
 
-		// Chart event already has relative position in it
-		var x = e.x;
-		var y = e.y;
+			// Chart event already has relative position in it
+			var x = e.x;
+			var y = e.y;
 
-		if (x >= me.left && x <= me.right && y >= me.top && y <= me.bottom) {
-			// See if we are touching one of the dataset boxes
-			var lh = me.legendHitBoxes;
-			for (var i = 0; i < lh.length; ++i) {
-				var hitBox = lh[i];
+			if (x >= me.left && x <= me.right && y >= me.top && y <= me.bottom) {
+				// See if we are touching one of the dataset boxes
+				var lh = me.legendHitBoxes;
+				for (var i = 0; i < lh.length; ++i) {
+					var hitBox = lh[i];
 
-				if (x >= hitBox.left && x <= hitBox.left + hitBox.width && y >= hitBox.top && y <= hitBox.top + hitBox.height) {
-					// Touching an element
-					if (type === 'click') {
-						// use e.native for backwards compatibility
-						opts.onClick.call(me, e.native, me.legendItems[i]);
-						changed = true;
-						break;
-					} else if (type === 'mousemove') {
-						// use e.native for backwards compatibility
-						opts.onHover.call(me, e.native, me.legendItems[i]);
-						changed = true;
-						break;
+					if (x >= hitBox.left && x <= hitBox.left + hitBox.width && y >= hitBox.top && y <= hitBox.top + hitBox.height) {
+						// Touching an element
+						if (type === 'click') {
+							// use e.native for backwards compatibility
+							opts.onClick.call(me, e.native, me.legendItems[i]);
+							changed = true;
+							break;
+						} else if (type === 'mousemove') {
+							// use e.native for backwards compatibility
+							opts.onHover.call(me, e.native, me.legendItems[i]);
+							changed = true;
+							break;
+						}
 					}
 				}
 			}
+
+			return changed;
 		}
-
-		return changed;
-	}
-});
-
-function createNewLegendAndAttach(chart, legendOpts) {
-	var legend = new Legend({
-		ctx: chart.ctx,
-		options: legendOpts,
-		chart: chart
 	});
 
-	layouts.configure(chart, legend, legendOpts);
-	layouts.addBox(chart, legend);
-	chart.legend = legend;
-}
+	function createNewLegendAndAttach(chart, legendOpts) {
+		var legend = new Chart.Legend({
+			ctx: chart.ctx,
+			options: legendOpts,
+			chart: chart
+		});
 
-module.exports = {
-	id: 'legend',
+		layout.configure(chart, legend, legendOpts);
+		layout.addBox(chart, legend);
+		chart.legend = legend;
+	}
 
-	/**
-	 * Backward compatibility: since 2.1.5, the legend is registered as a plugin, making
-	 * Chart.Legend obsolete. To avoid a breaking change, we export the Legend as part of
-	 * the plugin, which one will be re-exposed in the chart.js file.
-	 * https://github.com/chartjs/Chart.js/pull/2640
-	 * @private
-	 */
-	_element: Legend,
+	return {
+		id: 'legend',
 
-	beforeInit: function(chart) {
-		var legendOpts = chart.options.legend;
+		beforeInit: function(chart) {
+			var legendOpts = chart.options.legend;
 
-		if (legendOpts) {
-			createNewLegendAndAttach(chart, legendOpts);
-		}
-	},
-
-	beforeUpdate: function(chart) {
-		var legendOpts = chart.options.legend;
-		var legend = chart.legend;
-
-		if (legendOpts) {
-			helpers.mergeIf(legendOpts, defaults.global.legend);
-
-			if (legend) {
-				layouts.configure(chart, legend, legendOpts);
-				legend.options = legendOpts;
-			} else {
+			if (legendOpts) {
 				createNewLegendAndAttach(chart, legendOpts);
 			}
-		} else if (legend) {
-			layouts.removeBox(chart, legend);
-			delete chart.legend;
-		}
-	},
+		},
 
-	afterEvent: function(chart, e) {
-		var legend = chart.legend;
-		if (legend) {
-			legend.handleEvent(e);
+		beforeUpdate: function(chart) {
+			var legendOpts = chart.options.legend;
+			var legend = chart.legend;
+
+			if (legendOpts) {
+				helpers.mergeIf(legendOpts, defaults.global.legend);
+
+				if (legend) {
+					layout.configure(chart, legend, legendOpts);
+					legend.options = legendOpts;
+				} else {
+					createNewLegendAndAttach(chart, legendOpts);
+				}
+			} else if (legend) {
+				layout.removeBox(chart, legend);
+				delete chart.legend;
+			}
+		},
+
+		afterEvent: function(chart, e) {
+			var legend = chart.legend;
+			if (legend) {
+				legend.handleEvent(e);
+			}
 		}
-	}
+	};
 };
 
-},{"../core/core.defaults":19,"../core/core.element":20,"../core/core.layouts":24,"../helpers/index":39}],46:[function(require,module,exports){
+},{"../core/core.defaults":19,"../core/core.element":20,"../helpers/index":39}],45:[function(require,module,exports){
 'use strict';
 
 var defaults = require('../core/core.defaults');
 var Element = require('../core/core.element');
 var helpers = require('../helpers/index');
-var layouts = require('../core/core.layouts');
-
-var noop = helpers.noop;
 
 defaults._set('global', {
 	title: {
@@ -10300,238 +10157,232 @@ defaults._set('global', {
 	}
 });
 
-/**
- * IMPORTANT: this class is exposed publicly as Chart.Legend, backward compatibility required!
- */
-var Title = Element.extend({
-	initialize: function(config) {
-		var me = this;
-		helpers.extend(me, config);
+module.exports = function(Chart) {
 
-		// Contains hit boxes for each dataset (in dataset order)
-		me.legendHitBoxes = [];
-	},
+	var layout = Chart.layoutService;
+	var noop = helpers.noop;
 
-	// These methods are ordered by lifecycle. Utilities then follow.
+	Chart.Title = Element.extend({
+		initialize: function(config) {
+			var me = this;
+			helpers.extend(me, config);
 
-	beforeUpdate: noop,
-	update: function(maxWidth, maxHeight, margins) {
-		var me = this;
+			// Contains hit boxes for each dataset (in dataset order)
+			me.legendHitBoxes = [];
+		},
 
-		// Update Lifecycle - Probably don't want to ever extend or overwrite this function ;)
-		me.beforeUpdate();
+		// These methods are ordered by lifecycle. Utilities then follow.
 
-		// Absorb the master measurements
-		me.maxWidth = maxWidth;
-		me.maxHeight = maxHeight;
-		me.margins = margins;
+		beforeUpdate: noop,
+		update: function(maxWidth, maxHeight, margins) {
+			var me = this;
 
-		// Dimensions
-		me.beforeSetDimensions();
-		me.setDimensions();
-		me.afterSetDimensions();
-		// Labels
-		me.beforeBuildLabels();
-		me.buildLabels();
-		me.afterBuildLabels();
+			// Update Lifecycle - Probably don't want to ever extend or overwrite this function ;)
+			me.beforeUpdate();
 
-		// Fit
-		me.beforeFit();
-		me.fit();
-		me.afterFit();
+			// Absorb the master measurements
+			me.maxWidth = maxWidth;
+			me.maxHeight = maxHeight;
+			me.margins = margins;
+
+			// Dimensions
+			me.beforeSetDimensions();
+			me.setDimensions();
+			me.afterSetDimensions();
+			// Labels
+			me.beforeBuildLabels();
+			me.buildLabels();
+			me.afterBuildLabels();
+
+			// Fit
+			me.beforeFit();
+			me.fit();
+			me.afterFit();
+			//
+			me.afterUpdate();
+
+			return me.minSize;
+
+		},
+		afterUpdate: noop,
+
 		//
-		me.afterUpdate();
 
-		return me.minSize;
-
-	},
-	afterUpdate: noop,
-
-	//
-
-	beforeSetDimensions: noop,
-	setDimensions: function() {
-		var me = this;
-		// Set the unconstrained dimension before label rotation
-		if (me.isHorizontal()) {
-			// Reset position before calculating rotation
-			me.width = me.maxWidth;
-			me.left = 0;
-			me.right = me.width;
-		} else {
-			me.height = me.maxHeight;
-
-			// Reset position before calculating rotation
-			me.top = 0;
-			me.bottom = me.height;
-		}
-
-		// Reset padding
-		me.paddingLeft = 0;
-		me.paddingTop = 0;
-		me.paddingRight = 0;
-		me.paddingBottom = 0;
-
-		// Reset minSize
-		me.minSize = {
-			width: 0,
-			height: 0
-		};
-	},
-	afterSetDimensions: noop,
-
-	//
-
-	beforeBuildLabels: noop,
-	buildLabels: noop,
-	afterBuildLabels: noop,
-
-	//
-
-	beforeFit: noop,
-	fit: function() {
-		var me = this;
-		var valueOrDefault = helpers.valueOrDefault;
-		var opts = me.options;
-		var display = opts.display;
-		var fontSize = valueOrDefault(opts.fontSize, defaults.global.defaultFontSize);
-		var minSize = me.minSize;
-		var lineCount = helpers.isArray(opts.text) ? opts.text.length : 1;
-		var lineHeight = helpers.options.toLineHeight(opts.lineHeight, fontSize);
-		var textSize = display ? (lineCount * lineHeight) + (opts.padding * 2) : 0;
-
-		if (me.isHorizontal()) {
-			minSize.width = me.maxWidth; // fill all the width
-			minSize.height = textSize;
-		} else {
-			minSize.width = textSize;
-			minSize.height = me.maxHeight; // fill all the height
-		}
-
-		me.width = minSize.width;
-		me.height = minSize.height;
-
-	},
-	afterFit: noop,
-
-	// Shared Methods
-	isHorizontal: function() {
-		var pos = this.options.position;
-		return pos === 'top' || pos === 'bottom';
-	},
-
-	// Actually draw the title block on the canvas
-	draw: function() {
-		var me = this;
-		var ctx = me.ctx;
-		var valueOrDefault = helpers.valueOrDefault;
-		var opts = me.options;
-		var globalDefaults = defaults.global;
-
-		if (opts.display) {
-			var fontSize = valueOrDefault(opts.fontSize, globalDefaults.defaultFontSize);
-			var fontStyle = valueOrDefault(opts.fontStyle, globalDefaults.defaultFontStyle);
-			var fontFamily = valueOrDefault(opts.fontFamily, globalDefaults.defaultFontFamily);
-			var titleFont = helpers.fontString(fontSize, fontStyle, fontFamily);
-			var lineHeight = helpers.options.toLineHeight(opts.lineHeight, fontSize);
-			var offset = lineHeight / 2 + opts.padding;
-			var rotation = 0;
-			var top = me.top;
-			var left = me.left;
-			var bottom = me.bottom;
-			var right = me.right;
-			var maxWidth, titleX, titleY;
-
-			ctx.fillStyle = valueOrDefault(opts.fontColor, globalDefaults.defaultFontColor); // render in correct colour
-			ctx.font = titleFont;
-
-			// Horizontal
+		beforeSetDimensions: noop,
+		setDimensions: function() {
+			var me = this;
+			// Set the unconstrained dimension before label rotation
 			if (me.isHorizontal()) {
-				titleX = left + ((right - left) / 2); // midpoint of the width
-				titleY = top + offset;
-				maxWidth = right - left;
+				// Reset position before calculating rotation
+				me.width = me.maxWidth;
+				me.left = 0;
+				me.right = me.width;
 			} else {
-				titleX = opts.position === 'left' ? left + offset : right - offset;
-				titleY = top + ((bottom - top) / 2);
-				maxWidth = bottom - top;
-				rotation = Math.PI * (opts.position === 'left' ? -0.5 : 0.5);
+				me.height = me.maxHeight;
+
+				// Reset position before calculating rotation
+				me.top = 0;
+				me.bottom = me.height;
 			}
 
-			ctx.save();
-			ctx.translate(titleX, titleY);
-			ctx.rotate(rotation);
-			ctx.textAlign = 'center';
-			ctx.textBaseline = 'middle';
+			// Reset padding
+			me.paddingLeft = 0;
+			me.paddingTop = 0;
+			me.paddingRight = 0;
+			me.paddingBottom = 0;
 
-			var text = opts.text;
-			if (helpers.isArray(text)) {
-				var y = 0;
-				for (var i = 0; i < text.length; ++i) {
-					ctx.fillText(text[i], 0, y, maxWidth);
-					y += lineHeight;
+			// Reset minSize
+			me.minSize = {
+				width: 0,
+				height: 0
+			};
+		},
+		afterSetDimensions: noop,
+
+		//
+
+		beforeBuildLabels: noop,
+		buildLabels: noop,
+		afterBuildLabels: noop,
+
+		//
+
+		beforeFit: noop,
+		fit: function() {
+			var me = this;
+			var valueOrDefault = helpers.valueOrDefault;
+			var opts = me.options;
+			var display = opts.display;
+			var fontSize = valueOrDefault(opts.fontSize, defaults.global.defaultFontSize);
+			var minSize = me.minSize;
+			var lineCount = helpers.isArray(opts.text) ? opts.text.length : 1;
+			var lineHeight = helpers.options.toLineHeight(opts.lineHeight, fontSize);
+			var textSize = display ? (lineCount * lineHeight) + (opts.padding * 2) : 0;
+
+			if (me.isHorizontal()) {
+				minSize.width = me.maxWidth; // fill all the width
+				minSize.height = textSize;
+			} else {
+				minSize.width = textSize;
+				minSize.height = me.maxHeight; // fill all the height
+			}
+
+			me.width = minSize.width;
+			me.height = minSize.height;
+
+		},
+		afterFit: noop,
+
+		// Shared Methods
+		isHorizontal: function() {
+			var pos = this.options.position;
+			return pos === 'top' || pos === 'bottom';
+		},
+
+		// Actually draw the title block on the canvas
+		draw: function() {
+			var me = this;
+			var ctx = me.ctx;
+			var valueOrDefault = helpers.valueOrDefault;
+			var opts = me.options;
+			var globalDefaults = defaults.global;
+
+			if (opts.display) {
+				var fontSize = valueOrDefault(opts.fontSize, globalDefaults.defaultFontSize);
+				var fontStyle = valueOrDefault(opts.fontStyle, globalDefaults.defaultFontStyle);
+				var fontFamily = valueOrDefault(opts.fontFamily, globalDefaults.defaultFontFamily);
+				var titleFont = helpers.fontString(fontSize, fontStyle, fontFamily);
+				var lineHeight = helpers.options.toLineHeight(opts.lineHeight, fontSize);
+				var offset = lineHeight / 2 + opts.padding;
+				var rotation = 0;
+				var top = me.top;
+				var left = me.left;
+				var bottom = me.bottom;
+				var right = me.right;
+				var maxWidth, titleX, titleY;
+
+				ctx.fillStyle = valueOrDefault(opts.fontColor, globalDefaults.defaultFontColor); // render in correct colour
+				ctx.font = titleFont;
+
+				// Horizontal
+				if (me.isHorizontal()) {
+					titleX = left + ((right - left) / 2); // midpoint of the width
+					titleY = top + offset;
+					maxWidth = right - left;
+				} else {
+					titleX = opts.position === 'left' ? left + offset : right - offset;
+					titleY = top + ((bottom - top) / 2);
+					maxWidth = bottom - top;
+					rotation = Math.PI * (opts.position === 'left' ? -0.5 : 0.5);
 				}
-			} else {
-				ctx.fillText(text, 0, 0, maxWidth);
+
+				ctx.save();
+				ctx.translate(titleX, titleY);
+				ctx.rotate(rotation);
+				ctx.textAlign = 'center';
+				ctx.textBaseline = 'middle';
+
+				var text = opts.text;
+				if (helpers.isArray(text)) {
+					var y = 0;
+					for (var i = 0; i < text.length; ++i) {
+						ctx.fillText(text[i], 0, y, maxWidth);
+						y += lineHeight;
+					}
+				} else {
+					ctx.fillText(text, 0, 0, maxWidth);
+				}
+
+				ctx.restore();
 			}
-
-			ctx.restore();
 		}
-	}
-});
-
-function createNewTitleBlockAndAttach(chart, titleOpts) {
-	var title = new Title({
-		ctx: chart.ctx,
-		options: titleOpts,
-		chart: chart
 	});
 
-	layouts.configure(chart, title, titleOpts);
-	layouts.addBox(chart, title);
-	chart.titleBlock = title;
-}
+	function createNewTitleBlockAndAttach(chart, titleOpts) {
+		var title = new Chart.Title({
+			ctx: chart.ctx,
+			options: titleOpts,
+			chart: chart
+		});
 
-module.exports = {
-	id: 'title',
+		layout.configure(chart, title, titleOpts);
+		layout.addBox(chart, title);
+		chart.titleBlock = title;
+	}
 
-	/**
-	 * Backward compatibility: since 2.1.5, the title is registered as a plugin, making
-	 * Chart.Title obsolete. To avoid a breaking change, we export the Title as part of
-	 * the plugin, which one will be re-exposed in the chart.js file.
-	 * https://github.com/chartjs/Chart.js/pull/2640
-	 * @private
-	 */
-	_element: Title,
+	return {
+		id: 'title',
 
-	beforeInit: function(chart) {
-		var titleOpts = chart.options.title;
+		beforeInit: function(chart) {
+			var titleOpts = chart.options.title;
 
-		if (titleOpts) {
-			createNewTitleBlockAndAttach(chart, titleOpts);
-		}
-	},
-
-	beforeUpdate: function(chart) {
-		var titleOpts = chart.options.title;
-		var titleBlock = chart.titleBlock;
-
-		if (titleOpts) {
-			helpers.mergeIf(titleOpts, defaults.global.title);
-
-			if (titleBlock) {
-				layouts.configure(chart, titleBlock, titleOpts);
-				titleBlock.options = titleOpts;
-			} else {
+			if (titleOpts) {
 				createNewTitleBlockAndAttach(chart, titleOpts);
 			}
-		} else if (titleBlock) {
-			layouts.removeBox(chart, titleBlock);
-			delete chart.titleBlock;
+		},
+
+		beforeUpdate: function(chart) {
+			var titleOpts = chart.options.title;
+			var titleBlock = chart.titleBlock;
+
+			if (titleOpts) {
+				helpers.mergeIf(titleOpts, defaults.global.title);
+
+				if (titleBlock) {
+					layout.configure(chart, titleBlock, titleOpts);
+					titleBlock.options = titleOpts;
+				} else {
+					createNewTitleBlockAndAttach(chart, titleOpts);
+				}
+			} else if (titleBlock) {
+				Chart.layoutService.removeBox(chart, titleBlock);
+				delete chart.titleBlock;
+			}
 		}
-	}
+	};
 };
 
-},{"../core/core.defaults":19,"../core/core.element":20,"../core/core.layouts":24,"../helpers/index":39}],47:[function(require,module,exports){
+},{"../core/core.defaults":19,"../core/core.element":20,"../helpers/index":39}],46:[function(require,module,exports){
 'use strict';
 
 module.exports = function(Chart) {
@@ -10666,7 +10517,7 @@ module.exports = function(Chart) {
 
 };
 
-},{}],48:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 'use strict';
 
 var defaults = require('../core/core.defaults');
@@ -10839,10 +10690,11 @@ module.exports = function(Chart) {
 
 			if (me.isHorizontal()) {
 				pixel = me.left + (me.width / range * (rightValue - start));
-			} else {
-				pixel = me.bottom - (me.height / range * (rightValue - start));
+				return Math.round(pixel);
 			}
-			return pixel;
+
+			pixel = me.bottom - (me.height / range * (rightValue - start));
+			return Math.round(pixel);
 		},
 		getValueForPixel: function(pixel) {
 			var me = this;
@@ -10859,65 +10711,11 @@ module.exports = function(Chart) {
 
 };
 
-},{"../core/core.defaults":19,"../core/core.ticks":28,"../helpers/index":39}],49:[function(require,module,exports){
+},{"../core/core.defaults":19,"../core/core.ticks":28,"../helpers/index":39}],48:[function(require,module,exports){
 'use strict';
 
 var helpers = require('../helpers/index');
-
-/**
- * Generate a set of linear ticks
- * @param generationOptions the options used to generate the ticks
- * @param dataRange the range of the data
- * @returns {Array<Number>} array of tick values
- */
-function generateTicks(generationOptions, dataRange) {
-	var ticks = [];
-	// To get a "nice" value for the tick spacing, we will use the appropriately named
-	// "nice number" algorithm. See http://stackoverflow.com/questions/8506881/nice-label-algorithm-for-charts-with-minimum-ticks
-	// for details.
-
-	var spacing;
-	if (generationOptions.stepSize && generationOptions.stepSize > 0) {
-		spacing = generationOptions.stepSize;
-	} else {
-		var niceRange = helpers.niceNum(dataRange.max - dataRange.min, false);
-		spacing = helpers.niceNum(niceRange / (generationOptions.maxTicks - 1), true);
-	}
-	var niceMin = Math.floor(dataRange.min / spacing) * spacing;
-	var niceMax = Math.ceil(dataRange.max / spacing) * spacing;
-
-	// If min, max and stepSize is set and they make an evenly spaced scale use it.
-	if (generationOptions.min && generationOptions.max && generationOptions.stepSize) {
-		// If very close to our whole number, use it.
-		if (helpers.almostWhole((generationOptions.max - generationOptions.min) / generationOptions.stepSize, spacing / 1000)) {
-			niceMin = generationOptions.min;
-			niceMax = generationOptions.max;
-		}
-	}
-
-	var numSpaces = (niceMax - niceMin) / spacing;
-	// If very close to our rounded value, use it.
-	if (helpers.almostEquals(numSpaces, Math.round(numSpaces), spacing / 1000)) {
-		numSpaces = Math.round(numSpaces);
-	} else {
-		numSpaces = Math.ceil(numSpaces);
-	}
-
-	var precision = 1;
-	if (spacing < 1) {
-		precision = Math.pow(10, spacing.toString().length - 2);
-		niceMin = Math.round(niceMin * precision) / precision;
-		niceMax = Math.round(niceMax * precision) / precision;
-	}
-	ticks.push(generationOptions.min !== undefined ? generationOptions.min : niceMin);
-	for (var j = 1; j < numSpaces; ++j) {
-		ticks.push(Math.round((niceMin + j * spacing) * precision) / precision);
-	}
-	ticks.push(generationOptions.max !== undefined ? generationOptions.max : niceMax);
-
-	return ticks;
-}
-
+var Ticks = require('../core/core.ticks');
 
 module.exports = function(Chart) {
 
@@ -11018,7 +10816,7 @@ module.exports = function(Chart) {
 				max: tickOpts.max,
 				stepSize: helpers.valueOrDefault(tickOpts.fixedStepSize, tickOpts.stepSize)
 			};
-			var ticks = me.ticks = generateTicks(numericGeneratorOptions, me);
+			var ticks = me.ticks = Ticks.generators.linear(numericGeneratorOptions, me);
 
 			me.handleDirectionalChanges();
 
@@ -11047,63 +10845,11 @@ module.exports = function(Chart) {
 	});
 };
 
-},{"../helpers/index":39}],50:[function(require,module,exports){
+},{"../core/core.ticks":28,"../helpers/index":39}],49:[function(require,module,exports){
 'use strict';
 
 var helpers = require('../helpers/index');
 var Ticks = require('../core/core.ticks');
-
-/**
- * Generate a set of logarithmic ticks
- * @param generationOptions the options used to generate the ticks
- * @param dataRange the range of the data
- * @returns {Array<Number>} array of tick values
- */
-function generateTicks(generationOptions, dataRange) {
-	var ticks = [];
-	var valueOrDefault = helpers.valueOrDefault;
-
-	// Figure out what the max number of ticks we can support it is based on the size of
-	// the axis area. For now, we say that the minimum tick spacing in pixels must be 50
-	// We also limit the maximum number of ticks to 11 which gives a nice 10 squares on
-	// the graph
-	var tickVal = valueOrDefault(generationOptions.min, Math.pow(10, Math.floor(helpers.log10(dataRange.min))));
-
-	var endExp = Math.floor(helpers.log10(dataRange.max));
-	var endSignificand = Math.ceil(dataRange.max / Math.pow(10, endExp));
-	var exp, significand;
-
-	if (tickVal === 0) {
-		exp = Math.floor(helpers.log10(dataRange.minNotZero));
-		significand = Math.floor(dataRange.minNotZero / Math.pow(10, exp));
-
-		ticks.push(tickVal);
-		tickVal = significand * Math.pow(10, exp);
-	} else {
-		exp = Math.floor(helpers.log10(tickVal));
-		significand = Math.floor(tickVal / Math.pow(10, exp));
-	}
-	var precision = exp < 0 ? Math.pow(10, Math.abs(exp)) : 1;
-
-	do {
-		ticks.push(tickVal);
-
-		++significand;
-		if (significand === 10) {
-			significand = 1;
-			++exp;
-			precision = exp >= 0 ? 1 : precision;
-		}
-
-		tickVal = Math.round(significand * Math.pow(10, exp) * precision) / precision;
-	} while (exp < endExp || (exp === endExp && significand < endSignificand));
-
-	var lastTick = valueOrDefault(generationOptions.max, tickVal);
-	ticks.push(lastTick);
-
-	return ticks;
-}
-
 
 module.exports = function(Chart) {
 
@@ -11120,9 +10866,11 @@ module.exports = function(Chart) {
 		determineDataLimits: function() {
 			var me = this;
 			var opts = me.options;
+			var tickOpts = opts.ticks;
 			var chart = me.chart;
 			var data = chart.data;
 			var datasets = data.datasets;
+			var valueOrDefault = helpers.valueOrDefault;
 			var isHorizontal = me.isHorizontal();
 			function IDMatches(meta) {
 				return isHorizontal ? meta.xAxisID === me.id : meta.yAxisID === me.id;
@@ -11168,23 +10916,27 @@ module.exports = function(Chart) {
 						helpers.each(dataset.data, function(rawValue, index) {
 							var values = valuesPerStack[key];
 							var value = +me.getRightValue(rawValue);
-							// invalid, hidden and negative values are ignored
-							if (isNaN(value) || meta.data[index].hidden || value < 0) {
+							if (isNaN(value) || meta.data[index].hidden) {
 								return;
 							}
+
 							values[index] = values[index] || 0;
-							values[index] += value;
+
+							if (opts.relativePoints) {
+								values[index] = 100;
+							} else {
+								// Don't need to split positive and negative since the log scale can't handle a 0 crossing
+								values[index] += value;
+							}
 						});
 					}
 				});
 
 				helpers.each(valuesPerStack, function(valuesForType) {
-					if (valuesForType.length > 0) {
-						var minVal = helpers.min(valuesForType);
-						var maxVal = helpers.max(valuesForType);
-						me.min = me.min === null ? minVal : Math.min(me.min, minVal);
-						me.max = me.max === null ? maxVal : Math.max(me.max, maxVal);
-					}
+					var minVal = helpers.min(valuesForType);
+					var maxVal = helpers.max(valuesForType);
+					me.min = me.min === null ? minVal : Math.min(me.min, minVal);
+					me.max = me.max === null ? maxVal : Math.max(me.max, maxVal);
 				});
 
 			} else {
@@ -11193,8 +10945,7 @@ module.exports = function(Chart) {
 					if (chart.isDatasetVisible(datasetIndex) && IDMatches(meta)) {
 						helpers.each(dataset.data, function(rawValue, index) {
 							var value = +me.getRightValue(rawValue);
-							// invalid, hidden and negative values are ignored
-							if (isNaN(value) || meta.data[index].hidden || value < 0) {
+							if (isNaN(value) || meta.data[index].hidden) {
 								return;
 							}
 
@@ -11218,17 +10969,6 @@ module.exports = function(Chart) {
 				});
 			}
 
-			// Common base implementation to handle ticks.min, ticks.max
-			this.handleTickRangeOptions();
-		},
-		handleTickRangeOptions: function() {
-			var me = this;
-			var opts = me.options;
-			var tickOpts = opts.ticks;
-			var valueOrDefault = helpers.valueOrDefault;
-			var DEFAULT_MIN = 1;
-			var DEFAULT_MAX = 10;
-
 			me.min = valueOrDefault(tickOpts.min, me.min);
 			me.max = valueOrDefault(tickOpts.max, me.max);
 
@@ -11237,25 +10977,8 @@ module.exports = function(Chart) {
 					me.min = Math.pow(10, Math.floor(helpers.log10(me.min)) - 1);
 					me.max = Math.pow(10, Math.floor(helpers.log10(me.max)) + 1);
 				} else {
-					me.min = DEFAULT_MIN;
-					me.max = DEFAULT_MAX;
-				}
-			}
-			if (me.min === null) {
-				me.min = Math.pow(10, Math.floor(helpers.log10(me.max)) - 1);
-			}
-			if (me.max === null) {
-				me.max = me.min !== 0
-					? Math.pow(10, Math.floor(helpers.log10(me.min)) + 1)
-					: DEFAULT_MAX;
-			}
-			if (me.minNotZero === null) {
-				if (me.min > 0) {
-					me.minNotZero = me.min;
-				} else if (me.max < 1) {
-					me.minNotZero = Math.pow(10, Math.floor(helpers.log10(me.max)));
-				} else {
-					me.minNotZero = DEFAULT_MIN;
+					me.min = 1;
+					me.max = 10;
 				}
 			}
 		},
@@ -11263,13 +10986,17 @@ module.exports = function(Chart) {
 			var me = this;
 			var opts = me.options;
 			var tickOpts = opts.ticks;
-			var reverse = !me.isHorizontal();
 
 			var generationOptions = {
 				min: tickOpts.min,
 				max: tickOpts.max
 			};
-			var ticks = me.ticks = generateTicks(generationOptions, me);
+			var ticks = me.ticks = Ticks.generators.logarithmic(generationOptions, me);
+
+			if (!me.isHorizontal()) {
+				// We are in a vertical orientation. The top value is the highest. So reverse the array
+				ticks.reverse();
+			}
 
 			// At this point, we need to update our max and min given the tick values since we have expanded the
 			// range of the scale
@@ -11277,15 +11004,13 @@ module.exports = function(Chart) {
 			me.min = helpers.min(ticks);
 
 			if (tickOpts.reverse) {
-				reverse = !reverse;
+				ticks.reverse();
+
 				me.start = me.max;
 				me.end = me.min;
 			} else {
 				me.start = me.min;
 				me.end = me.max;
-			}
-			if (reverse) {
-				ticks.reverse();
 			}
 		},
 		convertTicksToLabels: function() {
@@ -11300,94 +11025,64 @@ module.exports = function(Chart) {
 		getPixelForTick: function(index) {
 			return this.getPixelForValue(this.tickValues[index]);
 		},
-		/**
-		 * Returns the value of the first tick.
-		 * @param {Number} value - The minimum not zero value.
-		 * @return {Number} The first tick value.
-		 * @private
-		 */
-		_getFirstTickValue: function(value) {
-			var exp = Math.floor(helpers.log10(value));
-			var significand = Math.floor(value / Math.pow(10, exp));
-
-			return significand * Math.pow(10, exp);
-		},
 		getPixelForValue: function(value) {
 			var me = this;
-			var reverse = me.options.ticks.reverse;
-			var log10 = helpers.log10;
-			var firstTickValue = me._getFirstTickValue(me.minNotZero);
-			var offset = 0;
-			var innerDimension, pixel, start, end, sign;
+			var start = me.start;
+			var newVal = +me.getRightValue(value);
+			var opts = me.options;
+			var tickOpts = opts.ticks;
+			var innerDimension, pixel, range;
 
-			value = +me.getRightValue(value);
-			if (reverse) {
-				start = me.end;
-				end = me.start;
-				sign = -1;
-			} else {
-				start = me.start;
-				end = me.end;
-				sign = 1;
-			}
 			if (me.isHorizontal()) {
-				innerDimension = me.width;
-				pixel = reverse ? me.right : me.left;
+				range = helpers.log10(me.end) - helpers.log10(start); // todo: if start === 0
+				if (newVal === 0) {
+					pixel = me.left;
+				} else {
+					innerDimension = me.width;
+					pixel = me.left + (innerDimension / range * (helpers.log10(newVal) - helpers.log10(start)));
+				}
 			} else {
+				// Bottom - top since pixels increase downward on a screen
 				innerDimension = me.height;
-				sign *= -1; // invert, since the upper-left corner of the canvas is at pixel (0, 0)
-				pixel = reverse ? me.top : me.bottom;
-			}
-			if (value !== start) {
-				if (start === 0) { // include zero tick
-					offset = helpers.getValueOrDefault(
-						me.options.ticks.fontSize,
-						Chart.defaults.global.defaultFontSize
-					);
-					innerDimension -= offset;
-					start = firstTickValue;
+				if (start === 0 && !tickOpts.reverse) {
+					range = helpers.log10(me.end) - helpers.log10(me.minNotZero);
+					if (newVal === start) {
+						pixel = me.bottom;
+					} else if (newVal === me.minNotZero) {
+						pixel = me.bottom - innerDimension * 0.02;
+					} else {
+						pixel = me.bottom - innerDimension * 0.02 - (innerDimension * 0.98 / range * (helpers.log10(newVal) - helpers.log10(me.minNotZero)));
+					}
+				} else if (me.end === 0 && tickOpts.reverse) {
+					range = helpers.log10(me.start) - helpers.log10(me.minNotZero);
+					if (newVal === me.end) {
+						pixel = me.top;
+					} else if (newVal === me.minNotZero) {
+						pixel = me.top + innerDimension * 0.02;
+					} else {
+						pixel = me.top + innerDimension * 0.02 + (innerDimension * 0.98 / range * (helpers.log10(newVal) - helpers.log10(me.minNotZero)));
+					}
+				} else if (newVal === 0) {
+					pixel = tickOpts.reverse ? me.top : me.bottom;
+				} else {
+					range = helpers.log10(me.end) - helpers.log10(start);
+					innerDimension = me.height;
+					pixel = me.bottom - (innerDimension / range * (helpers.log10(newVal) - helpers.log10(start)));
 				}
-				if (value !== 0) {
-					offset += innerDimension / (log10(end) - log10(start)) * (log10(value) - log10(start));
-				}
-				pixel += sign * offset;
 			}
 			return pixel;
 		},
 		getValueForPixel: function(pixel) {
 			var me = this;
-			var reverse = me.options.ticks.reverse;
-			var log10 = helpers.log10;
-			var firstTickValue = me._getFirstTickValue(me.minNotZero);
-			var innerDimension, start, end, value;
+			var range = helpers.log10(me.end) - helpers.log10(me.start);
+			var value, innerDimension;
 
-			if (reverse) {
-				start = me.end;
-				end = me.start;
-			} else {
-				start = me.start;
-				end = me.end;
-			}
 			if (me.isHorizontal()) {
 				innerDimension = me.width;
-				value = reverse ? me.right - pixel : pixel - me.left;
-			} else {
+				value = me.start * Math.pow(10, (pixel - me.left) * range / innerDimension);
+			} else { // todo: if start === 0
 				innerDimension = me.height;
-				value = reverse ? pixel - me.top : me.bottom - pixel;
-			}
-			if (value !== start) {
-				if (start === 0) { // include zero tick
-					var offset = helpers.getValueOrDefault(
-						me.options.ticks.fontSize,
-						Chart.defaults.global.defaultFontSize
-					);
-					value -= offset;
-					innerDimension -= offset;
-					start = firstTickValue;
-				}
-				value *= log10(end) - log10(start);
-				value /= innerDimension;
-				value = Math.pow(10, log10(start) + value);
+				value = Math.pow(10, (me.bottom - pixel) * range / innerDimension) / me.start;
 			}
 			return value;
 		}
@@ -11396,7 +11091,7 @@ module.exports = function(Chart) {
 
 };
 
-},{"../core/core.ticks":28,"../helpers/index":39}],51:[function(require,module,exports){
+},{"../core/core.ticks":28,"../helpers/index":39}],50:[function(require,module,exports){
 'use strict';
 
 var defaults = require('../core/core.defaults');
@@ -11636,6 +11331,7 @@ module.exports = function(Chart) {
 
 	function drawPointLabels(scale) {
 		var ctx = scale.ctx;
+		var valueOrDefault = helpers.valueOrDefault;
 		var opts = scale.options;
 		var angleLineOpts = opts.angleLines;
 		var pointLabelOpts = opts.pointLabels;
@@ -11665,7 +11361,7 @@ module.exports = function(Chart) {
 				var pointLabelPosition = scale.getPointPosition(i, outerDistance + 5);
 
 				// Keep this in loop since we may support array properties here
-				var pointLabelFontColor = helpers.valueAtIndexOrDefault(pointLabelOpts.fontColor, i, globalDefaults.defaultFontColor);
+				var pointLabelFontColor = valueOrDefault(pointLabelOpts.fontColor, globalDefaults.defaultFontColor);
 				ctx.font = plFont.font;
 				ctx.fillStyle = pointLabelFontColor;
 
@@ -11927,7 +11623,7 @@ module.exports = function(Chart) {
 
 };
 
-},{"../core/core.defaults":19,"../core/core.ticks":28,"../helpers/index":39}],52:[function(require,module,exports){
+},{"../core/core.defaults":19,"../core/core.ticks":28,"../helpers/index":39}],51:[function(require,module,exports){
 /* global window: false */
 'use strict';
 
@@ -11943,47 +11639,47 @@ var MAX_INTEGER = Number.MAX_SAFE_INTEGER || 9007199254740991;
 
 var INTERVALS = {
 	millisecond: {
-		common: true,
+		major: true,
 		size: 1,
 		steps: [1, 2, 5, 10, 20, 50, 100, 250, 500]
 	},
 	second: {
-		common: true,
+		major: true,
 		size: 1000,
 		steps: [1, 2, 5, 10, 30]
 	},
 	minute: {
-		common: true,
+		major: true,
 		size: 60000,
 		steps: [1, 2, 5, 10, 30]
 	},
 	hour: {
-		common: true,
+		major: true,
 		size: 3600000,
 		steps: [1, 2, 3, 6, 12]
 	},
 	day: {
-		common: true,
+		major: true,
 		size: 86400000,
 		steps: [1, 2, 5]
 	},
 	week: {
-		common: false,
+		major: false,
 		size: 604800000,
 		steps: [1, 2, 3, 4]
 	},
 	month: {
-		common: true,
+		major: true,
 		size: 2.628e9,
 		steps: [1, 2, 3]
 	},
 	quarter: {
-		common: false,
+		major: false,
 		size: 7.884e9,
 		steps: [1, 2, 3, 4]
 	},
 	year: {
-		common: true,
+		major: true,
 		size: 3.154e10
 	}
 };
@@ -12170,7 +11866,7 @@ function determineStepSize(min, max, unit, capacity) {
 	var i, ilen, factor;
 
 	if (!steps) {
-		return Math.ceil(range / (capacity * milliseconds));
+		return Math.ceil(range / ((capacity || 1) * milliseconds));
 	}
 
 	for (i = 0, ilen = steps.length; i < ilen; ++i) {
@@ -12183,10 +11879,7 @@ function determineStepSize(min, max, unit, capacity) {
 	return factor;
 }
 
-/**
- * Figures out what unit results in an appropriate number of auto-generated ticks
- */
-function determineUnitForAutoTicks(minUnit, min, max, capacity) {
+function determineUnit(minUnit, min, max, capacity) {
 	var ilen = UNITS.length;
 	var i, interval, factor;
 
@@ -12194,7 +11887,7 @@ function determineUnitForAutoTicks(minUnit, min, max, capacity) {
 		interval = INTERVALS[UNITS[i]];
 		factor = interval.steps ? interval.steps[interval.steps.length - 1] : MAX_INTEGER;
 
-		if (interval.common && Math.ceil((max - min) / (factor * interval.size)) <= capacity) {
+		if (Math.ceil((max - min) / (factor * interval.size)) <= capacity) {
 			return UNITS[i];
 		}
 	}
@@ -12202,27 +11895,9 @@ function determineUnitForAutoTicks(minUnit, min, max, capacity) {
 	return UNITS[ilen - 1];
 }
 
-/**
- * Figures out what unit to format a set of ticks with
- */
-function determineUnitForFormatting(ticks, minUnit, min, max) {
-	var duration = moment.duration(moment(max).diff(moment(min)));
-	var ilen = UNITS.length;
-	var i, unit;
-
-	for (i = ilen - 1; i >= UNITS.indexOf(minUnit); i--) {
-		unit = UNITS[i];
-		if (INTERVALS[unit].common && duration.as(unit) >= ticks.length) {
-			return unit;
-		}
-	}
-
-	return UNITS[minUnit ? UNITS.indexOf(minUnit) : 0];
-}
-
 function determineMajorUnit(unit) {
 	for (var i = UNITS.indexOf(unit) + 1, ilen = UNITS.length; i < ilen; ++i) {
-		if (INTERVALS[UNITS[i]].common) {
+		if (INTERVALS[UNITS[i]].major) {
 			return UNITS[i];
 		}
 	}
@@ -12234,10 +11909,8 @@ function determineMajorUnit(unit) {
  * Important: this method can return ticks outside the min and max range, it's the
  * responsibility of the calling code to clamp values if needed.
  */
-function generate(min, max, capacity, options) {
+function generate(min, max, minor, major, capacity, options) {
 	var timeOpts = options.time;
-	var minor = timeOpts.unit || determineUnitForAutoTicks(timeOpts.minUnit, min, max, capacity);
-	var major = determineMajorUnit(minor);
 	var stepSize = helpers.valueOrDefault(timeOpts.stepSize, timeOpts.unitStepSize);
 	var weekday = minor === 'week' ? timeOpts.isoWeekday : false;
 	var majorTicksEnabled = options.ticks.major.enabled;
@@ -12331,27 +12004,6 @@ function ticksFromTimestamps(values, majorUnit) {
 	}
 
 	return ticks;
-}
-
-function determineLabelFormat(data, timeOpts) {
-	var i, momentDate, hasTime;
-	var ilen = data.length;
-
-	// find the label with the most parts (milliseconds, minutes, etc.)
-	// format all labels with the same level of detail as the most specific label
-	for (i = 0; i < ilen; i++) {
-		momentDate = momentify(data[i], timeOpts);
-		if (momentDate.millisecond() !== 0) {
-			return 'MMM D, YYYY h:mm:ss.SSS a';
-		}
-		if (momentDate.second() !== 0 || momentDate.minute() !== 0 || momentDate.hour() !== 0) {
-			hasTime = true;
-		}
-	}
-	if (hasTime) {
-		return 'MMM D, YYYY h:mm:ss a';
-	}
-	return 'MMM D, YYYY';
 }
 
 module.exports = function(Chart) {
@@ -12455,9 +12107,8 @@ module.exports = function(Chart) {
 			var me = this;
 			var chart = me.chart;
 			var timeOpts = me.options.time;
-			var unit = timeOpts.unit || 'day';
-			var min = MAX_INTEGER;
-			var max = MIN_INTEGER;
+			var min = parse(timeOpts.min, me) || MAX_INTEGER;
+			var max = parse(timeOpts.max, me) || MIN_INTEGER;
 			var timestamps = [];
 			var datasets = [];
 			var labels = [];
@@ -12504,12 +12155,9 @@ module.exports = function(Chart) {
 				max = Math.max(max, timestamps[timestamps.length - 1]);
 			}
 
-			min = parse(timeOpts.min, me) || min;
-			max = parse(timeOpts.max, me) || max;
-
-			// In case there is no valid min/max, set limits based on unit time option
-			min = min === MAX_INTEGER ? +moment().startOf(unit) : min;
-			max = max === MIN_INTEGER ? +moment().endOf(unit) + 1 : max;
+			// In case there is no valid min/max, let's use today limits
+			min = min === MAX_INTEGER ? +moment().startOf('day') : min;
+			max = max === MIN_INTEGER ? +moment().endOf('day') + 1 : max;
 
 			// Make sure that max is strictly higher than min (required by the lookup table)
 			me.min = Math.min(min, max);
@@ -12531,6 +12179,10 @@ module.exports = function(Chart) {
 			var max = me.max;
 			var options = me.options;
 			var timeOpts = options.time;
+			var formats = timeOpts.displayFormats;
+			var capacity = me.getLabelCapacity(min);
+			var unit = timeOpts.unit || determineUnit(timeOpts.minUnit, min, max, capacity);
+			var majorUnit = determineMajorUnit(unit);
 			var timestamps = [];
 			var ticks = [];
 			var i, ilen, timestamp;
@@ -12544,7 +12196,7 @@ module.exports = function(Chart) {
 				break;
 			case 'auto':
 			default:
-				timestamps = generate(min, max, me.getLabelCapacity(min), options);
+				timestamps = generate(min, max, unit, majorUnit, capacity, options);
 			}
 
 			if (options.bounds === 'ticks' && timestamps.length) {
@@ -12568,13 +12220,14 @@ module.exports = function(Chart) {
 			me.max = max;
 
 			// PRIVATE
-			me._unit = timeOpts.unit || determineUnitForFormatting(ticks, timeOpts.minUnit, me.min, me.max);
-			me._majorUnit = determineMajorUnit(me._unit);
+			me._unit = unit;
+			me._majorUnit = majorUnit;
+			me._minorFormat = formats[unit];
+			me._majorFormat = formats[majorUnit];
 			me._table = buildLookupTable(me._timestamps.data, min, max, options.distribution);
 			me._offsets = computeOffsets(me._table, ticks, min, max, options);
-			me._labelFormat = determineLabelFormat(me._timestamps.data, timeOpts);
 
-			return ticksFromTimestamps(ticks, me._majorUnit);
+			return ticksFromTimestamps(ticks, majorUnit);
 		},
 
 		getLabelForIndex: function(index, datasetIndex) {
@@ -12588,31 +12241,26 @@ module.exports = function(Chart) {
 				label = me.getRightValue(value);
 			}
 			if (timeOpts.tooltipFormat) {
-				return momentify(label, timeOpts).format(timeOpts.tooltipFormat);
-			}
-			if (typeof label === 'string') {
-				return label;
+				label = momentify(label, timeOpts).format(timeOpts.tooltipFormat);
 			}
 
-			return momentify(label, timeOpts).format(me._labelFormat);
+			return label;
 		},
 
 		/**
 		 * Function to format an individual tick mark
 		 * @private
 		 */
-		tickFormatFunction: function(tick, index, ticks, formatOverride) {
+		tickFormatFunction: function(tick, index, ticks) {
 			var me = this;
 			var options = me.options;
 			var time = tick.valueOf();
-			var formats = options.time.displayFormats;
-			var minorFormat = formats[me._unit];
 			var majorUnit = me._majorUnit;
-			var majorFormat = formats[majorUnit];
-			var majorTime = tick.clone().startOf(majorUnit).valueOf();
+			var majorFormat = me._majorFormat;
+			var majorTime = tick.clone().startOf(me._majorUnit).valueOf();
 			var majorTickOpts = options.ticks.major;
 			var major = majorTickOpts.enabled && majorUnit && majorFormat && time === majorTime;
-			var label = tick.format(formatOverride ? formatOverride : major ? majorFormat : minorFormat);
+			var label = tick.format(major ? majorFormat : me._minorFormat);
 			var tickOpts = major ? majorTickOpts : options.ticks.minor;
 			var formatter = helpers.valueOrDefault(tickOpts.callback, tickOpts.userCallback);
 
@@ -12698,21 +12346,20 @@ module.exports = function(Chart) {
 		getLabelCapacity: function(exampleTime) {
 			var me = this;
 
-			var formatOverride = me.options.time.displayFormats.millisecond;	// Pick the longest format for guestimation
+			me._minorFormat = me.options.time.displayFormats.millisecond;	// Pick the longest format for guestimation
 
-			var exampleLabel = me.tickFormatFunction(moment(exampleTime), 0, [], formatOverride);
+			var exampleLabel = me.tickFormatFunction(moment(exampleTime), 0, []);
 			var tickLabelWidth = me.getLabelWidth(exampleLabel);
 			var innerWidth = me.isHorizontal() ? me.width : me.height;
 
-			var capacity = Math.floor(innerWidth / tickLabelWidth);
-			return capacity > 0 ? capacity : 1;
+			return Math.floor(innerWidth / tickLabelWidth);
 		}
 	});
 
 	Chart.scaleService.registerScaleType('time', TimeScale, defaultConfig);
 };
 
-},{"../core/core.defaults":19,"../helpers/index":39,"moment":59}],53:[function(require,module,exports){
+},{"../core/core.defaults":19,"../helpers/index":39,"moment":58}],52:[function(require,module,exports){
 /* MIT license */
 var colorNames = require('color-name');
 
@@ -12935,7 +12582,7 @@ for (var name in colorNames) {
    reverseNames[colorNames[name]] = name;
 }
 
-},{"color-name":57}],54:[function(require,module,exports){
+},{"color-name":56}],53:[function(require,module,exports){
 /* MIT license */
 var convert = require('color-convert');
 var string = require('chartjs-color-string');
@@ -13422,7 +13069,7 @@ if (typeof window !== 'undefined') {
 
 module.exports = Color;
 
-},{"chartjs-color-string":53,"color-convert":56}],55:[function(require,module,exports){
+},{"chartjs-color-string":52,"color-convert":55}],54:[function(require,module,exports){
 /* MIT license */
 
 module.exports = {
@@ -14122,7 +13769,7 @@ for (var key in cssKeywords) {
   reverseKeywords[JSON.stringify(cssKeywords[key])] = key;
 }
 
-},{}],56:[function(require,module,exports){
+},{}],55:[function(require,module,exports){
 var conversions = require("./conversions");
 
 var convert = function() {
@@ -14215,9 +13862,7 @@ Converter.prototype.getValues = function(space) {
 });
 
 module.exports = convert;
-},{"./conversions":55}],57:[function(require,module,exports){
-'use strict'
-
+},{"./conversions":54}],56:[function(require,module,exports){
 module.exports = {
 	"aliceblue": [240, 248, 255],
 	"antiquewhite": [250, 235, 215],
@@ -14368,8 +14013,7 @@ module.exports = {
 	"yellow": [255, 255, 0],
 	"yellowgreen": [154, 205, 50]
 };
-
-},{}],58:[function(require,module,exports){
+},{}],57:[function(require,module,exports){
 (function (global){
 /**
  * @license
@@ -14385,7 +14029,7 @@ module.exports = {
   var undefined;
 
   /** Used as the semantic version number. */
-  var VERSION = '4.17.5';
+  var VERSION = '4.17.4';
 
   /** Used as the size to enable large array optimizations. */
   var LARGE_ARRAY_SIZE = 200;
@@ -14516,6 +14160,7 @@ module.exports = {
   /** Used to match property names within property paths. */
   var reIsDeepProp = /\.|\[(?:[^[\]]*|(["'])(?:(?!\1)[^\\]|\\.)*?\1)\]/,
       reIsPlainProp = /^\w*$/,
+      reLeadingDot = /^\./,
       rePropName = /[^.[\]]+|\[(?:(-?\d+(?:\.\d+)?)|(["'])((?:(?!\2)[^\\]|\\.)*?)\2)\]|(?=(?:\.|\[\])(?:\.|\[\]|$))/g;
 
   /**
@@ -14615,8 +14260,8 @@ module.exports = {
       reOptMod = rsModifier + '?',
       rsOptVar = '[' + rsVarRange + ']?',
       rsOptJoin = '(?:' + rsZWJ + '(?:' + [rsNonAstral, rsRegional, rsSurrPair].join('|') + ')' + rsOptVar + reOptMod + ')*',
-      rsOrdLower = '\\d*(?:1st|2nd|3rd|(?![123])\\dth)(?=\\b|[A-Z_])',
-      rsOrdUpper = '\\d*(?:1ST|2ND|3RD|(?![123])\\dTH)(?=\\b|[a-z_])',
+      rsOrdLower = '\\d*(?:(?:1st|2nd|3rd|(?![123])\\dth)\\b)',
+      rsOrdUpper = '\\d*(?:(?:1ST|2ND|3RD|(?![123])\\dTH)\\b)',
       rsSeq = rsOptVar + reOptMod + rsOptJoin,
       rsEmoji = '(?:' + [rsDingbat, rsRegional, rsSurrPair].join('|') + ')' + rsSeq,
       rsSymbol = '(?:' + [rsNonAstral + rsCombo + '?', rsCombo, rsRegional, rsSurrPair, rsAstral].join('|') + ')';
@@ -14822,6 +14467,34 @@ module.exports = {
       nodeIsTypedArray = nodeUtil && nodeUtil.isTypedArray;
 
   /*--------------------------------------------------------------------------*/
+
+  /**
+   * Adds the key-value `pair` to `map`.
+   *
+   * @private
+   * @param {Object} map The map to modify.
+   * @param {Array} pair The key-value pair to add.
+   * @returns {Object} Returns `map`.
+   */
+  function addMapEntry(map, pair) {
+    // Don't return `map.set` because it's not chainable in IE 11.
+    map.set(pair[0], pair[1]);
+    return map;
+  }
+
+  /**
+   * Adds `value` to `set`.
+   *
+   * @private
+   * @param {Object} set The set to modify.
+   * @param {*} value The value to add.
+   * @returns {Object} Returns `set`.
+   */
+  function addSetEntry(set, value) {
+    // Don't return `set.add` because it's not chainable in IE 11.
+    set.add(value);
+    return set;
+  }
 
   /**
    * A faster alternative to `Function#apply`, this function invokes `func`
@@ -15587,20 +15260,6 @@ module.exports = {
       }
     }
     return result;
-  }
-
-  /**
-   * Gets the value at `key`, unless `key` is "__proto__".
-   *
-   * @private
-   * @param {Object} object The object to query.
-   * @param {string} key The key of the property to get.
-   * @returns {*} Returns the property value.
-   */
-  function safeGet(object, key) {
-    return key == '__proto__'
-      ? undefined
-      : object[key];
   }
 
   /**
@@ -17035,7 +16694,7 @@ module.exports = {
           if (!cloneableTags[tag]) {
             return object ? value : {};
           }
-          result = initCloneByTag(value, tag, isDeep);
+          result = initCloneByTag(value, tag, baseClone, isDeep);
         }
       }
       // Check for circular references and return its corresponding clone.
@@ -17045,22 +16704,6 @@ module.exports = {
         return stacked;
       }
       stack.set(value, result);
-
-      if (isSet(value)) {
-        value.forEach(function(subValue) {
-          result.add(baseClone(subValue, bitmask, customizer, subValue, value, stack));
-        });
-
-        return result;
-      }
-
-      if (isMap(value)) {
-        value.forEach(function(subValue, key) {
-          result.set(key, baseClone(subValue, bitmask, customizer, key, value, stack));
-        });
-
-        return result;
-      }
 
       var keysFunc = isFull
         ? (isFlat ? getAllKeysIn : getAllKeys)
@@ -17989,7 +17632,7 @@ module.exports = {
         }
         else {
           var newValue = customizer
-            ? customizer(safeGet(object, key), srcValue, (key + ''), object, source, stack)
+            ? customizer(object[key], srcValue, (key + ''), object, source, stack)
             : undefined;
 
           if (newValue === undefined) {
@@ -18016,8 +17659,8 @@ module.exports = {
      *  counterparts.
      */
     function baseMergeDeep(object, source, key, srcIndex, mergeFunc, customizer, stack) {
-      var objValue = safeGet(object, key),
-          srcValue = safeGet(source, key),
+      var objValue = object[key],
+          srcValue = source[key],
           stacked = stack.get(srcValue);
 
       if (stacked) {
@@ -18926,6 +18569,20 @@ module.exports = {
     }
 
     /**
+     * Creates a clone of `map`.
+     *
+     * @private
+     * @param {Object} map The map to clone.
+     * @param {Function} cloneFunc The function to clone values.
+     * @param {boolean} [isDeep] Specify a deep clone.
+     * @returns {Object} Returns the cloned map.
+     */
+    function cloneMap(map, isDeep, cloneFunc) {
+      var array = isDeep ? cloneFunc(mapToArray(map), CLONE_DEEP_FLAG) : mapToArray(map);
+      return arrayReduce(array, addMapEntry, new map.constructor);
+    }
+
+    /**
      * Creates a clone of `regexp`.
      *
      * @private
@@ -18936,6 +18593,20 @@ module.exports = {
       var result = new regexp.constructor(regexp.source, reFlags.exec(regexp));
       result.lastIndex = regexp.lastIndex;
       return result;
+    }
+
+    /**
+     * Creates a clone of `set`.
+     *
+     * @private
+     * @param {Object} set The set to clone.
+     * @param {Function} cloneFunc The function to clone values.
+     * @param {boolean} [isDeep] Specify a deep clone.
+     * @returns {Object} Returns the cloned set.
+     */
+    function cloneSet(set, isDeep, cloneFunc) {
+      var array = isDeep ? cloneFunc(setToArray(set), CLONE_DEEP_FLAG) : setToArray(set);
+      return arrayReduce(array, addSetEntry, new set.constructor);
     }
 
     /**
@@ -20532,7 +20203,7 @@ module.exports = {
      */
     function initCloneArray(array) {
       var length = array.length,
-          result = new array.constructor(length);
+          result = array.constructor(length);
 
       // Add properties assigned by `RegExp#exec`.
       if (length && typeof array[0] == 'string' && hasOwnProperty.call(array, 'index')) {
@@ -20559,15 +20230,16 @@ module.exports = {
      * Initializes an object clone based on its `toStringTag`.
      *
      * **Note:** This function only supports cloning values with tags of
-     * `Boolean`, `Date`, `Error`, `Map`, `Number`, `RegExp`, `Set`, or `String`.
+     * `Boolean`, `Date`, `Error`, `Number`, `RegExp`, or `String`.
      *
      * @private
      * @param {Object} object The object to clone.
      * @param {string} tag The `toStringTag` of the object to clone.
+     * @param {Function} cloneFunc The function to clone values.
      * @param {boolean} [isDeep] Specify a deep clone.
      * @returns {Object} Returns the initialized clone.
      */
-    function initCloneByTag(object, tag, isDeep) {
+    function initCloneByTag(object, tag, cloneFunc, isDeep) {
       var Ctor = object.constructor;
       switch (tag) {
         case arrayBufferTag:
@@ -20586,7 +20258,7 @@ module.exports = {
           return cloneTypedArray(object, isDeep);
 
         case mapTag:
-          return new Ctor;
+          return cloneMap(object, isDeep, cloneFunc);
 
         case numberTag:
         case stringTag:
@@ -20596,7 +20268,7 @@ module.exports = {
           return cloneRegExp(object);
 
         case setTag:
-          return new Ctor;
+          return cloneSet(object, isDeep, cloneFunc);
 
         case symbolTag:
           return cloneSymbol(object);
@@ -20643,13 +20315,10 @@ module.exports = {
      * @returns {boolean} Returns `true` if `value` is a valid index, else `false`.
      */
     function isIndex(value, length) {
-      var type = typeof value;
       length = length == null ? MAX_SAFE_INTEGER : length;
-
       return !!length &&
-        (type == 'number' ||
-          (type != 'symbol' && reIsUint.test(value))) &&
-            (value > -1 && value % 1 == 0 && value < length);
+        (typeof value == 'number' || reIsUint.test(value)) &&
+        (value > -1 && value % 1 == 0 && value < length);
     }
 
     /**
@@ -21099,11 +20768,11 @@ module.exports = {
      */
     var stringToPath = memoizeCapped(function(string) {
       var result = [];
-      if (string.charCodeAt(0) === 46 /* . */) {
+      if (reLeadingDot.test(string)) {
         result.push('');
       }
-      string.replace(rePropName, function(match, number, quote, subString) {
-        result.push(quote ? subString.replace(reEscapeChar, '$1') : (number || match));
+      string.replace(rePropName, function(match, number, quote, string) {
+        result.push(quote ? string.replace(reEscapeChar, '$1') : (number || match));
       });
       return result;
     });
@@ -24711,11 +24380,9 @@ module.exports = {
       function remainingWait(time) {
         var timeSinceLastCall = time - lastCallTime,
             timeSinceLastInvoke = time - lastInvokeTime,
-            timeWaiting = wait - timeSinceLastCall;
+            result = wait - timeSinceLastCall;
 
-        return maxing
-          ? nativeMin(timeWaiting, maxWait - timeSinceLastInvoke)
-          : timeWaiting;
+        return maxing ? nativeMin(result, maxWait - timeSinceLastInvoke) : result;
       }
 
       function shouldInvoke(time) {
@@ -27147,35 +26814,9 @@ module.exports = {
      * _.defaults({ 'a': 1 }, { 'b': 2 }, { 'a': 3 });
      * // => { 'a': 1, 'b': 2 }
      */
-    var defaults = baseRest(function(object, sources) {
-      object = Object(object);
-
-      var index = -1;
-      var length = sources.length;
-      var guard = length > 2 ? sources[2] : undefined;
-
-      if (guard && isIterateeCall(sources[0], sources[1], guard)) {
-        length = 1;
-      }
-
-      while (++index < length) {
-        var source = sources[index];
-        var props = keysIn(source);
-        var propsIndex = -1;
-        var propsLength = props.length;
-
-        while (++propsIndex < propsLength) {
-          var key = props[propsIndex];
-          var value = object[key];
-
-          if (value === undefined ||
-              (eq(value, objectProto[key]) && !hasOwnProperty.call(object, key))) {
-            object[key] = source[key];
-          }
-        }
-      }
-
-      return object;
+    var defaults = baseRest(function(args) {
+      args.push(undefined, customDefaultsAssignIn);
+      return apply(assignInWith, undefined, args);
     });
 
     /**
@@ -27572,11 +27213,6 @@ module.exports = {
      * // => { '1': 'c', '2': 'b' }
      */
     var invert = createInverter(function(result, value, key) {
-      if (value != null &&
-          typeof value.toString != 'function') {
-        value = nativeObjectToString.call(value);
-      }
-
       result[value] = key;
     }, constant(identity));
 
@@ -27607,11 +27243,6 @@ module.exports = {
      * // => { 'group1': ['a', 'c'], 'group2': ['b'] }
      */
     var invertBy = createInverter(function(result, value, key) {
-      if (value != null &&
-          typeof value.toString != 'function') {
-        value = nativeObjectToString.call(value);
-      }
-
       if (hasOwnProperty.call(result, value)) {
         result[value].push(key);
       } else {
@@ -31470,8 +31101,12 @@ module.exports = {
 }.call(this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],59:[function(require,module,exports){
+},{}],58:[function(require,module,exports){
 //! moment.js
+//! version : 2.18.1
+//! authors : Tim Wood, Iskren Chernev, Moment.js contributors
+//! license : MIT
+//! momentjs.com
 
 ;(function (global, factory) {
     typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
@@ -31479,4506 +31114,4459 @@ module.exports = {
     global.moment = factory()
 }(this, (function () { 'use strict';
 
-    var hookCallback;
+var hookCallback;
 
-    function hooks () {
-        return hookCallback.apply(null, arguments);
+function hooks () {
+    return hookCallback.apply(null, arguments);
+}
+
+// This is done to register the method called with moment()
+// without creating circular dependencies.
+function setHookCallback (callback) {
+    hookCallback = callback;
+}
+
+function isArray(input) {
+    return input instanceof Array || Object.prototype.toString.call(input) === '[object Array]';
+}
+
+function isObject(input) {
+    // IE8 will treat undefined and null as object if it wasn't for
+    // input != null
+    return input != null && Object.prototype.toString.call(input) === '[object Object]';
+}
+
+function isObjectEmpty(obj) {
+    var k;
+    for (k in obj) {
+        // even if its not own property I'd still call it non-empty
+        return false;
     }
+    return true;
+}
 
-    // This is done to register the method called with moment()
-    // without creating circular dependencies.
-    function setHookCallback (callback) {
-        hookCallback = callback;
+function isUndefined(input) {
+    return input === void 0;
+}
+
+function isNumber(input) {
+    return typeof input === 'number' || Object.prototype.toString.call(input) === '[object Number]';
+}
+
+function isDate(input) {
+    return input instanceof Date || Object.prototype.toString.call(input) === '[object Date]';
+}
+
+function map(arr, fn) {
+    var res = [], i;
+    for (i = 0; i < arr.length; ++i) {
+        res.push(fn(arr[i], i));
     }
+    return res;
+}
 
-    function isArray(input) {
-        return input instanceof Array || Object.prototype.toString.call(input) === '[object Array]';
-    }
+function hasOwnProp(a, b) {
+    return Object.prototype.hasOwnProperty.call(a, b);
+}
 
-    function isObject(input) {
-        // IE8 will treat undefined and null as object if it wasn't for
-        // input != null
-        return input != null && Object.prototype.toString.call(input) === '[object Object]';
-    }
-
-    function isObjectEmpty(obj) {
-        if (Object.getOwnPropertyNames) {
-            return (Object.getOwnPropertyNames(obj).length === 0);
-        } else {
-            var k;
-            for (k in obj) {
-                if (obj.hasOwnProperty(k)) {
-                    return false;
-                }
-            }
-            return true;
+function extend(a, b) {
+    for (var i in b) {
+        if (hasOwnProp(b, i)) {
+            a[i] = b[i];
         }
     }
 
-    function isUndefined(input) {
-        return input === void 0;
+    if (hasOwnProp(b, 'toString')) {
+        a.toString = b.toString;
     }
 
-    function isNumber(input) {
-        return typeof input === 'number' || Object.prototype.toString.call(input) === '[object Number]';
+    if (hasOwnProp(b, 'valueOf')) {
+        a.valueOf = b.valueOf;
     }
 
-    function isDate(input) {
-        return input instanceof Date || Object.prototype.toString.call(input) === '[object Date]';
+    return a;
+}
+
+function createUTC (input, format, locale, strict) {
+    return createLocalOrUTC(input, format, locale, strict, true).utc();
+}
+
+function defaultParsingFlags() {
+    // We need to deep clone this object.
+    return {
+        empty           : false,
+        unusedTokens    : [],
+        unusedInput     : [],
+        overflow        : -2,
+        charsLeftOver   : 0,
+        nullInput       : false,
+        invalidMonth    : null,
+        invalidFormat   : false,
+        userInvalidated : false,
+        iso             : false,
+        parsedDateParts : [],
+        meridiem        : null,
+        rfc2822         : false,
+        weekdayMismatch : false
+    };
+}
+
+function getParsingFlags(m) {
+    if (m._pf == null) {
+        m._pf = defaultParsingFlags();
     }
+    return m._pf;
+}
 
-    function map(arr, fn) {
-        var res = [], i;
-        for (i = 0; i < arr.length; ++i) {
-            res.push(fn(arr[i], i));
-        }
-        return res;
-    }
+var some;
+if (Array.prototype.some) {
+    some = Array.prototype.some;
+} else {
+    some = function (fun) {
+        var t = Object(this);
+        var len = t.length >>> 0;
 
-    function hasOwnProp(a, b) {
-        return Object.prototype.hasOwnProperty.call(a, b);
-    }
-
-    function extend(a, b) {
-        for (var i in b) {
-            if (hasOwnProp(b, i)) {
-                a[i] = b[i];
-            }
-        }
-
-        if (hasOwnProp(b, 'toString')) {
-            a.toString = b.toString;
-        }
-
-        if (hasOwnProp(b, 'valueOf')) {
-            a.valueOf = b.valueOf;
-        }
-
-        return a;
-    }
-
-    function createUTC (input, format, locale, strict) {
-        return createLocalOrUTC(input, format, locale, strict, true).utc();
-    }
-
-    function defaultParsingFlags() {
-        // We need to deep clone this object.
-        return {
-            empty           : false,
-            unusedTokens    : [],
-            unusedInput     : [],
-            overflow        : -2,
-            charsLeftOver   : 0,
-            nullInput       : false,
-            invalidMonth    : null,
-            invalidFormat   : false,
-            userInvalidated : false,
-            iso             : false,
-            parsedDateParts : [],
-            meridiem        : null,
-            rfc2822         : false,
-            weekdayMismatch : false
-        };
-    }
-
-    function getParsingFlags(m) {
-        if (m._pf == null) {
-            m._pf = defaultParsingFlags();
-        }
-        return m._pf;
-    }
-
-    var some;
-    if (Array.prototype.some) {
-        some = Array.prototype.some;
-    } else {
-        some = function (fun) {
-            var t = Object(this);
-            var len = t.length >>> 0;
-
-            for (var i = 0; i < len; i++) {
-                if (i in t && fun.call(this, t[i], i, t)) {
-                    return true;
-                }
-            }
-
-            return false;
-        };
-    }
-
-    function isValid(m) {
-        if (m._isValid == null) {
-            var flags = getParsingFlags(m);
-            var parsedParts = some.call(flags.parsedDateParts, function (i) {
-                return i != null;
-            });
-            var isNowValid = !isNaN(m._d.getTime()) &&
-                flags.overflow < 0 &&
-                !flags.empty &&
-                !flags.invalidMonth &&
-                !flags.invalidWeekday &&
-                !flags.weekdayMismatch &&
-                !flags.nullInput &&
-                !flags.invalidFormat &&
-                !flags.userInvalidated &&
-                (!flags.meridiem || (flags.meridiem && parsedParts));
-
-            if (m._strict) {
-                isNowValid = isNowValid &&
-                    flags.charsLeftOver === 0 &&
-                    flags.unusedTokens.length === 0 &&
-                    flags.bigHour === undefined;
-            }
-
-            if (Object.isFrozen == null || !Object.isFrozen(m)) {
-                m._isValid = isNowValid;
-            }
-            else {
-                return isNowValid;
+        for (var i = 0; i < len; i++) {
+            if (i in t && fun.call(this, t[i], i, t)) {
+                return true;
             }
         }
-        return m._isValid;
-    }
 
-    function createInvalid (flags) {
-        var m = createUTC(NaN);
-        if (flags != null) {
-            extend(getParsingFlags(m), flags);
+        return false;
+    };
+}
+
+var some$1 = some;
+
+function isValid(m) {
+    if (m._isValid == null) {
+        var flags = getParsingFlags(m);
+        var parsedParts = some$1.call(flags.parsedDateParts, function (i) {
+            return i != null;
+        });
+        var isNowValid = !isNaN(m._d.getTime()) &&
+            flags.overflow < 0 &&
+            !flags.empty &&
+            !flags.invalidMonth &&
+            !flags.invalidWeekday &&
+            !flags.nullInput &&
+            !flags.invalidFormat &&
+            !flags.userInvalidated &&
+            (!flags.meridiem || (flags.meridiem && parsedParts));
+
+        if (m._strict) {
+            isNowValid = isNowValid &&
+                flags.charsLeftOver === 0 &&
+                flags.unusedTokens.length === 0 &&
+                flags.bigHour === undefined;
+        }
+
+        if (Object.isFrozen == null || !Object.isFrozen(m)) {
+            m._isValid = isNowValid;
         }
         else {
-            getParsingFlags(m).userInvalidated = true;
+            return isNowValid;
         }
+    }
+    return m._isValid;
+}
 
-        return m;
+function createInvalid (flags) {
+    var m = createUTC(NaN);
+    if (flags != null) {
+        extend(getParsingFlags(m), flags);
+    }
+    else {
+        getParsingFlags(m).userInvalidated = true;
     }
 
-    // Plugins that add properties should also add the key here (null value),
-    // so we can properly clone ourselves.
-    var momentProperties = hooks.momentProperties = [];
+    return m;
+}
 
-    function copyConfig(to, from) {
-        var i, prop, val;
+// Plugins that add properties should also add the key here (null value),
+// so we can properly clone ourselves.
+var momentProperties = hooks.momentProperties = [];
 
-        if (!isUndefined(from._isAMomentObject)) {
-            to._isAMomentObject = from._isAMomentObject;
-        }
-        if (!isUndefined(from._i)) {
-            to._i = from._i;
-        }
-        if (!isUndefined(from._f)) {
-            to._f = from._f;
-        }
-        if (!isUndefined(from._l)) {
-            to._l = from._l;
-        }
-        if (!isUndefined(from._strict)) {
-            to._strict = from._strict;
-        }
-        if (!isUndefined(from._tzm)) {
-            to._tzm = from._tzm;
-        }
-        if (!isUndefined(from._isUTC)) {
-            to._isUTC = from._isUTC;
-        }
-        if (!isUndefined(from._offset)) {
-            to._offset = from._offset;
-        }
-        if (!isUndefined(from._pf)) {
-            to._pf = getParsingFlags(from);
-        }
-        if (!isUndefined(from._locale)) {
-            to._locale = from._locale;
-        }
+function copyConfig(to, from) {
+    var i, prop, val;
 
-        if (momentProperties.length > 0) {
-            for (i = 0; i < momentProperties.length; i++) {
-                prop = momentProperties[i];
-                val = from[prop];
-                if (!isUndefined(val)) {
-                    to[prop] = val;
-                }
+    if (!isUndefined(from._isAMomentObject)) {
+        to._isAMomentObject = from._isAMomentObject;
+    }
+    if (!isUndefined(from._i)) {
+        to._i = from._i;
+    }
+    if (!isUndefined(from._f)) {
+        to._f = from._f;
+    }
+    if (!isUndefined(from._l)) {
+        to._l = from._l;
+    }
+    if (!isUndefined(from._strict)) {
+        to._strict = from._strict;
+    }
+    if (!isUndefined(from._tzm)) {
+        to._tzm = from._tzm;
+    }
+    if (!isUndefined(from._isUTC)) {
+        to._isUTC = from._isUTC;
+    }
+    if (!isUndefined(from._offset)) {
+        to._offset = from._offset;
+    }
+    if (!isUndefined(from._pf)) {
+        to._pf = getParsingFlags(from);
+    }
+    if (!isUndefined(from._locale)) {
+        to._locale = from._locale;
+    }
+
+    if (momentProperties.length > 0) {
+        for (i = 0; i < momentProperties.length; i++) {
+            prop = momentProperties[i];
+            val = from[prop];
+            if (!isUndefined(val)) {
+                to[prop] = val;
             }
         }
-
-        return to;
     }
 
-    var updateInProgress = false;
+    return to;
+}
 
-    // Moment prototype object
-    function Moment(config) {
-        copyConfig(this, config);
-        this._d = new Date(config._d != null ? config._d.getTime() : NaN);
-        if (!this.isValid()) {
-            this._d = new Date(NaN);
-        }
-        // Prevent infinite loop in case updateOffset creates new moment
-        // objects.
-        if (updateInProgress === false) {
-            updateInProgress = true;
-            hooks.updateOffset(this);
-            updateInProgress = false;
-        }
+var updateInProgress = false;
+
+// Moment prototype object
+function Moment(config) {
+    copyConfig(this, config);
+    this._d = new Date(config._d != null ? config._d.getTime() : NaN);
+    if (!this.isValid()) {
+        this._d = new Date(NaN);
+    }
+    // Prevent infinite loop in case updateOffset creates new moment
+    // objects.
+    if (updateInProgress === false) {
+        updateInProgress = true;
+        hooks.updateOffset(this);
+        updateInProgress = false;
+    }
+}
+
+function isMoment (obj) {
+    return obj instanceof Moment || (obj != null && obj._isAMomentObject != null);
+}
+
+function absFloor (number) {
+    if (number < 0) {
+        // -0 -> 0
+        return Math.ceil(number) || 0;
+    } else {
+        return Math.floor(number);
+    }
+}
+
+function toInt(argumentForCoercion) {
+    var coercedNumber = +argumentForCoercion,
+        value = 0;
+
+    if (coercedNumber !== 0 && isFinite(coercedNumber)) {
+        value = absFloor(coercedNumber);
     }
 
-    function isMoment (obj) {
-        return obj instanceof Moment || (obj != null && obj._isAMomentObject != null);
-    }
+    return value;
+}
 
-    function absFloor (number) {
-        if (number < 0) {
-            // -0 -> 0
-            return Math.ceil(number) || 0;
-        } else {
-            return Math.floor(number);
-        }
-    }
-
-    function toInt(argumentForCoercion) {
-        var coercedNumber = +argumentForCoercion,
-            value = 0;
-
-        if (coercedNumber !== 0 && isFinite(coercedNumber)) {
-            value = absFloor(coercedNumber);
-        }
-
-        return value;
-    }
-
-    // compare two arrays, return the number of differences
-    function compareArrays(array1, array2, dontConvert) {
-        var len = Math.min(array1.length, array2.length),
-            lengthDiff = Math.abs(array1.length - array2.length),
-            diffs = 0,
-            i;
-        for (i = 0; i < len; i++) {
-            if ((dontConvert && array1[i] !== array2[i]) ||
-                (!dontConvert && toInt(array1[i]) !== toInt(array2[i]))) {
-                diffs++;
-            }
-        }
-        return diffs + lengthDiff;
-    }
-
-    function warn(msg) {
-        if (hooks.suppressDeprecationWarnings === false &&
-                (typeof console !==  'undefined') && console.warn) {
-            console.warn('Deprecation warning: ' + msg);
+// compare two arrays, return the number of differences
+function compareArrays(array1, array2, dontConvert) {
+    var len = Math.min(array1.length, array2.length),
+        lengthDiff = Math.abs(array1.length - array2.length),
+        diffs = 0,
+        i;
+    for (i = 0; i < len; i++) {
+        if ((dontConvert && array1[i] !== array2[i]) ||
+            (!dontConvert && toInt(array1[i]) !== toInt(array2[i]))) {
+            diffs++;
         }
     }
+    return diffs + lengthDiff;
+}
 
-    function deprecate(msg, fn) {
-        var firstTime = true;
-
-        return extend(function () {
-            if (hooks.deprecationHandler != null) {
-                hooks.deprecationHandler(null, msg);
-            }
-            if (firstTime) {
-                var args = [];
-                var arg;
-                for (var i = 0; i < arguments.length; i++) {
-                    arg = '';
-                    if (typeof arguments[i] === 'object') {
-                        arg += '\n[' + i + '] ';
-                        for (var key in arguments[0]) {
-                            arg += key + ': ' + arguments[0][key] + ', ';
-                        }
-                        arg = arg.slice(0, -2); // Remove trailing comma and space
-                    } else {
-                        arg = arguments[i];
-                    }
-                    args.push(arg);
-                }
-                warn(msg + '\nArguments: ' + Array.prototype.slice.call(args).join('') + '\n' + (new Error()).stack);
-                firstTime = false;
-            }
-            return fn.apply(this, arguments);
-        }, fn);
+function warn(msg) {
+    if (hooks.suppressDeprecationWarnings === false &&
+            (typeof console !==  'undefined') && console.warn) {
+        console.warn('Deprecation warning: ' + msg);
     }
+}
 
-    var deprecations = {};
+function deprecate(msg, fn) {
+    var firstTime = true;
 
-    function deprecateSimple(name, msg) {
+    return extend(function () {
         if (hooks.deprecationHandler != null) {
-            hooks.deprecationHandler(name, msg);
+            hooks.deprecationHandler(null, msg);
         }
-        if (!deprecations[name]) {
-            warn(msg);
-            deprecations[name] = true;
-        }
-    }
-
-    hooks.suppressDeprecationWarnings = false;
-    hooks.deprecationHandler = null;
-
-    function isFunction(input) {
-        return input instanceof Function || Object.prototype.toString.call(input) === '[object Function]';
-    }
-
-    function set (config) {
-        var prop, i;
-        for (i in config) {
-            prop = config[i];
-            if (isFunction(prop)) {
-                this[i] = prop;
-            } else {
-                this['_' + i] = prop;
-            }
-        }
-        this._config = config;
-        // Lenient ordinal parsing accepts just a number in addition to
-        // number + (possibly) stuff coming from _dayOfMonthOrdinalParse.
-        // TODO: Remove "ordinalParse" fallback in next major release.
-        this._dayOfMonthOrdinalParseLenient = new RegExp(
-            (this._dayOfMonthOrdinalParse.source || this._ordinalParse.source) +
-                '|' + (/\d{1,2}/).source);
-    }
-
-    function mergeConfigs(parentConfig, childConfig) {
-        var res = extend({}, parentConfig), prop;
-        for (prop in childConfig) {
-            if (hasOwnProp(childConfig, prop)) {
-                if (isObject(parentConfig[prop]) && isObject(childConfig[prop])) {
-                    res[prop] = {};
-                    extend(res[prop], parentConfig[prop]);
-                    extend(res[prop], childConfig[prop]);
-                } else if (childConfig[prop] != null) {
-                    res[prop] = childConfig[prop];
+        if (firstTime) {
+            var args = [];
+            var arg;
+            for (var i = 0; i < arguments.length; i++) {
+                arg = '';
+                if (typeof arguments[i] === 'object') {
+                    arg += '\n[' + i + '] ';
+                    for (var key in arguments[0]) {
+                        arg += key + ': ' + arguments[0][key] + ', ';
+                    }
+                    arg = arg.slice(0, -2); // Remove trailing comma and space
                 } else {
-                    delete res[prop];
+                    arg = arguments[i];
                 }
+                args.push(arg);
+            }
+            warn(msg + '\nArguments: ' + Array.prototype.slice.call(args).join('') + '\n' + (new Error()).stack);
+            firstTime = false;
+        }
+        return fn.apply(this, arguments);
+    }, fn);
+}
+
+var deprecations = {};
+
+function deprecateSimple(name, msg) {
+    if (hooks.deprecationHandler != null) {
+        hooks.deprecationHandler(name, msg);
+    }
+    if (!deprecations[name]) {
+        warn(msg);
+        deprecations[name] = true;
+    }
+}
+
+hooks.suppressDeprecationWarnings = false;
+hooks.deprecationHandler = null;
+
+function isFunction(input) {
+    return input instanceof Function || Object.prototype.toString.call(input) === '[object Function]';
+}
+
+function set (config) {
+    var prop, i;
+    for (i in config) {
+        prop = config[i];
+        if (isFunction(prop)) {
+            this[i] = prop;
+        } else {
+            this['_' + i] = prop;
+        }
+    }
+    this._config = config;
+    // Lenient ordinal parsing accepts just a number in addition to
+    // number + (possibly) stuff coming from _dayOfMonthOrdinalParse.
+    // TODO: Remove "ordinalParse" fallback in next major release.
+    this._dayOfMonthOrdinalParseLenient = new RegExp(
+        (this._dayOfMonthOrdinalParse.source || this._ordinalParse.source) +
+            '|' + (/\d{1,2}/).source);
+}
+
+function mergeConfigs(parentConfig, childConfig) {
+    var res = extend({}, parentConfig), prop;
+    for (prop in childConfig) {
+        if (hasOwnProp(childConfig, prop)) {
+            if (isObject(parentConfig[prop]) && isObject(childConfig[prop])) {
+                res[prop] = {};
+                extend(res[prop], parentConfig[prop]);
+                extend(res[prop], childConfig[prop]);
+            } else if (childConfig[prop] != null) {
+                res[prop] = childConfig[prop];
+            } else {
+                delete res[prop];
             }
         }
-        for (prop in parentConfig) {
-            if (hasOwnProp(parentConfig, prop) &&
-                    !hasOwnProp(childConfig, prop) &&
-                    isObject(parentConfig[prop])) {
-                // make sure changes to properties don't modify parent config
-                res[prop] = extend({}, res[prop]);
+    }
+    for (prop in parentConfig) {
+        if (hasOwnProp(parentConfig, prop) &&
+                !hasOwnProp(childConfig, prop) &&
+                isObject(parentConfig[prop])) {
+            // make sure changes to properties don't modify parent config
+            res[prop] = extend({}, res[prop]);
+        }
+    }
+    return res;
+}
+
+function Locale(config) {
+    if (config != null) {
+        this.set(config);
+    }
+}
+
+var keys;
+
+if (Object.keys) {
+    keys = Object.keys;
+} else {
+    keys = function (obj) {
+        var i, res = [];
+        for (i in obj) {
+            if (hasOwnProp(obj, i)) {
+                res.push(i);
             }
         }
         return res;
-    }
-
-    function Locale(config) {
-        if (config != null) {
-            this.set(config);
-        }
-    }
-
-    var keys;
-
-    if (Object.keys) {
-        keys = Object.keys;
-    } else {
-        keys = function (obj) {
-            var i, res = [];
-            for (i in obj) {
-                if (hasOwnProp(obj, i)) {
-                    res.push(i);
-                }
-            }
-            return res;
-        };
-    }
-
-    var defaultCalendar = {
-        sameDay : '[Today at] LT',
-        nextDay : '[Tomorrow at] LT',
-        nextWeek : 'dddd [at] LT',
-        lastDay : '[Yesterday at] LT',
-        lastWeek : '[Last] dddd [at] LT',
-        sameElse : 'L'
     };
+}
 
-    function calendar (key, mom, now) {
-        var output = this._calendar[key] || this._calendar['sameElse'];
-        return isFunction(output) ? output.call(mom, now) : output;
-    }
+var keys$1 = keys;
 
-    var defaultLongDateFormat = {
-        LTS  : 'h:mm:ss A',
-        LT   : 'h:mm A',
-        L    : 'MM/DD/YYYY',
-        LL   : 'MMMM D, YYYY',
-        LLL  : 'MMMM D, YYYY h:mm A',
-        LLLL : 'dddd, MMMM D, YYYY h:mm A'
-    };
+var defaultCalendar = {
+    sameDay : '[Today at] LT',
+    nextDay : '[Tomorrow at] LT',
+    nextWeek : 'dddd [at] LT',
+    lastDay : '[Yesterday at] LT',
+    lastWeek : '[Last] dddd [at] LT',
+    sameElse : 'L'
+};
 
-    function longDateFormat (key) {
-        var format = this._longDateFormat[key],
-            formatUpper = this._longDateFormat[key.toUpperCase()];
+function calendar (key, mom, now) {
+    var output = this._calendar[key] || this._calendar['sameElse'];
+    return isFunction(output) ? output.call(mom, now) : output;
+}
 
-        if (format || !formatUpper) {
-            return format;
-        }
+var defaultLongDateFormat = {
+    LTS  : 'h:mm:ss A',
+    LT   : 'h:mm A',
+    L    : 'MM/DD/YYYY',
+    LL   : 'MMMM D, YYYY',
+    LLL  : 'MMMM D, YYYY h:mm A',
+    LLLL : 'dddd, MMMM D, YYYY h:mm A'
+};
 
-        this._longDateFormat[key] = formatUpper.replace(/MMMM|MM|DD|dddd/g, function (val) {
-            return val.slice(1);
-        });
+function longDateFormat (key) {
+    var format = this._longDateFormat[key],
+        formatUpper = this._longDateFormat[key.toUpperCase()];
 
-        return this._longDateFormat[key];
-    }
-
-    var defaultInvalidDate = 'Invalid date';
-
-    function invalidDate () {
-        return this._invalidDate;
-    }
-
-    var defaultOrdinal = '%d';
-    var defaultDayOfMonthOrdinalParse = /\d{1,2}/;
-
-    function ordinal (number) {
-        return this._ordinal.replace('%d', number);
-    }
-
-    var defaultRelativeTime = {
-        future : 'in %s',
-        past   : '%s ago',
-        s  : 'a few seconds',
-        ss : '%d seconds',
-        m  : 'a minute',
-        mm : '%d minutes',
-        h  : 'an hour',
-        hh : '%d hours',
-        d  : 'a day',
-        dd : '%d days',
-        M  : 'a month',
-        MM : '%d months',
-        y  : 'a year',
-        yy : '%d years'
-    };
-
-    function relativeTime (number, withoutSuffix, string, isFuture) {
-        var output = this._relativeTime[string];
-        return (isFunction(output)) ?
-            output(number, withoutSuffix, string, isFuture) :
-            output.replace(/%d/i, number);
-    }
-
-    function pastFuture (diff, output) {
-        var format = this._relativeTime[diff > 0 ? 'future' : 'past'];
-        return isFunction(format) ? format(output) : format.replace(/%s/i, output);
-    }
-
-    var aliases = {};
-
-    function addUnitAlias (unit, shorthand) {
-        var lowerCase = unit.toLowerCase();
-        aliases[lowerCase] = aliases[lowerCase + 's'] = aliases[shorthand] = unit;
-    }
-
-    function normalizeUnits(units) {
-        return typeof units === 'string' ? aliases[units] || aliases[units.toLowerCase()] : undefined;
-    }
-
-    function normalizeObjectUnits(inputObject) {
-        var normalizedInput = {},
-            normalizedProp,
-            prop;
-
-        for (prop in inputObject) {
-            if (hasOwnProp(inputObject, prop)) {
-                normalizedProp = normalizeUnits(prop);
-                if (normalizedProp) {
-                    normalizedInput[normalizedProp] = inputObject[prop];
-                }
-            }
-        }
-
-        return normalizedInput;
-    }
-
-    var priorities = {};
-
-    function addUnitPriority(unit, priority) {
-        priorities[unit] = priority;
-    }
-
-    function getPrioritizedUnits(unitsObj) {
-        var units = [];
-        for (var u in unitsObj) {
-            units.push({unit: u, priority: priorities[u]});
-        }
-        units.sort(function (a, b) {
-            return a.priority - b.priority;
-        });
-        return units;
-    }
-
-    function zeroFill(number, targetLength, forceSign) {
-        var absNumber = '' + Math.abs(number),
-            zerosToFill = targetLength - absNumber.length,
-            sign = number >= 0;
-        return (sign ? (forceSign ? '+' : '') : '-') +
-            Math.pow(10, Math.max(0, zerosToFill)).toString().substr(1) + absNumber;
-    }
-
-    var formattingTokens = /(\[[^\[]*\])|(\\)?([Hh]mm(ss)?|Mo|MM?M?M?|Do|DDDo|DD?D?D?|ddd?d?|do?|w[o|w]?|W[o|W]?|Qo?|YYYYYY|YYYYY|YYYY|YY|gg(ggg?)?|GG(GGG?)?|e|E|a|A|hh?|HH?|kk?|mm?|ss?|S{1,9}|x|X|zz?|ZZ?|.)/g;
-
-    var localFormattingTokens = /(\[[^\[]*\])|(\\)?(LTS|LT|LL?L?L?|l{1,4})/g;
-
-    var formatFunctions = {};
-
-    var formatTokenFunctions = {};
-
-    // token:    'M'
-    // padded:   ['MM', 2]
-    // ordinal:  'Mo'
-    // callback: function () { this.month() + 1 }
-    function addFormatToken (token, padded, ordinal, callback) {
-        var func = callback;
-        if (typeof callback === 'string') {
-            func = function () {
-                return this[callback]();
-            };
-        }
-        if (token) {
-            formatTokenFunctions[token] = func;
-        }
-        if (padded) {
-            formatTokenFunctions[padded[0]] = function () {
-                return zeroFill(func.apply(this, arguments), padded[1], padded[2]);
-            };
-        }
-        if (ordinal) {
-            formatTokenFunctions[ordinal] = function () {
-                return this.localeData().ordinal(func.apply(this, arguments), token);
-            };
-        }
-    }
-
-    function removeFormattingTokens(input) {
-        if (input.match(/\[[\s\S]/)) {
-            return input.replace(/^\[|\]$/g, '');
-        }
-        return input.replace(/\\/g, '');
-    }
-
-    function makeFormatFunction(format) {
-        var array = format.match(formattingTokens), i, length;
-
-        for (i = 0, length = array.length; i < length; i++) {
-            if (formatTokenFunctions[array[i]]) {
-                array[i] = formatTokenFunctions[array[i]];
-            } else {
-                array[i] = removeFormattingTokens(array[i]);
-            }
-        }
-
-        return function (mom) {
-            var output = '', i;
-            for (i = 0; i < length; i++) {
-                output += isFunction(array[i]) ? array[i].call(mom, format) : array[i];
-            }
-            return output;
-        };
-    }
-
-    // format date using native date object
-    function formatMoment(m, format) {
-        if (!m.isValid()) {
-            return m.localeData().invalidDate();
-        }
-
-        format = expandFormat(format, m.localeData());
-        formatFunctions[format] = formatFunctions[format] || makeFormatFunction(format);
-
-        return formatFunctions[format](m);
-    }
-
-    function expandFormat(format, locale) {
-        var i = 5;
-
-        function replaceLongDateFormatTokens(input) {
-            return locale.longDateFormat(input) || input;
-        }
-
-        localFormattingTokens.lastIndex = 0;
-        while (i >= 0 && localFormattingTokens.test(format)) {
-            format = format.replace(localFormattingTokens, replaceLongDateFormatTokens);
-            localFormattingTokens.lastIndex = 0;
-            i -= 1;
-        }
-
+    if (format || !formatUpper) {
         return format;
     }
 
-    var match1         = /\d/;            //       0 - 9
-    var match2         = /\d\d/;          //      00 - 99
-    var match3         = /\d{3}/;         //     000 - 999
-    var match4         = /\d{4}/;         //    0000 - 9999
-    var match6         = /[+-]?\d{6}/;    // -999999 - 999999
-    var match1to2      = /\d\d?/;         //       0 - 99
-    var match3to4      = /\d\d\d\d?/;     //     999 - 9999
-    var match5to6      = /\d\d\d\d\d\d?/; //   99999 - 999999
-    var match1to3      = /\d{1,3}/;       //       0 - 999
-    var match1to4      = /\d{1,4}/;       //       0 - 9999
-    var match1to6      = /[+-]?\d{1,6}/;  // -999999 - 999999
+    this._longDateFormat[key] = formatUpper.replace(/MMMM|MM|DD|dddd/g, function (val) {
+        return val.slice(1);
+    });
 
-    var matchUnsigned  = /\d+/;           //       0 - inf
-    var matchSigned    = /[+-]?\d+/;      //    -inf - inf
+    return this._longDateFormat[key];
+}
 
-    var matchOffset    = /Z|[+-]\d\d:?\d\d/gi; // +00:00 -00:00 +0000 -0000 or Z
-    var matchShortOffset = /Z|[+-]\d\d(?::?\d\d)?/gi; // +00 -00 +00:00 -00:00 +0000 -0000 or Z
+var defaultInvalidDate = 'Invalid date';
 
-    var matchTimestamp = /[+-]?\d+(\.\d{1,3})?/; // 123456789 123456789.123
+function invalidDate () {
+    return this._invalidDate;
+}
 
-    // any word (or two) characters or numbers including two/three word month in arabic.
-    // includes scottish gaelic two word and hyphenated months
-    var matchWord = /[0-9]{0,256}['a-z\u00A0-\u05FF\u0700-\uD7FF\uF900-\uFDCF\uFDF0-\uFF07\uFF10-\uFFEF]{1,256}|[\u0600-\u06FF\/]{1,256}(\s*?[\u0600-\u06FF]{1,256}){1,2}/i;
+var defaultOrdinal = '%d';
+var defaultDayOfMonthOrdinalParse = /\d{1,2}/;
 
-    var regexes = {};
+function ordinal (number) {
+    return this._ordinal.replace('%d', number);
+}
 
-    function addRegexToken (token, regex, strictRegex) {
-        regexes[token] = isFunction(regex) ? regex : function (isStrict, localeData) {
-            return (isStrict && strictRegex) ? strictRegex : regex;
-        };
-    }
+var defaultRelativeTime = {
+    future : 'in %s',
+    past   : '%s ago',
+    s  : 'a few seconds',
+    ss : '%d seconds',
+    m  : 'a minute',
+    mm : '%d minutes',
+    h  : 'an hour',
+    hh : '%d hours',
+    d  : 'a day',
+    dd : '%d days',
+    M  : 'a month',
+    MM : '%d months',
+    y  : 'a year',
+    yy : '%d years'
+};
 
-    function getParseRegexForToken (token, config) {
-        if (!hasOwnProp(regexes, token)) {
-            return new RegExp(unescapeFormat(token));
-        }
+function relativeTime (number, withoutSuffix, string, isFuture) {
+    var output = this._relativeTime[string];
+    return (isFunction(output)) ?
+        output(number, withoutSuffix, string, isFuture) :
+        output.replace(/%d/i, number);
+}
 
-        return regexes[token](config._strict, config._locale);
-    }
+function pastFuture (diff, output) {
+    var format = this._relativeTime[diff > 0 ? 'future' : 'past'];
+    return isFunction(format) ? format(output) : format.replace(/%s/i, output);
+}
 
-    // Code from http://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
-    function unescapeFormat(s) {
-        return regexEscape(s.replace('\\', '').replace(/\\(\[)|\\(\])|\[([^\]\[]*)\]|\\(.)/g, function (matched, p1, p2, p3, p4) {
-            return p1 || p2 || p3 || p4;
-        }));
-    }
+var aliases = {};
 
-    function regexEscape(s) {
-        return s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    }
+function addUnitAlias (unit, shorthand) {
+    var lowerCase = unit.toLowerCase();
+    aliases[lowerCase] = aliases[lowerCase + 's'] = aliases[shorthand] = unit;
+}
 
-    var tokens = {};
+function normalizeUnits(units) {
+    return typeof units === 'string' ? aliases[units] || aliases[units.toLowerCase()] : undefined;
+}
 
-    function addParseToken (token, callback) {
-        var i, func = callback;
-        if (typeof token === 'string') {
-            token = [token];
-        }
-        if (isNumber(callback)) {
-            func = function (input, array) {
-                array[callback] = toInt(input);
-            };
-        }
-        for (i = 0; i < token.length; i++) {
-            tokens[token[i]] = func;
-        }
-    }
+function normalizeObjectUnits(inputObject) {
+    var normalizedInput = {},
+        normalizedProp,
+        prop;
 
-    function addWeekParseToken (token, callback) {
-        addParseToken(token, function (input, array, config, token) {
-            config._w = config._w || {};
-            callback(input, config._w, config, token);
-        });
-    }
-
-    function addTimeToArrayFromToken(token, input, config) {
-        if (input != null && hasOwnProp(tokens, token)) {
-            tokens[token](input, config._a, config, token);
+    for (prop in inputObject) {
+        if (hasOwnProp(inputObject, prop)) {
+            normalizedProp = normalizeUnits(prop);
+            if (normalizedProp) {
+                normalizedInput[normalizedProp] = inputObject[prop];
+            }
         }
     }
 
-    var YEAR = 0;
-    var MONTH = 1;
-    var DATE = 2;
-    var HOUR = 3;
-    var MINUTE = 4;
-    var SECOND = 5;
-    var MILLISECOND = 6;
-    var WEEK = 7;
-    var WEEKDAY = 8;
+    return normalizedInput;
+}
 
-    // FORMATTING
+var priorities = {};
 
-    addFormatToken('Y', 0, 0, function () {
-        var y = this.year();
-        return y <= 9999 ? '' + y : '+' + y;
-    });
+function addUnitPriority(unit, priority) {
+    priorities[unit] = priority;
+}
 
-    addFormatToken(0, ['YY', 2], 0, function () {
-        return this.year() % 100;
-    });
-
-    addFormatToken(0, ['YYYY',   4],       0, 'year');
-    addFormatToken(0, ['YYYYY',  5],       0, 'year');
-    addFormatToken(0, ['YYYYYY', 6, true], 0, 'year');
-
-    // ALIASES
-
-    addUnitAlias('year', 'y');
-
-    // PRIORITIES
-
-    addUnitPriority('year', 1);
-
-    // PARSING
-
-    addRegexToken('Y',      matchSigned);
-    addRegexToken('YY',     match1to2, match2);
-    addRegexToken('YYYY',   match1to4, match4);
-    addRegexToken('YYYYY',  match1to6, match6);
-    addRegexToken('YYYYYY', match1to6, match6);
-
-    addParseToken(['YYYYY', 'YYYYYY'], YEAR);
-    addParseToken('YYYY', function (input, array) {
-        array[YEAR] = input.length === 2 ? hooks.parseTwoDigitYear(input) : toInt(input);
-    });
-    addParseToken('YY', function (input, array) {
-        array[YEAR] = hooks.parseTwoDigitYear(input);
-    });
-    addParseToken('Y', function (input, array) {
-        array[YEAR] = parseInt(input, 10);
-    });
-
-    // HELPERS
-
-    function daysInYear(year) {
-        return isLeapYear(year) ? 366 : 365;
+function getPrioritizedUnits(unitsObj) {
+    var units = [];
+    for (var u in unitsObj) {
+        units.push({unit: u, priority: priorities[u]});
     }
+    units.sort(function (a, b) {
+        return a.priority - b.priority;
+    });
+    return units;
+}
 
-    function isLeapYear(year) {
-        return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-    }
-
-    // HOOKS
-
-    hooks.parseTwoDigitYear = function (input) {
-        return toInt(input) + (toInt(input) > 68 ? 1900 : 2000);
+function makeGetSet (unit, keepTime) {
+    return function (value) {
+        if (value != null) {
+            set$1(this, unit, value);
+            hooks.updateOffset(this, keepTime);
+            return this;
+        } else {
+            return get(this, unit);
+        }
     };
+}
 
-    // MOMENTS
+function get (mom, unit) {
+    return mom.isValid() ?
+        mom._d['get' + (mom._isUTC ? 'UTC' : '') + unit]() : NaN;
+}
 
-    var getSetYear = makeGetSet('FullYear', true);
-
-    function getIsLeapYear () {
-        return isLeapYear(this.year());
+function set$1 (mom, unit, value) {
+    if (mom.isValid()) {
+        mom._d['set' + (mom._isUTC ? 'UTC' : '') + unit](value);
     }
+}
 
-    function makeGetSet (unit, keepTime) {
-        return function (value) {
-            if (value != null) {
-                set$1(this, unit, value);
-                hooks.updateOffset(this, keepTime);
-                return this;
-            } else {
-                return get(this, unit);
-            }
-        };
+// MOMENTS
+
+function stringGet (units) {
+    units = normalizeUnits(units);
+    if (isFunction(this[units])) {
+        return this[units]();
     }
+    return this;
+}
 
-    function get (mom, unit) {
-        return mom.isValid() ?
-            mom._d['get' + (mom._isUTC ? 'UTC' : '') + unit]() : NaN;
-    }
 
-    function set$1 (mom, unit, value) {
-        if (mom.isValid() && !isNaN(value)) {
-            if (unit === 'FullYear' && isLeapYear(mom.year()) && mom.month() === 1 && mom.date() === 29) {
-                mom._d['set' + (mom._isUTC ? 'UTC' : '') + unit](value, mom.month(), daysInMonth(value, mom.month()));
-            }
-            else {
-                mom._d['set' + (mom._isUTC ? 'UTC' : '') + unit](value);
-            }
+function stringSet (units, value) {
+    if (typeof units === 'object') {
+        units = normalizeObjectUnits(units);
+        var prioritized = getPrioritizedUnits(units);
+        for (var i = 0; i < prioritized.length; i++) {
+            this[prioritized[i].unit](units[prioritized[i].unit]);
         }
-    }
-
-    // MOMENTS
-
-    function stringGet (units) {
+    } else {
         units = normalizeUnits(units);
         if (isFunction(this[units])) {
-            return this[units]();
+            return this[units](value);
         }
-        return this;
     }
+    return this;
+}
 
+function zeroFill(number, targetLength, forceSign) {
+    var absNumber = '' + Math.abs(number),
+        zerosToFill = targetLength - absNumber.length,
+        sign = number >= 0;
+    return (sign ? (forceSign ? '+' : '') : '-') +
+        Math.pow(10, Math.max(0, zerosToFill)).toString().substr(1) + absNumber;
+}
 
-    function stringSet (units, value) {
-        if (typeof units === 'object') {
-            units = normalizeObjectUnits(units);
-            var prioritized = getPrioritizedUnits(units);
-            for (var i = 0; i < prioritized.length; i++) {
-                this[prioritized[i].unit](units[prioritized[i].unit]);
-            }
-        } else {
-            units = normalizeUnits(units);
-            if (isFunction(this[units])) {
-                return this[units](value);
-            }
-        }
-        return this;
-    }
+var formattingTokens = /(\[[^\[]*\])|(\\)?([Hh]mm(ss)?|Mo|MM?M?M?|Do|DDDo|DD?D?D?|ddd?d?|do?|w[o|w]?|W[o|W]?|Qo?|YYYYYY|YYYYY|YYYY|YY|gg(ggg?)?|GG(GGG?)?|e|E|a|A|hh?|HH?|kk?|mm?|ss?|S{1,9}|x|X|zz?|ZZ?|.)/g;
 
-    function mod(n, x) {
-        return ((n % x) + x) % x;
-    }
+var localFormattingTokens = /(\[[^\[]*\])|(\\)?(LTS|LT|LL?L?L?|l{1,4})/g;
 
-    var indexOf;
+var formatFunctions = {};
 
-    if (Array.prototype.indexOf) {
-        indexOf = Array.prototype.indexOf;
-    } else {
-        indexOf = function (o) {
-            // I know
-            var i;
-            for (i = 0; i < this.length; ++i) {
-                if (this[i] === o) {
-                    return i;
-                }
-            }
-            return -1;
+var formatTokenFunctions = {};
+
+// token:    'M'
+// padded:   ['MM', 2]
+// ordinal:  'Mo'
+// callback: function () { this.month() + 1 }
+function addFormatToken (token, padded, ordinal, callback) {
+    var func = callback;
+    if (typeof callback === 'string') {
+        func = function () {
+            return this[callback]();
         };
     }
-
-    function daysInMonth(year, month) {
-        if (isNaN(year) || isNaN(month)) {
-            return NaN;
-        }
-        var modMonth = mod(month, 12);
-        year += (month - modMonth) / 12;
-        return modMonth === 1 ? (isLeapYear(year) ? 29 : 28) : (31 - modMonth % 7 % 2);
+    if (token) {
+        formatTokenFunctions[token] = func;
     }
+    if (padded) {
+        formatTokenFunctions[padded[0]] = function () {
+            return zeroFill(func.apply(this, arguments), padded[1], padded[2]);
+        };
+    }
+    if (ordinal) {
+        formatTokenFunctions[ordinal] = function () {
+            return this.localeData().ordinal(func.apply(this, arguments), token);
+        };
+    }
+}
 
-    // FORMATTING
+function removeFormattingTokens(input) {
+    if (input.match(/\[[\s\S]/)) {
+        return input.replace(/^\[|\]$/g, '');
+    }
+    return input.replace(/\\/g, '');
+}
 
-    addFormatToken('M', ['MM', 2], 'Mo', function () {
-        return this.month() + 1;
-    });
+function makeFormatFunction(format) {
+    var array = format.match(formattingTokens), i, length;
 
-    addFormatToken('MMM', 0, 0, function (format) {
-        return this.localeData().monthsShort(this, format);
-    });
-
-    addFormatToken('MMMM', 0, 0, function (format) {
-        return this.localeData().months(this, format);
-    });
-
-    // ALIASES
-
-    addUnitAlias('month', 'M');
-
-    // PRIORITY
-
-    addUnitPriority('month', 8);
-
-    // PARSING
-
-    addRegexToken('M',    match1to2);
-    addRegexToken('MM',   match1to2, match2);
-    addRegexToken('MMM',  function (isStrict, locale) {
-        return locale.monthsShortRegex(isStrict);
-    });
-    addRegexToken('MMMM', function (isStrict, locale) {
-        return locale.monthsRegex(isStrict);
-    });
-
-    addParseToken(['M', 'MM'], function (input, array) {
-        array[MONTH] = toInt(input) - 1;
-    });
-
-    addParseToken(['MMM', 'MMMM'], function (input, array, config, token) {
-        var month = config._locale.monthsParse(input, token, config._strict);
-        // if we didn't find a month name, mark the date as invalid.
-        if (month != null) {
-            array[MONTH] = month;
+    for (i = 0, length = array.length; i < length; i++) {
+        if (formatTokenFunctions[array[i]]) {
+            array[i] = formatTokenFunctions[array[i]];
         } else {
-            getParsingFlags(config).invalidMonth = input;
+            array[i] = removeFormattingTokens(array[i]);
         }
+    }
+
+    return function (mom) {
+        var output = '', i;
+        for (i = 0; i < length; i++) {
+            output += isFunction(array[i]) ? array[i].call(mom, format) : array[i];
+        }
+        return output;
+    };
+}
+
+// format date using native date object
+function formatMoment(m, format) {
+    if (!m.isValid()) {
+        return m.localeData().invalidDate();
+    }
+
+    format = expandFormat(format, m.localeData());
+    formatFunctions[format] = formatFunctions[format] || makeFormatFunction(format);
+
+    return formatFunctions[format](m);
+}
+
+function expandFormat(format, locale) {
+    var i = 5;
+
+    function replaceLongDateFormatTokens(input) {
+        return locale.longDateFormat(input) || input;
+    }
+
+    localFormattingTokens.lastIndex = 0;
+    while (i >= 0 && localFormattingTokens.test(format)) {
+        format = format.replace(localFormattingTokens, replaceLongDateFormatTokens);
+        localFormattingTokens.lastIndex = 0;
+        i -= 1;
+    }
+
+    return format;
+}
+
+var match1         = /\d/;            //       0 - 9
+var match2         = /\d\d/;          //      00 - 99
+var match3         = /\d{3}/;         //     000 - 999
+var match4         = /\d{4}/;         //    0000 - 9999
+var match6         = /[+-]?\d{6}/;    // -999999 - 999999
+var match1to2      = /\d\d?/;         //       0 - 99
+var match3to4      = /\d\d\d\d?/;     //     999 - 9999
+var match5to6      = /\d\d\d\d\d\d?/; //   99999 - 999999
+var match1to3      = /\d{1,3}/;       //       0 - 999
+var match1to4      = /\d{1,4}/;       //       0 - 9999
+var match1to6      = /[+-]?\d{1,6}/;  // -999999 - 999999
+
+var matchUnsigned  = /\d+/;           //       0 - inf
+var matchSigned    = /[+-]?\d+/;      //    -inf - inf
+
+var matchOffset    = /Z|[+-]\d\d:?\d\d/gi; // +00:00 -00:00 +0000 -0000 or Z
+var matchShortOffset = /Z|[+-]\d\d(?::?\d\d)?/gi; // +00 -00 +00:00 -00:00 +0000 -0000 or Z
+
+var matchTimestamp = /[+-]?\d+(\.\d{1,3})?/; // 123456789 123456789.123
+
+// any word (or two) characters or numbers including two/three word month in arabic.
+// includes scottish gaelic two word and hyphenated months
+var matchWord = /[0-9]*['a-z\u00A0-\u05FF\u0700-\uD7FF\uF900-\uFDCF\uFDF0-\uFFEF]+|[\u0600-\u06FF\/]+(\s*?[\u0600-\u06FF]+){1,2}/i;
+
+
+var regexes = {};
+
+function addRegexToken (token, regex, strictRegex) {
+    regexes[token] = isFunction(regex) ? regex : function (isStrict, localeData) {
+        return (isStrict && strictRegex) ? strictRegex : regex;
+    };
+}
+
+function getParseRegexForToken (token, config) {
+    if (!hasOwnProp(regexes, token)) {
+        return new RegExp(unescapeFormat(token));
+    }
+
+    return regexes[token](config._strict, config._locale);
+}
+
+// Code from http://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+function unescapeFormat(s) {
+    return regexEscape(s.replace('\\', '').replace(/\\(\[)|\\(\])|\[([^\]\[]*)\]|\\(.)/g, function (matched, p1, p2, p3, p4) {
+        return p1 || p2 || p3 || p4;
+    }));
+}
+
+function regexEscape(s) {
+    return s.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+}
+
+var tokens = {};
+
+function addParseToken (token, callback) {
+    var i, func = callback;
+    if (typeof token === 'string') {
+        token = [token];
+    }
+    if (isNumber(callback)) {
+        func = function (input, array) {
+            array[callback] = toInt(input);
+        };
+    }
+    for (i = 0; i < token.length; i++) {
+        tokens[token[i]] = func;
+    }
+}
+
+function addWeekParseToken (token, callback) {
+    addParseToken(token, function (input, array, config, token) {
+        config._w = config._w || {};
+        callback(input, config._w, config, token);
     });
+}
 
-    // LOCALES
-
-    var MONTHS_IN_FORMAT = /D[oD]?(\[[^\[\]]*\]|\s)+MMMM?/;
-    var defaultLocaleMonths = 'January_February_March_April_May_June_July_August_September_October_November_December'.split('_');
-    function localeMonths (m, format) {
-        if (!m) {
-            return isArray(this._months) ? this._months :
-                this._months['standalone'];
-        }
-        return isArray(this._months) ? this._months[m.month()] :
-            this._months[(this._months.isFormat || MONTHS_IN_FORMAT).test(format) ? 'format' : 'standalone'][m.month()];
+function addTimeToArrayFromToken(token, input, config) {
+    if (input != null && hasOwnProp(tokens, token)) {
+        tokens[token](input, config._a, config, token);
     }
+}
 
-    var defaultLocaleMonthsShort = 'Jan_Feb_Mar_Apr_May_Jun_Jul_Aug_Sep_Oct_Nov_Dec'.split('_');
-    function localeMonthsShort (m, format) {
-        if (!m) {
-            return isArray(this._monthsShort) ? this._monthsShort :
-                this._monthsShort['standalone'];
-        }
-        return isArray(this._monthsShort) ? this._monthsShort[m.month()] :
-            this._monthsShort[MONTHS_IN_FORMAT.test(format) ? 'format' : 'standalone'][m.month()];
-    }
+var YEAR = 0;
+var MONTH = 1;
+var DATE = 2;
+var HOUR = 3;
+var MINUTE = 4;
+var SECOND = 5;
+var MILLISECOND = 6;
+var WEEK = 7;
+var WEEKDAY = 8;
 
-    function handleStrictParse(monthName, format, strict) {
-        var i, ii, mom, llc = monthName.toLocaleLowerCase();
-        if (!this._monthsParse) {
-            // this is not used
-            this._monthsParse = [];
-            this._longMonthsParse = [];
-            this._shortMonthsParse = [];
-            for (i = 0; i < 12; ++i) {
-                mom = createUTC([2000, i]);
-                this._shortMonthsParse[i] = this.monthsShort(mom, '').toLocaleLowerCase();
-                this._longMonthsParse[i] = this.months(mom, '').toLocaleLowerCase();
+var indexOf;
+
+if (Array.prototype.indexOf) {
+    indexOf = Array.prototype.indexOf;
+} else {
+    indexOf = function (o) {
+        // I know
+        var i;
+        for (i = 0; i < this.length; ++i) {
+            if (this[i] === o) {
+                return i;
             }
         }
+        return -1;
+    };
+}
 
-        if (strict) {
-            if (format === 'MMM') {
-                ii = indexOf.call(this._shortMonthsParse, llc);
-                return ii !== -1 ? ii : null;
-            } else {
-                ii = indexOf.call(this._longMonthsParse, llc);
-                return ii !== -1 ? ii : null;
-            }
-        } else {
-            if (format === 'MMM') {
-                ii = indexOf.call(this._shortMonthsParse, llc);
-                if (ii !== -1) {
-                    return ii;
-                }
-                ii = indexOf.call(this._longMonthsParse, llc);
-                return ii !== -1 ? ii : null;
-            } else {
-                ii = indexOf.call(this._longMonthsParse, llc);
-                if (ii !== -1) {
-                    return ii;
-                }
-                ii = indexOf.call(this._shortMonthsParse, llc);
-                return ii !== -1 ? ii : null;
-            }
-        }
+var indexOf$1 = indexOf;
+
+function daysInMonth(year, month) {
+    return new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+}
+
+// FORMATTING
+
+addFormatToken('M', ['MM', 2], 'Mo', function () {
+    return this.month() + 1;
+});
+
+addFormatToken('MMM', 0, 0, function (format) {
+    return this.localeData().monthsShort(this, format);
+});
+
+addFormatToken('MMMM', 0, 0, function (format) {
+    return this.localeData().months(this, format);
+});
+
+// ALIASES
+
+addUnitAlias('month', 'M');
+
+// PRIORITY
+
+addUnitPriority('month', 8);
+
+// PARSING
+
+addRegexToken('M',    match1to2);
+addRegexToken('MM',   match1to2, match2);
+addRegexToken('MMM',  function (isStrict, locale) {
+    return locale.monthsShortRegex(isStrict);
+});
+addRegexToken('MMMM', function (isStrict, locale) {
+    return locale.monthsRegex(isStrict);
+});
+
+addParseToken(['M', 'MM'], function (input, array) {
+    array[MONTH] = toInt(input) - 1;
+});
+
+addParseToken(['MMM', 'MMMM'], function (input, array, config, token) {
+    var month = config._locale.monthsParse(input, token, config._strict);
+    // if we didn't find a month name, mark the date as invalid.
+    if (month != null) {
+        array[MONTH] = month;
+    } else {
+        getParsingFlags(config).invalidMonth = input;
     }
+});
 
-    function localeMonthsParse (monthName, format, strict) {
-        var i, mom, regex;
+// LOCALES
 
-        if (this._monthsParseExact) {
-            return handleStrictParse.call(this, monthName, format, strict);
-        }
+var MONTHS_IN_FORMAT = /D[oD]?(\[[^\[\]]*\]|\s)+MMMM?/;
+var defaultLocaleMonths = 'January_February_March_April_May_June_July_August_September_October_November_December'.split('_');
+function localeMonths (m, format) {
+    if (!m) {
+        return isArray(this._months) ? this._months :
+            this._months['standalone'];
+    }
+    return isArray(this._months) ? this._months[m.month()] :
+        this._months[(this._months.isFormat || MONTHS_IN_FORMAT).test(format) ? 'format' : 'standalone'][m.month()];
+}
 
-        if (!this._monthsParse) {
-            this._monthsParse = [];
-            this._longMonthsParse = [];
-            this._shortMonthsParse = [];
-        }
+var defaultLocaleMonthsShort = 'Jan_Feb_Mar_Apr_May_Jun_Jul_Aug_Sep_Oct_Nov_Dec'.split('_');
+function localeMonthsShort (m, format) {
+    if (!m) {
+        return isArray(this._monthsShort) ? this._monthsShort :
+            this._monthsShort['standalone'];
+    }
+    return isArray(this._monthsShort) ? this._monthsShort[m.month()] :
+        this._monthsShort[MONTHS_IN_FORMAT.test(format) ? 'format' : 'standalone'][m.month()];
+}
 
-        // TODO: add sorting
-        // Sorting makes sure if one month (or abbr) is a prefix of another
-        // see sorting in computeMonthsParse
-        for (i = 0; i < 12; i++) {
-            // make the regex if we don't have it already
+function handleStrictParse(monthName, format, strict) {
+    var i, ii, mom, llc = monthName.toLocaleLowerCase();
+    if (!this._monthsParse) {
+        // this is not used
+        this._monthsParse = [];
+        this._longMonthsParse = [];
+        this._shortMonthsParse = [];
+        for (i = 0; i < 12; ++i) {
             mom = createUTC([2000, i]);
-            if (strict && !this._longMonthsParse[i]) {
-                this._longMonthsParse[i] = new RegExp('^' + this.months(mom, '').replace('.', '') + '$', 'i');
-                this._shortMonthsParse[i] = new RegExp('^' + this.monthsShort(mom, '').replace('.', '') + '$', 'i');
-            }
-            if (!strict && !this._monthsParse[i]) {
-                regex = '^' + this.months(mom, '') + '|^' + this.monthsShort(mom, '');
-                this._monthsParse[i] = new RegExp(regex.replace('.', ''), 'i');
-            }
-            // test the regex
-            if (strict && format === 'MMMM' && this._longMonthsParse[i].test(monthName)) {
-                return i;
-            } else if (strict && format === 'MMM' && this._shortMonthsParse[i].test(monthName)) {
-                return i;
-            } else if (!strict && this._monthsParse[i].test(monthName)) {
-                return i;
-            }
+            this._shortMonthsParse[i] = this.monthsShort(mom, '').toLocaleLowerCase();
+            this._longMonthsParse[i] = this.months(mom, '').toLocaleLowerCase();
         }
     }
 
-    // MOMENTS
-
-    function setMonth (mom, value) {
-        var dayOfMonth;
-
-        if (!mom.isValid()) {
-            // No op
-            return mom;
+    if (strict) {
+        if (format === 'MMM') {
+            ii = indexOf$1.call(this._shortMonthsParse, llc);
+            return ii !== -1 ? ii : null;
+        } else {
+            ii = indexOf$1.call(this._longMonthsParse, llc);
+            return ii !== -1 ? ii : null;
         }
-
-        if (typeof value === 'string') {
-            if (/^\d+$/.test(value)) {
-                value = toInt(value);
-            } else {
-                value = mom.localeData().monthsParse(value);
-                // TODO: Another silent failure?
-                if (!isNumber(value)) {
-                    return mom;
-                }
+    } else {
+        if (format === 'MMM') {
+            ii = indexOf$1.call(this._shortMonthsParse, llc);
+            if (ii !== -1) {
+                return ii;
             }
+            ii = indexOf$1.call(this._longMonthsParse, llc);
+            return ii !== -1 ? ii : null;
+        } else {
+            ii = indexOf$1.call(this._longMonthsParse, llc);
+            if (ii !== -1) {
+                return ii;
+            }
+            ii = indexOf$1.call(this._shortMonthsParse, llc);
+            return ii !== -1 ? ii : null;
         }
+    }
+}
 
-        dayOfMonth = Math.min(mom.date(), daysInMonth(mom.year(), value));
-        mom._d['set' + (mom._isUTC ? 'UTC' : '') + 'Month'](value, dayOfMonth);
+function localeMonthsParse (monthName, format, strict) {
+    var i, mom, regex;
+
+    if (this._monthsParseExact) {
+        return handleStrictParse.call(this, monthName, format, strict);
+    }
+
+    if (!this._monthsParse) {
+        this._monthsParse = [];
+        this._longMonthsParse = [];
+        this._shortMonthsParse = [];
+    }
+
+    // TODO: add sorting
+    // Sorting makes sure if one month (or abbr) is a prefix of another
+    // see sorting in computeMonthsParse
+    for (i = 0; i < 12; i++) {
+        // make the regex if we don't have it already
+        mom = createUTC([2000, i]);
+        if (strict && !this._longMonthsParse[i]) {
+            this._longMonthsParse[i] = new RegExp('^' + this.months(mom, '').replace('.', '') + '$', 'i');
+            this._shortMonthsParse[i] = new RegExp('^' + this.monthsShort(mom, '').replace('.', '') + '$', 'i');
+        }
+        if (!strict && !this._monthsParse[i]) {
+            regex = '^' + this.months(mom, '') + '|^' + this.monthsShort(mom, '');
+            this._monthsParse[i] = new RegExp(regex.replace('.', ''), 'i');
+        }
+        // test the regex
+        if (strict && format === 'MMMM' && this._longMonthsParse[i].test(monthName)) {
+            return i;
+        } else if (strict && format === 'MMM' && this._shortMonthsParse[i].test(monthName)) {
+            return i;
+        } else if (!strict && this._monthsParse[i].test(monthName)) {
+            return i;
+        }
+    }
+}
+
+// MOMENTS
+
+function setMonth (mom, value) {
+    var dayOfMonth;
+
+    if (!mom.isValid()) {
+        // No op
         return mom;
     }
 
-    function getSetMonth (value) {
-        if (value != null) {
-            setMonth(this, value);
-            hooks.updateOffset(this, true);
-            return this;
+    if (typeof value === 'string') {
+        if (/^\d+$/.test(value)) {
+            value = toInt(value);
         } else {
-            return get(this, 'Month');
+            value = mom.localeData().monthsParse(value);
+            // TODO: Another silent failure?
+            if (!isNumber(value)) {
+                return mom;
+            }
         }
     }
 
-    function getDaysInMonth () {
-        return daysInMonth(this.year(), this.month());
-    }
+    dayOfMonth = Math.min(mom.date(), daysInMonth(mom.year(), value));
+    mom._d['set' + (mom._isUTC ? 'UTC' : '') + 'Month'](value, dayOfMonth);
+    return mom;
+}
 
-    var defaultMonthsShortRegex = matchWord;
-    function monthsShortRegex (isStrict) {
-        if (this._monthsParseExact) {
-            if (!hasOwnProp(this, '_monthsRegex')) {
-                computeMonthsParse.call(this);
-            }
-            if (isStrict) {
-                return this._monthsShortStrictRegex;
-            } else {
-                return this._monthsShortRegex;
-            }
+function getSetMonth (value) {
+    if (value != null) {
+        setMonth(this, value);
+        hooks.updateOffset(this, true);
+        return this;
+    } else {
+        return get(this, 'Month');
+    }
+}
+
+function getDaysInMonth () {
+    return daysInMonth(this.year(), this.month());
+}
+
+var defaultMonthsShortRegex = matchWord;
+function monthsShortRegex (isStrict) {
+    if (this._monthsParseExact) {
+        if (!hasOwnProp(this, '_monthsRegex')) {
+            computeMonthsParse.call(this);
+        }
+        if (isStrict) {
+            return this._monthsShortStrictRegex;
         } else {
-            if (!hasOwnProp(this, '_monthsShortRegex')) {
-                this._monthsShortRegex = defaultMonthsShortRegex;
-            }
-            return this._monthsShortStrictRegex && isStrict ?
-                this._monthsShortStrictRegex : this._monthsShortRegex;
+            return this._monthsShortRegex;
         }
+    } else {
+        if (!hasOwnProp(this, '_monthsShortRegex')) {
+            this._monthsShortRegex = defaultMonthsShortRegex;
+        }
+        return this._monthsShortStrictRegex && isStrict ?
+            this._monthsShortStrictRegex : this._monthsShortRegex;
     }
+}
 
-    var defaultMonthsRegex = matchWord;
-    function monthsRegex (isStrict) {
-        if (this._monthsParseExact) {
-            if (!hasOwnProp(this, '_monthsRegex')) {
-                computeMonthsParse.call(this);
-            }
-            if (isStrict) {
-                return this._monthsStrictRegex;
-            } else {
-                return this._monthsRegex;
-            }
+var defaultMonthsRegex = matchWord;
+function monthsRegex (isStrict) {
+    if (this._monthsParseExact) {
+        if (!hasOwnProp(this, '_monthsRegex')) {
+            computeMonthsParse.call(this);
+        }
+        if (isStrict) {
+            return this._monthsStrictRegex;
         } else {
-            if (!hasOwnProp(this, '_monthsRegex')) {
-                this._monthsRegex = defaultMonthsRegex;
-            }
-            return this._monthsStrictRegex && isStrict ?
-                this._monthsStrictRegex : this._monthsRegex;
+            return this._monthsRegex;
         }
+    } else {
+        if (!hasOwnProp(this, '_monthsRegex')) {
+            this._monthsRegex = defaultMonthsRegex;
+        }
+        return this._monthsStrictRegex && isStrict ?
+            this._monthsStrictRegex : this._monthsRegex;
+    }
+}
+
+function computeMonthsParse () {
+    function cmpLenRev(a, b) {
+        return b.length - a.length;
     }
 
-    function computeMonthsParse () {
-        function cmpLenRev(a, b) {
-            return b.length - a.length;
-        }
-
-        var shortPieces = [], longPieces = [], mixedPieces = [],
-            i, mom;
-        for (i = 0; i < 12; i++) {
-            // make the regex if we don't have it already
-            mom = createUTC([2000, i]);
-            shortPieces.push(this.monthsShort(mom, ''));
-            longPieces.push(this.months(mom, ''));
-            mixedPieces.push(this.months(mom, ''));
-            mixedPieces.push(this.monthsShort(mom, ''));
-        }
-        // Sorting makes sure if one month (or abbr) is a prefix of another it
-        // will match the longer piece.
-        shortPieces.sort(cmpLenRev);
-        longPieces.sort(cmpLenRev);
-        mixedPieces.sort(cmpLenRev);
-        for (i = 0; i < 12; i++) {
-            shortPieces[i] = regexEscape(shortPieces[i]);
-            longPieces[i] = regexEscape(longPieces[i]);
-        }
-        for (i = 0; i < 24; i++) {
-            mixedPieces[i] = regexEscape(mixedPieces[i]);
-        }
-
-        this._monthsRegex = new RegExp('^(' + mixedPieces.join('|') + ')', 'i');
-        this._monthsShortRegex = this._monthsRegex;
-        this._monthsStrictRegex = new RegExp('^(' + longPieces.join('|') + ')', 'i');
-        this._monthsShortStrictRegex = new RegExp('^(' + shortPieces.join('|') + ')', 'i');
+    var shortPieces = [], longPieces = [], mixedPieces = [],
+        i, mom;
+    for (i = 0; i < 12; i++) {
+        // make the regex if we don't have it already
+        mom = createUTC([2000, i]);
+        shortPieces.push(this.monthsShort(mom, ''));
+        longPieces.push(this.months(mom, ''));
+        mixedPieces.push(this.months(mom, ''));
+        mixedPieces.push(this.monthsShort(mom, ''));
+    }
+    // Sorting makes sure if one month (or abbr) is a prefix of another it
+    // will match the longer piece.
+    shortPieces.sort(cmpLenRev);
+    longPieces.sort(cmpLenRev);
+    mixedPieces.sort(cmpLenRev);
+    for (i = 0; i < 12; i++) {
+        shortPieces[i] = regexEscape(shortPieces[i]);
+        longPieces[i] = regexEscape(longPieces[i]);
+    }
+    for (i = 0; i < 24; i++) {
+        mixedPieces[i] = regexEscape(mixedPieces[i]);
     }
 
-    function createDate (y, m, d, h, M, s, ms) {
-        // can't just apply() to create a date:
-        // https://stackoverflow.com/q/181348
-        var date = new Date(y, m, d, h, M, s, ms);
+    this._monthsRegex = new RegExp('^(' + mixedPieces.join('|') + ')', 'i');
+    this._monthsShortRegex = this._monthsRegex;
+    this._monthsStrictRegex = new RegExp('^(' + longPieces.join('|') + ')', 'i');
+    this._monthsShortStrictRegex = new RegExp('^(' + shortPieces.join('|') + ')', 'i');
+}
 
-        // the date constructor remaps years 0-99 to 1900-1999
-        if (y < 100 && y >= 0 && isFinite(date.getFullYear())) {
-            date.setFullYear(y);
-        }
-        return date;
+// FORMATTING
+
+addFormatToken('Y', 0, 0, function () {
+    var y = this.year();
+    return y <= 9999 ? '' + y : '+' + y;
+});
+
+addFormatToken(0, ['YY', 2], 0, function () {
+    return this.year() % 100;
+});
+
+addFormatToken(0, ['YYYY',   4],       0, 'year');
+addFormatToken(0, ['YYYYY',  5],       0, 'year');
+addFormatToken(0, ['YYYYYY', 6, true], 0, 'year');
+
+// ALIASES
+
+addUnitAlias('year', 'y');
+
+// PRIORITIES
+
+addUnitPriority('year', 1);
+
+// PARSING
+
+addRegexToken('Y',      matchSigned);
+addRegexToken('YY',     match1to2, match2);
+addRegexToken('YYYY',   match1to4, match4);
+addRegexToken('YYYYY',  match1to6, match6);
+addRegexToken('YYYYYY', match1to6, match6);
+
+addParseToken(['YYYYY', 'YYYYYY'], YEAR);
+addParseToken('YYYY', function (input, array) {
+    array[YEAR] = input.length === 2 ? hooks.parseTwoDigitYear(input) : toInt(input);
+});
+addParseToken('YY', function (input, array) {
+    array[YEAR] = hooks.parseTwoDigitYear(input);
+});
+addParseToken('Y', function (input, array) {
+    array[YEAR] = parseInt(input, 10);
+});
+
+// HELPERS
+
+function daysInYear(year) {
+    return isLeapYear(year) ? 366 : 365;
+}
+
+function isLeapYear(year) {
+    return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+// HOOKS
+
+hooks.parseTwoDigitYear = function (input) {
+    return toInt(input) + (toInt(input) > 68 ? 1900 : 2000);
+};
+
+// MOMENTS
+
+var getSetYear = makeGetSet('FullYear', true);
+
+function getIsLeapYear () {
+    return isLeapYear(this.year());
+}
+
+function createDate (y, m, d, h, M, s, ms) {
+    // can't just apply() to create a date:
+    // https://stackoverflow.com/q/181348
+    var date = new Date(y, m, d, h, M, s, ms);
+
+    // the date constructor remaps years 0-99 to 1900-1999
+    if (y < 100 && y >= 0 && isFinite(date.getFullYear())) {
+        date.setFullYear(y);
+    }
+    return date;
+}
+
+function createUTCDate (y) {
+    var date = new Date(Date.UTC.apply(null, arguments));
+
+    // the Date.UTC function remaps years 0-99 to 1900-1999
+    if (y < 100 && y >= 0 && isFinite(date.getUTCFullYear())) {
+        date.setUTCFullYear(y);
+    }
+    return date;
+}
+
+// start-of-first-week - start-of-year
+function firstWeekOffset(year, dow, doy) {
+    var // first-week day -- which january is always in the first week (4 for iso, 1 for other)
+        fwd = 7 + dow - doy,
+        // first-week day local weekday -- which local weekday is fwd
+        fwdlw = (7 + createUTCDate(year, 0, fwd).getUTCDay() - dow) % 7;
+
+    return -fwdlw + fwd - 1;
+}
+
+// https://en.wikipedia.org/wiki/ISO_week_date#Calculating_a_date_given_the_year.2C_week_number_and_weekday
+function dayOfYearFromWeeks(year, week, weekday, dow, doy) {
+    var localWeekday = (7 + weekday - dow) % 7,
+        weekOffset = firstWeekOffset(year, dow, doy),
+        dayOfYear = 1 + 7 * (week - 1) + localWeekday + weekOffset,
+        resYear, resDayOfYear;
+
+    if (dayOfYear <= 0) {
+        resYear = year - 1;
+        resDayOfYear = daysInYear(resYear) + dayOfYear;
+    } else if (dayOfYear > daysInYear(year)) {
+        resYear = year + 1;
+        resDayOfYear = dayOfYear - daysInYear(year);
+    } else {
+        resYear = year;
+        resDayOfYear = dayOfYear;
     }
 
-    function createUTCDate (y) {
-        var date = new Date(Date.UTC.apply(null, arguments));
-
-        // the Date.UTC function remaps years 0-99 to 1900-1999
-        if (y < 100 && y >= 0 && isFinite(date.getUTCFullYear())) {
-            date.setUTCFullYear(y);
-        }
-        return date;
-    }
-
-    // start-of-first-week - start-of-year
-    function firstWeekOffset(year, dow, doy) {
-        var // first-week day -- which january is always in the first week (4 for iso, 1 for other)
-            fwd = 7 + dow - doy,
-            // first-week day local weekday -- which local weekday is fwd
-            fwdlw = (7 + createUTCDate(year, 0, fwd).getUTCDay() - dow) % 7;
-
-        return -fwdlw + fwd - 1;
-    }
-
-    // https://en.wikipedia.org/wiki/ISO_week_date#Calculating_a_date_given_the_year.2C_week_number_and_weekday
-    function dayOfYearFromWeeks(year, week, weekday, dow, doy) {
-        var localWeekday = (7 + weekday - dow) % 7,
-            weekOffset = firstWeekOffset(year, dow, doy),
-            dayOfYear = 1 + 7 * (week - 1) + localWeekday + weekOffset,
-            resYear, resDayOfYear;
-
-        if (dayOfYear <= 0) {
-            resYear = year - 1;
-            resDayOfYear = daysInYear(resYear) + dayOfYear;
-        } else if (dayOfYear > daysInYear(year)) {
-            resYear = year + 1;
-            resDayOfYear = dayOfYear - daysInYear(year);
-        } else {
-            resYear = year;
-            resDayOfYear = dayOfYear;
-        }
-
-        return {
-            year: resYear,
-            dayOfYear: resDayOfYear
-        };
-    }
-
-    function weekOfYear(mom, dow, doy) {
-        var weekOffset = firstWeekOffset(mom.year(), dow, doy),
-            week = Math.floor((mom.dayOfYear() - weekOffset - 1) / 7) + 1,
-            resWeek, resYear;
-
-        if (week < 1) {
-            resYear = mom.year() - 1;
-            resWeek = week + weeksInYear(resYear, dow, doy);
-        } else if (week > weeksInYear(mom.year(), dow, doy)) {
-            resWeek = week - weeksInYear(mom.year(), dow, doy);
-            resYear = mom.year() + 1;
-        } else {
-            resYear = mom.year();
-            resWeek = week;
-        }
-
-        return {
-            week: resWeek,
-            year: resYear
-        };
-    }
-
-    function weeksInYear(year, dow, doy) {
-        var weekOffset = firstWeekOffset(year, dow, doy),
-            weekOffsetNext = firstWeekOffset(year + 1, dow, doy);
-        return (daysInYear(year) - weekOffset + weekOffsetNext) / 7;
-    }
-
-    // FORMATTING
-
-    addFormatToken('w', ['ww', 2], 'wo', 'week');
-    addFormatToken('W', ['WW', 2], 'Wo', 'isoWeek');
-
-    // ALIASES
-
-    addUnitAlias('week', 'w');
-    addUnitAlias('isoWeek', 'W');
-
-    // PRIORITIES
-
-    addUnitPriority('week', 5);
-    addUnitPriority('isoWeek', 5);
-
-    // PARSING
-
-    addRegexToken('w',  match1to2);
-    addRegexToken('ww', match1to2, match2);
-    addRegexToken('W',  match1to2);
-    addRegexToken('WW', match1to2, match2);
-
-    addWeekParseToken(['w', 'ww', 'W', 'WW'], function (input, week, config, token) {
-        week[token.substr(0, 1)] = toInt(input);
-    });
-
-    // HELPERS
-
-    // LOCALES
-
-    function localeWeek (mom) {
-        return weekOfYear(mom, this._week.dow, this._week.doy).week;
-    }
-
-    var defaultLocaleWeek = {
-        dow : 0, // Sunday is the first day of the week.
-        doy : 6  // The week that contains Jan 1st is the first week of the year.
+    return {
+        year: resYear,
+        dayOfYear: resDayOfYear
     };
+}
 
-    function localeFirstDayOfWeek () {
-        return this._week.dow;
+function weekOfYear(mom, dow, doy) {
+    var weekOffset = firstWeekOffset(mom.year(), dow, doy),
+        week = Math.floor((mom.dayOfYear() - weekOffset - 1) / 7) + 1,
+        resWeek, resYear;
+
+    if (week < 1) {
+        resYear = mom.year() - 1;
+        resWeek = week + weeksInYear(resYear, dow, doy);
+    } else if (week > weeksInYear(mom.year(), dow, doy)) {
+        resWeek = week - weeksInYear(mom.year(), dow, doy);
+        resYear = mom.year() + 1;
+    } else {
+        resYear = mom.year();
+        resWeek = week;
     }
 
-    function localeFirstDayOfYear () {
-        return this._week.doy;
-    }
-
-    // MOMENTS
-
-    function getSetWeek (input) {
-        var week = this.localeData().week(this);
-        return input == null ? week : this.add((input - week) * 7, 'd');
-    }
-
-    function getSetISOWeek (input) {
-        var week = weekOfYear(this, 1, 4).week;
-        return input == null ? week : this.add((input - week) * 7, 'd');
-    }
-
-    // FORMATTING
-
-    addFormatToken('d', 0, 'do', 'day');
-
-    addFormatToken('dd', 0, 0, function (format) {
-        return this.localeData().weekdaysMin(this, format);
-    });
-
-    addFormatToken('ddd', 0, 0, function (format) {
-        return this.localeData().weekdaysShort(this, format);
-    });
-
-    addFormatToken('dddd', 0, 0, function (format) {
-        return this.localeData().weekdays(this, format);
-    });
-
-    addFormatToken('e', 0, 0, 'weekday');
-    addFormatToken('E', 0, 0, 'isoWeekday');
-
-    // ALIASES
-
-    addUnitAlias('day', 'd');
-    addUnitAlias('weekday', 'e');
-    addUnitAlias('isoWeekday', 'E');
-
-    // PRIORITY
-    addUnitPriority('day', 11);
-    addUnitPriority('weekday', 11);
-    addUnitPriority('isoWeekday', 11);
-
-    // PARSING
-
-    addRegexToken('d',    match1to2);
-    addRegexToken('e',    match1to2);
-    addRegexToken('E',    match1to2);
-    addRegexToken('dd',   function (isStrict, locale) {
-        return locale.weekdaysMinRegex(isStrict);
-    });
-    addRegexToken('ddd',   function (isStrict, locale) {
-        return locale.weekdaysShortRegex(isStrict);
-    });
-    addRegexToken('dddd',   function (isStrict, locale) {
-        return locale.weekdaysRegex(isStrict);
-    });
-
-    addWeekParseToken(['dd', 'ddd', 'dddd'], function (input, week, config, token) {
-        var weekday = config._locale.weekdaysParse(input, token, config._strict);
-        // if we didn't get a weekday name, mark the date as invalid
-        if (weekday != null) {
-            week.d = weekday;
-        } else {
-            getParsingFlags(config).invalidWeekday = input;
-        }
-    });
-
-    addWeekParseToken(['d', 'e', 'E'], function (input, week, config, token) {
-        week[token] = toInt(input);
-    });
-
-    // HELPERS
-
-    function parseWeekday(input, locale) {
-        if (typeof input !== 'string') {
-            return input;
-        }
-
-        if (!isNaN(input)) {
-            return parseInt(input, 10);
-        }
-
-        input = locale.weekdaysParse(input);
-        if (typeof input === 'number') {
-            return input;
-        }
-
-        return null;
-    }
-
-    function parseIsoWeekday(input, locale) {
-        if (typeof input === 'string') {
-            return locale.weekdaysParse(input) % 7 || 7;
-        }
-        return isNaN(input) ? null : input;
-    }
-
-    // LOCALES
-
-    var defaultLocaleWeekdays = 'Sunday_Monday_Tuesday_Wednesday_Thursday_Friday_Saturday'.split('_');
-    function localeWeekdays (m, format) {
-        if (!m) {
-            return isArray(this._weekdays) ? this._weekdays :
-                this._weekdays['standalone'];
-        }
-        return isArray(this._weekdays) ? this._weekdays[m.day()] :
-            this._weekdays[this._weekdays.isFormat.test(format) ? 'format' : 'standalone'][m.day()];
-    }
-
-    var defaultLocaleWeekdaysShort = 'Sun_Mon_Tue_Wed_Thu_Fri_Sat'.split('_');
-    function localeWeekdaysShort (m) {
-        return (m) ? this._weekdaysShort[m.day()] : this._weekdaysShort;
-    }
-
-    var defaultLocaleWeekdaysMin = 'Su_Mo_Tu_We_Th_Fr_Sa'.split('_');
-    function localeWeekdaysMin (m) {
-        return (m) ? this._weekdaysMin[m.day()] : this._weekdaysMin;
-    }
-
-    function handleStrictParse$1(weekdayName, format, strict) {
-        var i, ii, mom, llc = weekdayName.toLocaleLowerCase();
-        if (!this._weekdaysParse) {
-            this._weekdaysParse = [];
-            this._shortWeekdaysParse = [];
-            this._minWeekdaysParse = [];
-
-            for (i = 0; i < 7; ++i) {
-                mom = createUTC([2000, 1]).day(i);
-                this._minWeekdaysParse[i] = this.weekdaysMin(mom, '').toLocaleLowerCase();
-                this._shortWeekdaysParse[i] = this.weekdaysShort(mom, '').toLocaleLowerCase();
-                this._weekdaysParse[i] = this.weekdays(mom, '').toLocaleLowerCase();
-            }
-        }
-
-        if (strict) {
-            if (format === 'dddd') {
-                ii = indexOf.call(this._weekdaysParse, llc);
-                return ii !== -1 ? ii : null;
-            } else if (format === 'ddd') {
-                ii = indexOf.call(this._shortWeekdaysParse, llc);
-                return ii !== -1 ? ii : null;
-            } else {
-                ii = indexOf.call(this._minWeekdaysParse, llc);
-                return ii !== -1 ? ii : null;
-            }
-        } else {
-            if (format === 'dddd') {
-                ii = indexOf.call(this._weekdaysParse, llc);
-                if (ii !== -1) {
-                    return ii;
-                }
-                ii = indexOf.call(this._shortWeekdaysParse, llc);
-                if (ii !== -1) {
-                    return ii;
-                }
-                ii = indexOf.call(this._minWeekdaysParse, llc);
-                return ii !== -1 ? ii : null;
-            } else if (format === 'ddd') {
-                ii = indexOf.call(this._shortWeekdaysParse, llc);
-                if (ii !== -1) {
-                    return ii;
-                }
-                ii = indexOf.call(this._weekdaysParse, llc);
-                if (ii !== -1) {
-                    return ii;
-                }
-                ii = indexOf.call(this._minWeekdaysParse, llc);
-                return ii !== -1 ? ii : null;
-            } else {
-                ii = indexOf.call(this._minWeekdaysParse, llc);
-                if (ii !== -1) {
-                    return ii;
-                }
-                ii = indexOf.call(this._weekdaysParse, llc);
-                if (ii !== -1) {
-                    return ii;
-                }
-                ii = indexOf.call(this._shortWeekdaysParse, llc);
-                return ii !== -1 ? ii : null;
-            }
-        }
-    }
-
-    function localeWeekdaysParse (weekdayName, format, strict) {
-        var i, mom, regex;
-
-        if (this._weekdaysParseExact) {
-            return handleStrictParse$1.call(this, weekdayName, format, strict);
-        }
-
-        if (!this._weekdaysParse) {
-            this._weekdaysParse = [];
-            this._minWeekdaysParse = [];
-            this._shortWeekdaysParse = [];
-            this._fullWeekdaysParse = [];
-        }
-
-        for (i = 0; i < 7; i++) {
-            // make the regex if we don't have it already
-
-            mom = createUTC([2000, 1]).day(i);
-            if (strict && !this._fullWeekdaysParse[i]) {
-                this._fullWeekdaysParse[i] = new RegExp('^' + this.weekdays(mom, '').replace('.', '\\.?') + '$', 'i');
-                this._shortWeekdaysParse[i] = new RegExp('^' + this.weekdaysShort(mom, '').replace('.', '\\.?') + '$', 'i');
-                this._minWeekdaysParse[i] = new RegExp('^' + this.weekdaysMin(mom, '').replace('.', '\\.?') + '$', 'i');
-            }
-            if (!this._weekdaysParse[i]) {
-                regex = '^' + this.weekdays(mom, '') + '|^' + this.weekdaysShort(mom, '') + '|^' + this.weekdaysMin(mom, '');
-                this._weekdaysParse[i] = new RegExp(regex.replace('.', ''), 'i');
-            }
-            // test the regex
-            if (strict && format === 'dddd' && this._fullWeekdaysParse[i].test(weekdayName)) {
-                return i;
-            } else if (strict && format === 'ddd' && this._shortWeekdaysParse[i].test(weekdayName)) {
-                return i;
-            } else if (strict && format === 'dd' && this._minWeekdaysParse[i].test(weekdayName)) {
-                return i;
-            } else if (!strict && this._weekdaysParse[i].test(weekdayName)) {
-                return i;
-            }
-        }
-    }
-
-    // MOMENTS
-
-    function getSetDayOfWeek (input) {
-        if (!this.isValid()) {
-            return input != null ? this : NaN;
-        }
-        var day = this._isUTC ? this._d.getUTCDay() : this._d.getDay();
-        if (input != null) {
-            input = parseWeekday(input, this.localeData());
-            return this.add(input - day, 'd');
-        } else {
-            return day;
-        }
-    }
-
-    function getSetLocaleDayOfWeek (input) {
-        if (!this.isValid()) {
-            return input != null ? this : NaN;
-        }
-        var weekday = (this.day() + 7 - this.localeData()._week.dow) % 7;
-        return input == null ? weekday : this.add(input - weekday, 'd');
-    }
-
-    function getSetISODayOfWeek (input) {
-        if (!this.isValid()) {
-            return input != null ? this : NaN;
-        }
-
-        // behaves the same as moment#day except
-        // as a getter, returns 7 instead of 0 (1-7 range instead of 0-6)
-        // as a setter, sunday should belong to the previous week.
-
-        if (input != null) {
-            var weekday = parseIsoWeekday(input, this.localeData());
-            return this.day(this.day() % 7 ? weekday : weekday - 7);
-        } else {
-            return this.day() || 7;
-        }
-    }
-
-    var defaultWeekdaysRegex = matchWord;
-    function weekdaysRegex (isStrict) {
-        if (this._weekdaysParseExact) {
-            if (!hasOwnProp(this, '_weekdaysRegex')) {
-                computeWeekdaysParse.call(this);
-            }
-            if (isStrict) {
-                return this._weekdaysStrictRegex;
-            } else {
-                return this._weekdaysRegex;
-            }
-        } else {
-            if (!hasOwnProp(this, '_weekdaysRegex')) {
-                this._weekdaysRegex = defaultWeekdaysRegex;
-            }
-            return this._weekdaysStrictRegex && isStrict ?
-                this._weekdaysStrictRegex : this._weekdaysRegex;
-        }
-    }
-
-    var defaultWeekdaysShortRegex = matchWord;
-    function weekdaysShortRegex (isStrict) {
-        if (this._weekdaysParseExact) {
-            if (!hasOwnProp(this, '_weekdaysRegex')) {
-                computeWeekdaysParse.call(this);
-            }
-            if (isStrict) {
-                return this._weekdaysShortStrictRegex;
-            } else {
-                return this._weekdaysShortRegex;
-            }
-        } else {
-            if (!hasOwnProp(this, '_weekdaysShortRegex')) {
-                this._weekdaysShortRegex = defaultWeekdaysShortRegex;
-            }
-            return this._weekdaysShortStrictRegex && isStrict ?
-                this._weekdaysShortStrictRegex : this._weekdaysShortRegex;
-        }
-    }
-
-    var defaultWeekdaysMinRegex = matchWord;
-    function weekdaysMinRegex (isStrict) {
-        if (this._weekdaysParseExact) {
-            if (!hasOwnProp(this, '_weekdaysRegex')) {
-                computeWeekdaysParse.call(this);
-            }
-            if (isStrict) {
-                return this._weekdaysMinStrictRegex;
-            } else {
-                return this._weekdaysMinRegex;
-            }
-        } else {
-            if (!hasOwnProp(this, '_weekdaysMinRegex')) {
-                this._weekdaysMinRegex = defaultWeekdaysMinRegex;
-            }
-            return this._weekdaysMinStrictRegex && isStrict ?
-                this._weekdaysMinStrictRegex : this._weekdaysMinRegex;
-        }
-    }
-
-
-    function computeWeekdaysParse () {
-        function cmpLenRev(a, b) {
-            return b.length - a.length;
-        }
-
-        var minPieces = [], shortPieces = [], longPieces = [], mixedPieces = [],
-            i, mom, minp, shortp, longp;
-        for (i = 0; i < 7; i++) {
-            // make the regex if we don't have it already
-            mom = createUTC([2000, 1]).day(i);
-            minp = this.weekdaysMin(mom, '');
-            shortp = this.weekdaysShort(mom, '');
-            longp = this.weekdays(mom, '');
-            minPieces.push(minp);
-            shortPieces.push(shortp);
-            longPieces.push(longp);
-            mixedPieces.push(minp);
-            mixedPieces.push(shortp);
-            mixedPieces.push(longp);
-        }
-        // Sorting makes sure if one weekday (or abbr) is a prefix of another it
-        // will match the longer piece.
-        minPieces.sort(cmpLenRev);
-        shortPieces.sort(cmpLenRev);
-        longPieces.sort(cmpLenRev);
-        mixedPieces.sort(cmpLenRev);
-        for (i = 0; i < 7; i++) {
-            shortPieces[i] = regexEscape(shortPieces[i]);
-            longPieces[i] = regexEscape(longPieces[i]);
-            mixedPieces[i] = regexEscape(mixedPieces[i]);
-        }
-
-        this._weekdaysRegex = new RegExp('^(' + mixedPieces.join('|') + ')', 'i');
-        this._weekdaysShortRegex = this._weekdaysRegex;
-        this._weekdaysMinRegex = this._weekdaysRegex;
-
-        this._weekdaysStrictRegex = new RegExp('^(' + longPieces.join('|') + ')', 'i');
-        this._weekdaysShortStrictRegex = new RegExp('^(' + shortPieces.join('|') + ')', 'i');
-        this._weekdaysMinStrictRegex = new RegExp('^(' + minPieces.join('|') + ')', 'i');
-    }
-
-    // FORMATTING
-
-    function hFormat() {
-        return this.hours() % 12 || 12;
-    }
-
-    function kFormat() {
-        return this.hours() || 24;
-    }
-
-    addFormatToken('H', ['HH', 2], 0, 'hour');
-    addFormatToken('h', ['hh', 2], 0, hFormat);
-    addFormatToken('k', ['kk', 2], 0, kFormat);
-
-    addFormatToken('hmm', 0, 0, function () {
-        return '' + hFormat.apply(this) + zeroFill(this.minutes(), 2);
-    });
-
-    addFormatToken('hmmss', 0, 0, function () {
-        return '' + hFormat.apply(this) + zeroFill(this.minutes(), 2) +
-            zeroFill(this.seconds(), 2);
-    });
-
-    addFormatToken('Hmm', 0, 0, function () {
-        return '' + this.hours() + zeroFill(this.minutes(), 2);
-    });
-
-    addFormatToken('Hmmss', 0, 0, function () {
-        return '' + this.hours() + zeroFill(this.minutes(), 2) +
-            zeroFill(this.seconds(), 2);
-    });
-
-    function meridiem (token, lowercase) {
-        addFormatToken(token, 0, 0, function () {
-            return this.localeData().meridiem(this.hours(), this.minutes(), lowercase);
-        });
-    }
-
-    meridiem('a', true);
-    meridiem('A', false);
-
-    // ALIASES
-
-    addUnitAlias('hour', 'h');
-
-    // PRIORITY
-    addUnitPriority('hour', 13);
-
-    // PARSING
-
-    function matchMeridiem (isStrict, locale) {
-        return locale._meridiemParse;
-    }
-
-    addRegexToken('a',  matchMeridiem);
-    addRegexToken('A',  matchMeridiem);
-    addRegexToken('H',  match1to2);
-    addRegexToken('h',  match1to2);
-    addRegexToken('k',  match1to2);
-    addRegexToken('HH', match1to2, match2);
-    addRegexToken('hh', match1to2, match2);
-    addRegexToken('kk', match1to2, match2);
-
-    addRegexToken('hmm', match3to4);
-    addRegexToken('hmmss', match5to6);
-    addRegexToken('Hmm', match3to4);
-    addRegexToken('Hmmss', match5to6);
-
-    addParseToken(['H', 'HH'], HOUR);
-    addParseToken(['k', 'kk'], function (input, array, config) {
-        var kInput = toInt(input);
-        array[HOUR] = kInput === 24 ? 0 : kInput;
-    });
-    addParseToken(['a', 'A'], function (input, array, config) {
-        config._isPm = config._locale.isPM(input);
-        config._meridiem = input;
-    });
-    addParseToken(['h', 'hh'], function (input, array, config) {
-        array[HOUR] = toInt(input);
-        getParsingFlags(config).bigHour = true;
-    });
-    addParseToken('hmm', function (input, array, config) {
-        var pos = input.length - 2;
-        array[HOUR] = toInt(input.substr(0, pos));
-        array[MINUTE] = toInt(input.substr(pos));
-        getParsingFlags(config).bigHour = true;
-    });
-    addParseToken('hmmss', function (input, array, config) {
-        var pos1 = input.length - 4;
-        var pos2 = input.length - 2;
-        array[HOUR] = toInt(input.substr(0, pos1));
-        array[MINUTE] = toInt(input.substr(pos1, 2));
-        array[SECOND] = toInt(input.substr(pos2));
-        getParsingFlags(config).bigHour = true;
-    });
-    addParseToken('Hmm', function (input, array, config) {
-        var pos = input.length - 2;
-        array[HOUR] = toInt(input.substr(0, pos));
-        array[MINUTE] = toInt(input.substr(pos));
-    });
-    addParseToken('Hmmss', function (input, array, config) {
-        var pos1 = input.length - 4;
-        var pos2 = input.length - 2;
-        array[HOUR] = toInt(input.substr(0, pos1));
-        array[MINUTE] = toInt(input.substr(pos1, 2));
-        array[SECOND] = toInt(input.substr(pos2));
-    });
-
-    // LOCALES
-
-    function localeIsPM (input) {
-        // IE8 Quirks Mode & IE7 Standards Mode do not allow accessing strings like arrays
-        // Using charAt should be more compatible.
-        return ((input + '').toLowerCase().charAt(0) === 'p');
-    }
-
-    var defaultLocaleMeridiemParse = /[ap]\.?m?\.?/i;
-    function localeMeridiem (hours, minutes, isLower) {
-        if (hours > 11) {
-            return isLower ? 'pm' : 'PM';
-        } else {
-            return isLower ? 'am' : 'AM';
-        }
-    }
-
-
-    // MOMENTS
-
-    // Setting the hour should keep the time, because the user explicitly
-    // specified which hour they want. So trying to maintain the same hour (in
-    // a new timezone) makes sense. Adding/subtracting hours does not follow
-    // this rule.
-    var getSetHour = makeGetSet('Hours', true);
-
-    var baseConfig = {
-        calendar: defaultCalendar,
-        longDateFormat: defaultLongDateFormat,
-        invalidDate: defaultInvalidDate,
-        ordinal: defaultOrdinal,
-        dayOfMonthOrdinalParse: defaultDayOfMonthOrdinalParse,
-        relativeTime: defaultRelativeTime,
-
-        months: defaultLocaleMonths,
-        monthsShort: defaultLocaleMonthsShort,
-
-        week: defaultLocaleWeek,
-
-        weekdays: defaultLocaleWeekdays,
-        weekdaysMin: defaultLocaleWeekdaysMin,
-        weekdaysShort: defaultLocaleWeekdaysShort,
-
-        meridiemParse: defaultLocaleMeridiemParse
+    return {
+        week: resWeek,
+        year: resYear
     };
+}
 
-    // internal storage for locale config files
-    var locales = {};
-    var localeFamilies = {};
-    var globalLocale;
+function weeksInYear(year, dow, doy) {
+    var weekOffset = firstWeekOffset(year, dow, doy),
+        weekOffsetNext = firstWeekOffset(year + 1, dow, doy);
+    return (daysInYear(year) - weekOffset + weekOffsetNext) / 7;
+}
 
-    function normalizeLocale(key) {
-        return key ? key.toLowerCase().replace('_', '-') : key;
+// FORMATTING
+
+addFormatToken('w', ['ww', 2], 'wo', 'week');
+addFormatToken('W', ['WW', 2], 'Wo', 'isoWeek');
+
+// ALIASES
+
+addUnitAlias('week', 'w');
+addUnitAlias('isoWeek', 'W');
+
+// PRIORITIES
+
+addUnitPriority('week', 5);
+addUnitPriority('isoWeek', 5);
+
+// PARSING
+
+addRegexToken('w',  match1to2);
+addRegexToken('ww', match1to2, match2);
+addRegexToken('W',  match1to2);
+addRegexToken('WW', match1to2, match2);
+
+addWeekParseToken(['w', 'ww', 'W', 'WW'], function (input, week, config, token) {
+    week[token.substr(0, 1)] = toInt(input);
+});
+
+// HELPERS
+
+// LOCALES
+
+function localeWeek (mom) {
+    return weekOfYear(mom, this._week.dow, this._week.doy).week;
+}
+
+var defaultLocaleWeek = {
+    dow : 0, // Sunday is the first day of the week.
+    doy : 6  // The week that contains Jan 1st is the first week of the year.
+};
+
+function localeFirstDayOfWeek () {
+    return this._week.dow;
+}
+
+function localeFirstDayOfYear () {
+    return this._week.doy;
+}
+
+// MOMENTS
+
+function getSetWeek (input) {
+    var week = this.localeData().week(this);
+    return input == null ? week : this.add((input - week) * 7, 'd');
+}
+
+function getSetISOWeek (input) {
+    var week = weekOfYear(this, 1, 4).week;
+    return input == null ? week : this.add((input - week) * 7, 'd');
+}
+
+// FORMATTING
+
+addFormatToken('d', 0, 'do', 'day');
+
+addFormatToken('dd', 0, 0, function (format) {
+    return this.localeData().weekdaysMin(this, format);
+});
+
+addFormatToken('ddd', 0, 0, function (format) {
+    return this.localeData().weekdaysShort(this, format);
+});
+
+addFormatToken('dddd', 0, 0, function (format) {
+    return this.localeData().weekdays(this, format);
+});
+
+addFormatToken('e', 0, 0, 'weekday');
+addFormatToken('E', 0, 0, 'isoWeekday');
+
+// ALIASES
+
+addUnitAlias('day', 'd');
+addUnitAlias('weekday', 'e');
+addUnitAlias('isoWeekday', 'E');
+
+// PRIORITY
+addUnitPriority('day', 11);
+addUnitPriority('weekday', 11);
+addUnitPriority('isoWeekday', 11);
+
+// PARSING
+
+addRegexToken('d',    match1to2);
+addRegexToken('e',    match1to2);
+addRegexToken('E',    match1to2);
+addRegexToken('dd',   function (isStrict, locale) {
+    return locale.weekdaysMinRegex(isStrict);
+});
+addRegexToken('ddd',   function (isStrict, locale) {
+    return locale.weekdaysShortRegex(isStrict);
+});
+addRegexToken('dddd',   function (isStrict, locale) {
+    return locale.weekdaysRegex(isStrict);
+});
+
+addWeekParseToken(['dd', 'ddd', 'dddd'], function (input, week, config, token) {
+    var weekday = config._locale.weekdaysParse(input, token, config._strict);
+    // if we didn't get a weekday name, mark the date as invalid
+    if (weekday != null) {
+        week.d = weekday;
+    } else {
+        getParsingFlags(config).invalidWeekday = input;
+    }
+});
+
+addWeekParseToken(['d', 'e', 'E'], function (input, week, config, token) {
+    week[token] = toInt(input);
+});
+
+// HELPERS
+
+function parseWeekday(input, locale) {
+    if (typeof input !== 'string') {
+        return input;
     }
 
-    // pick the locale from the array
-    // try ['en-au', 'en-gb'] as 'en-au', 'en-gb', 'en', as in move through the list trying each
-    // substring from most specific to least, but move to the next array item if it's a more specific variant than the current root
-    function chooseLocale(names) {
-        var i = 0, j, next, locale, split;
+    if (!isNaN(input)) {
+        return parseInt(input, 10);
+    }
 
-        while (i < names.length) {
-            split = normalizeLocale(names[i]).split('-');
-            j = split.length;
-            next = normalizeLocale(names[i + 1]);
-            next = next ? next.split('-') : null;
-            while (j > 0) {
-                locale = loadLocale(split.slice(0, j).join('-'));
-                if (locale) {
-                    return locale;
-                }
-                if (next && next.length >= j && compareArrays(split, next, true) >= j - 1) {
-                    //the next array item is better than a shallower substring of this one
-                    break;
-                }
-                j--;
-            }
-            i++;
+    input = locale.weekdaysParse(input);
+    if (typeof input === 'number') {
+        return input;
+    }
+
+    return null;
+}
+
+function parseIsoWeekday(input, locale) {
+    if (typeof input === 'string') {
+        return locale.weekdaysParse(input) % 7 || 7;
+    }
+    return isNaN(input) ? null : input;
+}
+
+// LOCALES
+
+var defaultLocaleWeekdays = 'Sunday_Monday_Tuesday_Wednesday_Thursday_Friday_Saturday'.split('_');
+function localeWeekdays (m, format) {
+    if (!m) {
+        return isArray(this._weekdays) ? this._weekdays :
+            this._weekdays['standalone'];
+    }
+    return isArray(this._weekdays) ? this._weekdays[m.day()] :
+        this._weekdays[this._weekdays.isFormat.test(format) ? 'format' : 'standalone'][m.day()];
+}
+
+var defaultLocaleWeekdaysShort = 'Sun_Mon_Tue_Wed_Thu_Fri_Sat'.split('_');
+function localeWeekdaysShort (m) {
+    return (m) ? this._weekdaysShort[m.day()] : this._weekdaysShort;
+}
+
+var defaultLocaleWeekdaysMin = 'Su_Mo_Tu_We_Th_Fr_Sa'.split('_');
+function localeWeekdaysMin (m) {
+    return (m) ? this._weekdaysMin[m.day()] : this._weekdaysMin;
+}
+
+function handleStrictParse$1(weekdayName, format, strict) {
+    var i, ii, mom, llc = weekdayName.toLocaleLowerCase();
+    if (!this._weekdaysParse) {
+        this._weekdaysParse = [];
+        this._shortWeekdaysParse = [];
+        this._minWeekdaysParse = [];
+
+        for (i = 0; i < 7; ++i) {
+            mom = createUTC([2000, 1]).day(i);
+            this._minWeekdaysParse[i] = this.weekdaysMin(mom, '').toLocaleLowerCase();
+            this._shortWeekdaysParse[i] = this.weekdaysShort(mom, '').toLocaleLowerCase();
+            this._weekdaysParse[i] = this.weekdays(mom, '').toLocaleLowerCase();
         }
-        return globalLocale;
     }
 
-    function loadLocale(name) {
-        var oldLocale = null;
-        // TODO: Find a better way to register and load all the locales in Node
-        if (!locales[name] && (typeof module !== 'undefined') &&
-                module && module.exports) {
-            try {
-                oldLocale = globalLocale._abbr;
-                var aliasedRequire = require;
-                aliasedRequire('./locale/' + name);
-                getSetGlobalLocale(oldLocale);
-            } catch (e) {}
-        }
-        return locales[name];
-    }
-
-    // This function will load locale and then set the global locale.  If
-    // no arguments are passed in, it will simply return the current global
-    // locale key.
-    function getSetGlobalLocale (key, values) {
-        var data;
-        if (key) {
-            if (isUndefined(values)) {
-                data = getLocale(key);
-            }
-            else {
-                data = defineLocale(key, values);
-            }
-
-            if (data) {
-                // moment.duration._locale = moment._locale = data;
-                globalLocale = data;
-            }
-            else {
-                if ((typeof console !==  'undefined') && console.warn) {
-                    //warn user if arguments are passed but the locale could not be set
-                    console.warn('Locale ' + key +  ' not found. Did you forget to load it?');
-                }
-            }
-        }
-
-        return globalLocale._abbr;
-    }
-
-    function defineLocale (name, config) {
-        if (config !== null) {
-            var locale, parentConfig = baseConfig;
-            config.abbr = name;
-            if (locales[name] != null) {
-                deprecateSimple('defineLocaleOverride',
-                        'use moment.updateLocale(localeName, config) to change ' +
-                        'an existing locale. moment.defineLocale(localeName, ' +
-                        'config) should only be used for creating a new locale ' +
-                        'See http://momentjs.com/guides/#/warnings/define-locale/ for more info.');
-                parentConfig = locales[name]._config;
-            } else if (config.parentLocale != null) {
-                if (locales[config.parentLocale] != null) {
-                    parentConfig = locales[config.parentLocale]._config;
-                } else {
-                    locale = loadLocale(config.parentLocale);
-                    if (locale != null) {
-                        parentConfig = locale._config;
-                    } else {
-                        if (!localeFamilies[config.parentLocale]) {
-                            localeFamilies[config.parentLocale] = [];
-                        }
-                        localeFamilies[config.parentLocale].push({
-                            name: name,
-                            config: config
-                        });
-                        return null;
-                    }
-                }
-            }
-            locales[name] = new Locale(mergeConfigs(parentConfig, config));
-
-            if (localeFamilies[name]) {
-                localeFamilies[name].forEach(function (x) {
-                    defineLocale(x.name, x.config);
-                });
-            }
-
-            // backwards compat for now: also set the locale
-            // make sure we set the locale AFTER all child locales have been
-            // created, so we won't end up with the child locale set.
-            getSetGlobalLocale(name);
-
-
-            return locales[name];
+    if (strict) {
+        if (format === 'dddd') {
+            ii = indexOf$1.call(this._weekdaysParse, llc);
+            return ii !== -1 ? ii : null;
+        } else if (format === 'ddd') {
+            ii = indexOf$1.call(this._shortWeekdaysParse, llc);
+            return ii !== -1 ? ii : null;
         } else {
-            // useful for testing
-            delete locales[name];
-            return null;
+            ii = indexOf$1.call(this._minWeekdaysParse, llc);
+            return ii !== -1 ? ii : null;
         }
-    }
-
-    function updateLocale(name, config) {
-        if (config != null) {
-            var locale, tmpLocale, parentConfig = baseConfig;
-            // MERGE
-            tmpLocale = loadLocale(name);
-            if (tmpLocale != null) {
-                parentConfig = tmpLocale._config;
+    } else {
+        if (format === 'dddd') {
+            ii = indexOf$1.call(this._weekdaysParse, llc);
+            if (ii !== -1) {
+                return ii;
             }
-            config = mergeConfigs(parentConfig, config);
-            locale = new Locale(config);
-            locale.parentLocale = locales[name];
-            locales[name] = locale;
-
-            // backwards compat for now: also set the locale
-            getSetGlobalLocale(name);
+            ii = indexOf$1.call(this._shortWeekdaysParse, llc);
+            if (ii !== -1) {
+                return ii;
+            }
+            ii = indexOf$1.call(this._minWeekdaysParse, llc);
+            return ii !== -1 ? ii : null;
+        } else if (format === 'ddd') {
+            ii = indexOf$1.call(this._shortWeekdaysParse, llc);
+            if (ii !== -1) {
+                return ii;
+            }
+            ii = indexOf$1.call(this._weekdaysParse, llc);
+            if (ii !== -1) {
+                return ii;
+            }
+            ii = indexOf$1.call(this._minWeekdaysParse, llc);
+            return ii !== -1 ? ii : null;
         } else {
-            // pass null for config to unupdate, useful for tests
-            if (locales[name] != null) {
-                if (locales[name].parentLocale != null) {
-                    locales[name] = locales[name].parentLocale;
-                } else if (locales[name] != null) {
-                    delete locales[name];
-                }
+            ii = indexOf$1.call(this._minWeekdaysParse, llc);
+            if (ii !== -1) {
+                return ii;
             }
+            ii = indexOf$1.call(this._weekdaysParse, llc);
+            if (ii !== -1) {
+                return ii;
+            }
+            ii = indexOf$1.call(this._shortWeekdaysParse, llc);
+            return ii !== -1 ? ii : null;
         }
-        return locales[name];
+    }
+}
+
+function localeWeekdaysParse (weekdayName, format, strict) {
+    var i, mom, regex;
+
+    if (this._weekdaysParseExact) {
+        return handleStrictParse$1.call(this, weekdayName, format, strict);
     }
 
-    // returns locale data
-    function getLocale (key) {
-        var locale;
+    if (!this._weekdaysParse) {
+        this._weekdaysParse = [];
+        this._minWeekdaysParse = [];
+        this._shortWeekdaysParse = [];
+        this._fullWeekdaysParse = [];
+    }
 
-        if (key && key._locale && key._locale._abbr) {
-            key = key._locale._abbr;
+    for (i = 0; i < 7; i++) {
+        // make the regex if we don't have it already
+
+        mom = createUTC([2000, 1]).day(i);
+        if (strict && !this._fullWeekdaysParse[i]) {
+            this._fullWeekdaysParse[i] = new RegExp('^' + this.weekdays(mom, '').replace('.', '\.?') + '$', 'i');
+            this._shortWeekdaysParse[i] = new RegExp('^' + this.weekdaysShort(mom, '').replace('.', '\.?') + '$', 'i');
+            this._minWeekdaysParse[i] = new RegExp('^' + this.weekdaysMin(mom, '').replace('.', '\.?') + '$', 'i');
         }
-
-        if (!key) {
-            return globalLocale;
+        if (!this._weekdaysParse[i]) {
+            regex = '^' + this.weekdays(mom, '') + '|^' + this.weekdaysShort(mom, '') + '|^' + this.weekdaysMin(mom, '');
+            this._weekdaysParse[i] = new RegExp(regex.replace('.', ''), 'i');
         }
+        // test the regex
+        if (strict && format === 'dddd' && this._fullWeekdaysParse[i].test(weekdayName)) {
+            return i;
+        } else if (strict && format === 'ddd' && this._shortWeekdaysParse[i].test(weekdayName)) {
+            return i;
+        } else if (strict && format === 'dd' && this._minWeekdaysParse[i].test(weekdayName)) {
+            return i;
+        } else if (!strict && this._weekdaysParse[i].test(weekdayName)) {
+            return i;
+        }
+    }
+}
 
-        if (!isArray(key)) {
-            //short-circuit everything else
-            locale = loadLocale(key);
+// MOMENTS
+
+function getSetDayOfWeek (input) {
+    if (!this.isValid()) {
+        return input != null ? this : NaN;
+    }
+    var day = this._isUTC ? this._d.getUTCDay() : this._d.getDay();
+    if (input != null) {
+        input = parseWeekday(input, this.localeData());
+        return this.add(input - day, 'd');
+    } else {
+        return day;
+    }
+}
+
+function getSetLocaleDayOfWeek (input) {
+    if (!this.isValid()) {
+        return input != null ? this : NaN;
+    }
+    var weekday = (this.day() + 7 - this.localeData()._week.dow) % 7;
+    return input == null ? weekday : this.add(input - weekday, 'd');
+}
+
+function getSetISODayOfWeek (input) {
+    if (!this.isValid()) {
+        return input != null ? this : NaN;
+    }
+
+    // behaves the same as moment#day except
+    // as a getter, returns 7 instead of 0 (1-7 range instead of 0-6)
+    // as a setter, sunday should belong to the previous week.
+
+    if (input != null) {
+        var weekday = parseIsoWeekday(input, this.localeData());
+        return this.day(this.day() % 7 ? weekday : weekday - 7);
+    } else {
+        return this.day() || 7;
+    }
+}
+
+var defaultWeekdaysRegex = matchWord;
+function weekdaysRegex (isStrict) {
+    if (this._weekdaysParseExact) {
+        if (!hasOwnProp(this, '_weekdaysRegex')) {
+            computeWeekdaysParse.call(this);
+        }
+        if (isStrict) {
+            return this._weekdaysStrictRegex;
+        } else {
+            return this._weekdaysRegex;
+        }
+    } else {
+        if (!hasOwnProp(this, '_weekdaysRegex')) {
+            this._weekdaysRegex = defaultWeekdaysRegex;
+        }
+        return this._weekdaysStrictRegex && isStrict ?
+            this._weekdaysStrictRegex : this._weekdaysRegex;
+    }
+}
+
+var defaultWeekdaysShortRegex = matchWord;
+function weekdaysShortRegex (isStrict) {
+    if (this._weekdaysParseExact) {
+        if (!hasOwnProp(this, '_weekdaysRegex')) {
+            computeWeekdaysParse.call(this);
+        }
+        if (isStrict) {
+            return this._weekdaysShortStrictRegex;
+        } else {
+            return this._weekdaysShortRegex;
+        }
+    } else {
+        if (!hasOwnProp(this, '_weekdaysShortRegex')) {
+            this._weekdaysShortRegex = defaultWeekdaysShortRegex;
+        }
+        return this._weekdaysShortStrictRegex && isStrict ?
+            this._weekdaysShortStrictRegex : this._weekdaysShortRegex;
+    }
+}
+
+var defaultWeekdaysMinRegex = matchWord;
+function weekdaysMinRegex (isStrict) {
+    if (this._weekdaysParseExact) {
+        if (!hasOwnProp(this, '_weekdaysRegex')) {
+            computeWeekdaysParse.call(this);
+        }
+        if (isStrict) {
+            return this._weekdaysMinStrictRegex;
+        } else {
+            return this._weekdaysMinRegex;
+        }
+    } else {
+        if (!hasOwnProp(this, '_weekdaysMinRegex')) {
+            this._weekdaysMinRegex = defaultWeekdaysMinRegex;
+        }
+        return this._weekdaysMinStrictRegex && isStrict ?
+            this._weekdaysMinStrictRegex : this._weekdaysMinRegex;
+    }
+}
+
+
+function computeWeekdaysParse () {
+    function cmpLenRev(a, b) {
+        return b.length - a.length;
+    }
+
+    var minPieces = [], shortPieces = [], longPieces = [], mixedPieces = [],
+        i, mom, minp, shortp, longp;
+    for (i = 0; i < 7; i++) {
+        // make the regex if we don't have it already
+        mom = createUTC([2000, 1]).day(i);
+        minp = this.weekdaysMin(mom, '');
+        shortp = this.weekdaysShort(mom, '');
+        longp = this.weekdays(mom, '');
+        minPieces.push(minp);
+        shortPieces.push(shortp);
+        longPieces.push(longp);
+        mixedPieces.push(minp);
+        mixedPieces.push(shortp);
+        mixedPieces.push(longp);
+    }
+    // Sorting makes sure if one weekday (or abbr) is a prefix of another it
+    // will match the longer piece.
+    minPieces.sort(cmpLenRev);
+    shortPieces.sort(cmpLenRev);
+    longPieces.sort(cmpLenRev);
+    mixedPieces.sort(cmpLenRev);
+    for (i = 0; i < 7; i++) {
+        shortPieces[i] = regexEscape(shortPieces[i]);
+        longPieces[i] = regexEscape(longPieces[i]);
+        mixedPieces[i] = regexEscape(mixedPieces[i]);
+    }
+
+    this._weekdaysRegex = new RegExp('^(' + mixedPieces.join('|') + ')', 'i');
+    this._weekdaysShortRegex = this._weekdaysRegex;
+    this._weekdaysMinRegex = this._weekdaysRegex;
+
+    this._weekdaysStrictRegex = new RegExp('^(' + longPieces.join('|') + ')', 'i');
+    this._weekdaysShortStrictRegex = new RegExp('^(' + shortPieces.join('|') + ')', 'i');
+    this._weekdaysMinStrictRegex = new RegExp('^(' + minPieces.join('|') + ')', 'i');
+}
+
+// FORMATTING
+
+function hFormat() {
+    return this.hours() % 12 || 12;
+}
+
+function kFormat() {
+    return this.hours() || 24;
+}
+
+addFormatToken('H', ['HH', 2], 0, 'hour');
+addFormatToken('h', ['hh', 2], 0, hFormat);
+addFormatToken('k', ['kk', 2], 0, kFormat);
+
+addFormatToken('hmm', 0, 0, function () {
+    return '' + hFormat.apply(this) + zeroFill(this.minutes(), 2);
+});
+
+addFormatToken('hmmss', 0, 0, function () {
+    return '' + hFormat.apply(this) + zeroFill(this.minutes(), 2) +
+        zeroFill(this.seconds(), 2);
+});
+
+addFormatToken('Hmm', 0, 0, function () {
+    return '' + this.hours() + zeroFill(this.minutes(), 2);
+});
+
+addFormatToken('Hmmss', 0, 0, function () {
+    return '' + this.hours() + zeroFill(this.minutes(), 2) +
+        zeroFill(this.seconds(), 2);
+});
+
+function meridiem (token, lowercase) {
+    addFormatToken(token, 0, 0, function () {
+        return this.localeData().meridiem(this.hours(), this.minutes(), lowercase);
+    });
+}
+
+meridiem('a', true);
+meridiem('A', false);
+
+// ALIASES
+
+addUnitAlias('hour', 'h');
+
+// PRIORITY
+addUnitPriority('hour', 13);
+
+// PARSING
+
+function matchMeridiem (isStrict, locale) {
+    return locale._meridiemParse;
+}
+
+addRegexToken('a',  matchMeridiem);
+addRegexToken('A',  matchMeridiem);
+addRegexToken('H',  match1to2);
+addRegexToken('h',  match1to2);
+addRegexToken('k',  match1to2);
+addRegexToken('HH', match1to2, match2);
+addRegexToken('hh', match1to2, match2);
+addRegexToken('kk', match1to2, match2);
+
+addRegexToken('hmm', match3to4);
+addRegexToken('hmmss', match5to6);
+addRegexToken('Hmm', match3to4);
+addRegexToken('Hmmss', match5to6);
+
+addParseToken(['H', 'HH'], HOUR);
+addParseToken(['k', 'kk'], function (input, array, config) {
+    var kInput = toInt(input);
+    array[HOUR] = kInput === 24 ? 0 : kInput;
+});
+addParseToken(['a', 'A'], function (input, array, config) {
+    config._isPm = config._locale.isPM(input);
+    config._meridiem = input;
+});
+addParseToken(['h', 'hh'], function (input, array, config) {
+    array[HOUR] = toInt(input);
+    getParsingFlags(config).bigHour = true;
+});
+addParseToken('hmm', function (input, array, config) {
+    var pos = input.length - 2;
+    array[HOUR] = toInt(input.substr(0, pos));
+    array[MINUTE] = toInt(input.substr(pos));
+    getParsingFlags(config).bigHour = true;
+});
+addParseToken('hmmss', function (input, array, config) {
+    var pos1 = input.length - 4;
+    var pos2 = input.length - 2;
+    array[HOUR] = toInt(input.substr(0, pos1));
+    array[MINUTE] = toInt(input.substr(pos1, 2));
+    array[SECOND] = toInt(input.substr(pos2));
+    getParsingFlags(config).bigHour = true;
+});
+addParseToken('Hmm', function (input, array, config) {
+    var pos = input.length - 2;
+    array[HOUR] = toInt(input.substr(0, pos));
+    array[MINUTE] = toInt(input.substr(pos));
+});
+addParseToken('Hmmss', function (input, array, config) {
+    var pos1 = input.length - 4;
+    var pos2 = input.length - 2;
+    array[HOUR] = toInt(input.substr(0, pos1));
+    array[MINUTE] = toInt(input.substr(pos1, 2));
+    array[SECOND] = toInt(input.substr(pos2));
+});
+
+// LOCALES
+
+function localeIsPM (input) {
+    // IE8 Quirks Mode & IE7 Standards Mode do not allow accessing strings like arrays
+    // Using charAt should be more compatible.
+    return ((input + '').toLowerCase().charAt(0) === 'p');
+}
+
+var defaultLocaleMeridiemParse = /[ap]\.?m?\.?/i;
+function localeMeridiem (hours, minutes, isLower) {
+    if (hours > 11) {
+        return isLower ? 'pm' : 'PM';
+    } else {
+        return isLower ? 'am' : 'AM';
+    }
+}
+
+
+// MOMENTS
+
+// Setting the hour should keep the time, because the user explicitly
+// specified which hour he wants. So trying to maintain the same hour (in
+// a new timezone) makes sense. Adding/subtracting hours does not follow
+// this rule.
+var getSetHour = makeGetSet('Hours', true);
+
+// months
+// week
+// weekdays
+// meridiem
+var baseConfig = {
+    calendar: defaultCalendar,
+    longDateFormat: defaultLongDateFormat,
+    invalidDate: defaultInvalidDate,
+    ordinal: defaultOrdinal,
+    dayOfMonthOrdinalParse: defaultDayOfMonthOrdinalParse,
+    relativeTime: defaultRelativeTime,
+
+    months: defaultLocaleMonths,
+    monthsShort: defaultLocaleMonthsShort,
+
+    week: defaultLocaleWeek,
+
+    weekdays: defaultLocaleWeekdays,
+    weekdaysMin: defaultLocaleWeekdaysMin,
+    weekdaysShort: defaultLocaleWeekdaysShort,
+
+    meridiemParse: defaultLocaleMeridiemParse
+};
+
+// internal storage for locale config files
+var locales = {};
+var localeFamilies = {};
+var globalLocale;
+
+function normalizeLocale(key) {
+    return key ? key.toLowerCase().replace('_', '-') : key;
+}
+
+// pick the locale from the array
+// try ['en-au', 'en-gb'] as 'en-au', 'en-gb', 'en', as in move through the list trying each
+// substring from most specific to least, but move to the next array item if it's a more specific variant than the current root
+function chooseLocale(names) {
+    var i = 0, j, next, locale, split;
+
+    while (i < names.length) {
+        split = normalizeLocale(names[i]).split('-');
+        j = split.length;
+        next = normalizeLocale(names[i + 1]);
+        next = next ? next.split('-') : null;
+        while (j > 0) {
+            locale = loadLocale(split.slice(0, j).join('-'));
             if (locale) {
                 return locale;
             }
-            key = [key];
-        }
-
-        return chooseLocale(key);
-    }
-
-    function listLocales() {
-        return keys(locales);
-    }
-
-    function checkOverflow (m) {
-        var overflow;
-        var a = m._a;
-
-        if (a && getParsingFlags(m).overflow === -2) {
-            overflow =
-                a[MONTH]       < 0 || a[MONTH]       > 11  ? MONTH :
-                a[DATE]        < 1 || a[DATE]        > daysInMonth(a[YEAR], a[MONTH]) ? DATE :
-                a[HOUR]        < 0 || a[HOUR]        > 24 || (a[HOUR] === 24 && (a[MINUTE] !== 0 || a[SECOND] !== 0 || a[MILLISECOND] !== 0)) ? HOUR :
-                a[MINUTE]      < 0 || a[MINUTE]      > 59  ? MINUTE :
-                a[SECOND]      < 0 || a[SECOND]      > 59  ? SECOND :
-                a[MILLISECOND] < 0 || a[MILLISECOND] > 999 ? MILLISECOND :
-                -1;
-
-            if (getParsingFlags(m)._overflowDayOfYear && (overflow < YEAR || overflow > DATE)) {
-                overflow = DATE;
+            if (next && next.length >= j && compareArrays(split, next, true) >= j - 1) {
+                //the next array item is better than a shallower substring of this one
+                break;
             }
-            if (getParsingFlags(m)._overflowWeeks && overflow === -1) {
-                overflow = WEEK;
+            j--;
+        }
+        i++;
+    }
+    return null;
+}
+
+function loadLocale(name) {
+    var oldLocale = null;
+    // TODO: Find a better way to register and load all the locales in Node
+    if (!locales[name] && (typeof module !== 'undefined') &&
+            module && module.exports) {
+        try {
+            oldLocale = globalLocale._abbr;
+            require('./locale/' + name);
+            // because defineLocale currently also sets the global locale, we
+            // want to undo that for lazy loaded locales
+            getSetGlobalLocale(oldLocale);
+        } catch (e) { }
+    }
+    return locales[name];
+}
+
+// This function will load locale and then set the global locale.  If
+// no arguments are passed in, it will simply return the current global
+// locale key.
+function getSetGlobalLocale (key, values) {
+    var data;
+    if (key) {
+        if (isUndefined(values)) {
+            data = getLocale(key);
+        }
+        else {
+            data = defineLocale(key, values);
+        }
+
+        if (data) {
+            // moment.duration._locale = moment._locale = data;
+            globalLocale = data;
+        }
+    }
+
+    return globalLocale._abbr;
+}
+
+function defineLocale (name, config) {
+    if (config !== null) {
+        var parentConfig = baseConfig;
+        config.abbr = name;
+        if (locales[name] != null) {
+            deprecateSimple('defineLocaleOverride',
+                    'use moment.updateLocale(localeName, config) to change ' +
+                    'an existing locale. moment.defineLocale(localeName, ' +
+                    'config) should only be used for creating a new locale ' +
+                    'See http://momentjs.com/guides/#/warnings/define-locale/ for more info.');
+            parentConfig = locales[name]._config;
+        } else if (config.parentLocale != null) {
+            if (locales[config.parentLocale] != null) {
+                parentConfig = locales[config.parentLocale]._config;
+            } else {
+                if (!localeFamilies[config.parentLocale]) {
+                    localeFamilies[config.parentLocale] = [];
+                }
+                localeFamilies[config.parentLocale].push({
+                    name: name,
+                    config: config
+                });
+                return null;
             }
-            if (getParsingFlags(m)._overflowWeekday && overflow === -1) {
-                overflow = WEEKDAY;
+        }
+        locales[name] = new Locale(mergeConfigs(parentConfig, config));
+
+        if (localeFamilies[name]) {
+            localeFamilies[name].forEach(function (x) {
+                defineLocale(x.name, x.config);
+            });
+        }
+
+        // backwards compat for now: also set the locale
+        // make sure we set the locale AFTER all child locales have been
+        // created, so we won't end up with the child locale set.
+        getSetGlobalLocale(name);
+
+
+        return locales[name];
+    } else {
+        // useful for testing
+        delete locales[name];
+        return null;
+    }
+}
+
+function updateLocale(name, config) {
+    if (config != null) {
+        var locale, parentConfig = baseConfig;
+        // MERGE
+        if (locales[name] != null) {
+            parentConfig = locales[name]._config;
+        }
+        config = mergeConfigs(parentConfig, config);
+        locale = new Locale(config);
+        locale.parentLocale = locales[name];
+        locales[name] = locale;
+
+        // backwards compat for now: also set the locale
+        getSetGlobalLocale(name);
+    } else {
+        // pass null for config to unupdate, useful for tests
+        if (locales[name] != null) {
+            if (locales[name].parentLocale != null) {
+                locales[name] = locales[name].parentLocale;
+            } else if (locales[name] != null) {
+                delete locales[name];
             }
-
-            getParsingFlags(m).overflow = overflow;
         }
+    }
+    return locales[name];
+}
 
-        return m;
+// returns locale data
+function getLocale (key) {
+    var locale;
+
+    if (key && key._locale && key._locale._abbr) {
+        key = key._locale._abbr;
     }
 
-    // Pick the first defined of two or three arguments.
-    function defaults(a, b, c) {
-        if (a != null) {
-            return a;
-        }
-        if (b != null) {
-            return b;
-        }
-        return c;
+    if (!key) {
+        return globalLocale;
     }
 
-    function currentDateArray(config) {
-        // hooks is actually the exported moment object
-        var nowValue = new Date(hooks.now());
-        if (config._useUTC) {
-            return [nowValue.getUTCFullYear(), nowValue.getUTCMonth(), nowValue.getUTCDate()];
+    if (!isArray(key)) {
+        //short-circuit everything else
+        locale = loadLocale(key);
+        if (locale) {
+            return locale;
         }
-        return [nowValue.getFullYear(), nowValue.getMonth(), nowValue.getDate()];
+        key = [key];
     }
 
-    // convert an array to a date.
-    // the array should mirror the parameters below
-    // note: all values past the year are optional and will default to the lowest possible value.
-    // [year, month, day , hour, minute, second, millisecond]
-    function configFromArray (config) {
-        var i, date, input = [], currentDate, expectedWeekday, yearToUse;
+    return chooseLocale(key);
+}
 
-        if (config._d) {
+function listLocales() {
+    return keys$1(locales);
+}
+
+function checkOverflow (m) {
+    var overflow;
+    var a = m._a;
+
+    if (a && getParsingFlags(m).overflow === -2) {
+        overflow =
+            a[MONTH]       < 0 || a[MONTH]       > 11  ? MONTH :
+            a[DATE]        < 1 || a[DATE]        > daysInMonth(a[YEAR], a[MONTH]) ? DATE :
+            a[HOUR]        < 0 || a[HOUR]        > 24 || (a[HOUR] === 24 && (a[MINUTE] !== 0 || a[SECOND] !== 0 || a[MILLISECOND] !== 0)) ? HOUR :
+            a[MINUTE]      < 0 || a[MINUTE]      > 59  ? MINUTE :
+            a[SECOND]      < 0 || a[SECOND]      > 59  ? SECOND :
+            a[MILLISECOND] < 0 || a[MILLISECOND] > 999 ? MILLISECOND :
+            -1;
+
+        if (getParsingFlags(m)._overflowDayOfYear && (overflow < YEAR || overflow > DATE)) {
+            overflow = DATE;
+        }
+        if (getParsingFlags(m)._overflowWeeks && overflow === -1) {
+            overflow = WEEK;
+        }
+        if (getParsingFlags(m)._overflowWeekday && overflow === -1) {
+            overflow = WEEKDAY;
+        }
+
+        getParsingFlags(m).overflow = overflow;
+    }
+
+    return m;
+}
+
+// iso 8601 regex
+// 0000-00-00 0000-W00 or 0000-W00-0 + T + 00 or 00:00 or 00:00:00 or 00:00:00.000 + +00:00 or +0000 or +00)
+var extendedIsoRegex = /^\s*((?:[+-]\d{6}|\d{4})-(?:\d\d-\d\d|W\d\d-\d|W\d\d|\d\d\d|\d\d))(?:(T| )(\d\d(?::\d\d(?::\d\d(?:[.,]\d+)?)?)?)([\+\-]\d\d(?::?\d\d)?|\s*Z)?)?$/;
+var basicIsoRegex = /^\s*((?:[+-]\d{6}|\d{4})(?:\d\d\d\d|W\d\d\d|W\d\d|\d\d\d|\d\d))(?:(T| )(\d\d(?:\d\d(?:\d\d(?:[.,]\d+)?)?)?)([\+\-]\d\d(?::?\d\d)?|\s*Z)?)?$/;
+
+var tzRegex = /Z|[+-]\d\d(?::?\d\d)?/;
+
+var isoDates = [
+    ['YYYYYY-MM-DD', /[+-]\d{6}-\d\d-\d\d/],
+    ['YYYY-MM-DD', /\d{4}-\d\d-\d\d/],
+    ['GGGG-[W]WW-E', /\d{4}-W\d\d-\d/],
+    ['GGGG-[W]WW', /\d{4}-W\d\d/, false],
+    ['YYYY-DDD', /\d{4}-\d{3}/],
+    ['YYYY-MM', /\d{4}-\d\d/, false],
+    ['YYYYYYMMDD', /[+-]\d{10}/],
+    ['YYYYMMDD', /\d{8}/],
+    // YYYYMM is NOT allowed by the standard
+    ['GGGG[W]WWE', /\d{4}W\d{3}/],
+    ['GGGG[W]WW', /\d{4}W\d{2}/, false],
+    ['YYYYDDD', /\d{7}/]
+];
+
+// iso time formats and regexes
+var isoTimes = [
+    ['HH:mm:ss.SSSS', /\d\d:\d\d:\d\d\.\d+/],
+    ['HH:mm:ss,SSSS', /\d\d:\d\d:\d\d,\d+/],
+    ['HH:mm:ss', /\d\d:\d\d:\d\d/],
+    ['HH:mm', /\d\d:\d\d/],
+    ['HHmmss.SSSS', /\d\d\d\d\d\d\.\d+/],
+    ['HHmmss,SSSS', /\d\d\d\d\d\d,\d+/],
+    ['HHmmss', /\d\d\d\d\d\d/],
+    ['HHmm', /\d\d\d\d/],
+    ['HH', /\d\d/]
+];
+
+var aspNetJsonRegex = /^\/?Date\((\-?\d+)/i;
+
+// date from iso format
+function configFromISO(config) {
+    var i, l,
+        string = config._i,
+        match = extendedIsoRegex.exec(string) || basicIsoRegex.exec(string),
+        allowTime, dateFormat, timeFormat, tzFormat;
+
+    if (match) {
+        getParsingFlags(config).iso = true;
+
+        for (i = 0, l = isoDates.length; i < l; i++) {
+            if (isoDates[i][1].exec(match[1])) {
+                dateFormat = isoDates[i][0];
+                allowTime = isoDates[i][2] !== false;
+                break;
+            }
+        }
+        if (dateFormat == null) {
+            config._isValid = false;
             return;
         }
-
-        currentDate = currentDateArray(config);
-
-        //compute day of the year from weeks and weekdays
-        if (config._w && config._a[DATE] == null && config._a[MONTH] == null) {
-            dayOfYearFromWeekInfo(config);
-        }
-
-        //if the day of the year is set, figure out what it is
-        if (config._dayOfYear != null) {
-            yearToUse = defaults(config._a[YEAR], currentDate[YEAR]);
-
-            if (config._dayOfYear > daysInYear(yearToUse) || config._dayOfYear === 0) {
-                getParsingFlags(config)._overflowDayOfYear = true;
-            }
-
-            date = createUTCDate(yearToUse, 0, config._dayOfYear);
-            config._a[MONTH] = date.getUTCMonth();
-            config._a[DATE] = date.getUTCDate();
-        }
-
-        // Default to current date.
-        // * if no year, month, day of month are given, default to today
-        // * if day of month is given, default month and year
-        // * if month is given, default only year
-        // * if year is given, don't default anything
-        for (i = 0; i < 3 && config._a[i] == null; ++i) {
-            config._a[i] = input[i] = currentDate[i];
-        }
-
-        // Zero out whatever was not defaulted, including time
-        for (; i < 7; i++) {
-            config._a[i] = input[i] = (config._a[i] == null) ? (i === 2 ? 1 : 0) : config._a[i];
-        }
-
-        // Check for 24:00:00.000
-        if (config._a[HOUR] === 24 &&
-                config._a[MINUTE] === 0 &&
-                config._a[SECOND] === 0 &&
-                config._a[MILLISECOND] === 0) {
-            config._nextDay = true;
-            config._a[HOUR] = 0;
-        }
-
-        config._d = (config._useUTC ? createUTCDate : createDate).apply(null, input);
-        expectedWeekday = config._useUTC ? config._d.getUTCDay() : config._d.getDay();
-
-        // Apply timezone offset from input. The actual utcOffset can be changed
-        // with parseZone.
-        if (config._tzm != null) {
-            config._d.setUTCMinutes(config._d.getUTCMinutes() - config._tzm);
-        }
-
-        if (config._nextDay) {
-            config._a[HOUR] = 24;
-        }
-
-        // check for mismatching day of week
-        if (config._w && typeof config._w.d !== 'undefined' && config._w.d !== expectedWeekday) {
-            getParsingFlags(config).weekdayMismatch = true;
-        }
-    }
-
-    function dayOfYearFromWeekInfo(config) {
-        var w, weekYear, week, weekday, dow, doy, temp, weekdayOverflow;
-
-        w = config._w;
-        if (w.GG != null || w.W != null || w.E != null) {
-            dow = 1;
-            doy = 4;
-
-            // TODO: We need to take the current isoWeekYear, but that depends on
-            // how we interpret now (local, utc, fixed offset). So create
-            // a now version of current config (take local/utc/offset flags, and
-            // create now).
-            weekYear = defaults(w.GG, config._a[YEAR], weekOfYear(createLocal(), 1, 4).year);
-            week = defaults(w.W, 1);
-            weekday = defaults(w.E, 1);
-            if (weekday < 1 || weekday > 7) {
-                weekdayOverflow = true;
-            }
-        } else {
-            dow = config._locale._week.dow;
-            doy = config._locale._week.doy;
-
-            var curWeek = weekOfYear(createLocal(), dow, doy);
-
-            weekYear = defaults(w.gg, config._a[YEAR], curWeek.year);
-
-            // Default to current week.
-            week = defaults(w.w, curWeek.week);
-
-            if (w.d != null) {
-                // weekday -- low day numbers are considered next week
-                weekday = w.d;
-                if (weekday < 0 || weekday > 6) {
-                    weekdayOverflow = true;
-                }
-            } else if (w.e != null) {
-                // local weekday -- counting starts from begining of week
-                weekday = w.e + dow;
-                if (w.e < 0 || w.e > 6) {
-                    weekdayOverflow = true;
-                }
-            } else {
-                // default to begining of week
-                weekday = dow;
-            }
-        }
-        if (week < 1 || week > weeksInYear(weekYear, dow, doy)) {
-            getParsingFlags(config)._overflowWeeks = true;
-        } else if (weekdayOverflow != null) {
-            getParsingFlags(config)._overflowWeekday = true;
-        } else {
-            temp = dayOfYearFromWeeks(weekYear, week, weekday, dow, doy);
-            config._a[YEAR] = temp.year;
-            config._dayOfYear = temp.dayOfYear;
-        }
-    }
-
-    // iso 8601 regex
-    // 0000-00-00 0000-W00 or 0000-W00-0 + T + 00 or 00:00 or 00:00:00 or 00:00:00.000 + +00:00 or +0000 or +00)
-    var extendedIsoRegex = /^\s*((?:[+-]\d{6}|\d{4})-(?:\d\d-\d\d|W\d\d-\d|W\d\d|\d\d\d|\d\d))(?:(T| )(\d\d(?::\d\d(?::\d\d(?:[.,]\d+)?)?)?)([\+\-]\d\d(?::?\d\d)?|\s*Z)?)?$/;
-    var basicIsoRegex = /^\s*((?:[+-]\d{6}|\d{4})(?:\d\d\d\d|W\d\d\d|W\d\d|\d\d\d|\d\d))(?:(T| )(\d\d(?:\d\d(?:\d\d(?:[.,]\d+)?)?)?)([\+\-]\d\d(?::?\d\d)?|\s*Z)?)?$/;
-
-    var tzRegex = /Z|[+-]\d\d(?::?\d\d)?/;
-
-    var isoDates = [
-        ['YYYYYY-MM-DD', /[+-]\d{6}-\d\d-\d\d/],
-        ['YYYY-MM-DD', /\d{4}-\d\d-\d\d/],
-        ['GGGG-[W]WW-E', /\d{4}-W\d\d-\d/],
-        ['GGGG-[W]WW', /\d{4}-W\d\d/, false],
-        ['YYYY-DDD', /\d{4}-\d{3}/],
-        ['YYYY-MM', /\d{4}-\d\d/, false],
-        ['YYYYYYMMDD', /[+-]\d{10}/],
-        ['YYYYMMDD', /\d{8}/],
-        // YYYYMM is NOT allowed by the standard
-        ['GGGG[W]WWE', /\d{4}W\d{3}/],
-        ['GGGG[W]WW', /\d{4}W\d{2}/, false],
-        ['YYYYDDD', /\d{7}/]
-    ];
-
-    // iso time formats and regexes
-    var isoTimes = [
-        ['HH:mm:ss.SSSS', /\d\d:\d\d:\d\d\.\d+/],
-        ['HH:mm:ss,SSSS', /\d\d:\d\d:\d\d,\d+/],
-        ['HH:mm:ss', /\d\d:\d\d:\d\d/],
-        ['HH:mm', /\d\d:\d\d/],
-        ['HHmmss.SSSS', /\d\d\d\d\d\d\.\d+/],
-        ['HHmmss,SSSS', /\d\d\d\d\d\d,\d+/],
-        ['HHmmss', /\d\d\d\d\d\d/],
-        ['HHmm', /\d\d\d\d/],
-        ['HH', /\d\d/]
-    ];
-
-    var aspNetJsonRegex = /^\/?Date\((\-?\d+)/i;
-
-    // date from iso format
-    function configFromISO(config) {
-        var i, l,
-            string = config._i,
-            match = extendedIsoRegex.exec(string) || basicIsoRegex.exec(string),
-            allowTime, dateFormat, timeFormat, tzFormat;
-
-        if (match) {
-            getParsingFlags(config).iso = true;
-
-            for (i = 0, l = isoDates.length; i < l; i++) {
-                if (isoDates[i][1].exec(match[1])) {
-                    dateFormat = isoDates[i][0];
-                    allowTime = isoDates[i][2] !== false;
+        if (match[3]) {
+            for (i = 0, l = isoTimes.length; i < l; i++) {
+                if (isoTimes[i][1].exec(match[3])) {
+                    // match[2] should be 'T' or space
+                    timeFormat = (match[2] || ' ') + isoTimes[i][0];
                     break;
                 }
             }
-            if (dateFormat == null) {
+            if (timeFormat == null) {
                 config._isValid = false;
                 return;
             }
-            if (match[3]) {
-                for (i = 0, l = isoTimes.length; i < l; i++) {
-                    if (isoTimes[i][1].exec(match[3])) {
-                        // match[2] should be 'T' or space
-                        timeFormat = (match[2] || ' ') + isoTimes[i][0];
-                        break;
-                    }
-                }
-                if (timeFormat == null) {
-                    config._isValid = false;
-                    return;
-                }
-            }
-            if (!allowTime && timeFormat != null) {
-                config._isValid = false;
-                return;
-            }
-            if (match[4]) {
-                if (tzRegex.exec(match[4])) {
-                    tzFormat = 'Z';
-                } else {
-                    config._isValid = false;
-                    return;
-                }
-            }
-            config._f = dateFormat + (timeFormat || '') + (tzFormat || '');
-            configFromStringAndFormat(config);
-        } else {
+        }
+        if (!allowTime && timeFormat != null) {
             config._isValid = false;
+            return;
         }
-    }
-
-    // RFC 2822 regex: For details see https://tools.ietf.org/html/rfc2822#section-3.3
-    var rfc2822 = /^(?:(Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s)?(\d{1,2})\s(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s(\d{2,4})\s(\d\d):(\d\d)(?::(\d\d))?\s(?:(UT|GMT|[ECMP][SD]T)|([Zz])|([+-]\d{4}))$/;
-
-    function extractFromRFC2822Strings(yearStr, monthStr, dayStr, hourStr, minuteStr, secondStr) {
-        var result = [
-            untruncateYear(yearStr),
-            defaultLocaleMonthsShort.indexOf(monthStr),
-            parseInt(dayStr, 10),
-            parseInt(hourStr, 10),
-            parseInt(minuteStr, 10)
-        ];
-
-        if (secondStr) {
-            result.push(parseInt(secondStr, 10));
+        if (match[4]) {
+            if (tzRegex.exec(match[4])) {
+                tzFormat = 'Z';
+            } else {
+                config._isValid = false;
+                return;
+            }
         }
-
-        return result;
+        config._f = dateFormat + (timeFormat || '') + (tzFormat || '');
+        configFromStringAndFormat(config);
+    } else {
+        config._isValid = false;
     }
+}
 
-    function untruncateYear(yearStr) {
-        var year = parseInt(yearStr, 10);
-        if (year <= 49) {
-            return 2000 + year;
-        } else if (year <= 999) {
-            return 1900 + year;
-        }
-        return year;
-    }
+// RFC 2822 regex: For details see https://tools.ietf.org/html/rfc2822#section-3.3
+var basicRfcRegex = /^((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun),?\s)?(\d?\d\s(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s(?:\d\d)?\d\d\s)(\d\d:\d\d)(\:\d\d)?(\s(?:UT|GMT|[ECMP][SD]T|[A-IK-Za-ik-z]|[+-]\d{4}))$/;
 
-    function preprocessRFC2822(s) {
-        // Remove comments and folding whitespace and replace multiple-spaces with a single space
-        return s.replace(/\([^)]*\)|[\n\t]/g, ' ').replace(/(\s\s+)/g, ' ').replace(/^\s\s*/, '').replace(/\s\s*$/, '');
-    }
+// date and time from ref 2822 format
+function configFromRFC2822(config) {
+    var string, match, dayFormat,
+        dateFormat, timeFormat, tzFormat;
+    var timezones = {
+        ' GMT': ' +0000',
+        ' EDT': ' -0400',
+        ' EST': ' -0500',
+        ' CDT': ' -0500',
+        ' CST': ' -0600',
+        ' MDT': ' -0600',
+        ' MST': ' -0700',
+        ' PDT': ' -0700',
+        ' PST': ' -0800'
+    };
+    var military = 'YXWVUTSRQPONZABCDEFGHIKLM';
+    var timezone, timezoneIndex;
 
-    function checkWeekday(weekdayStr, parsedInput, config) {
-        if (weekdayStr) {
-            // TODO: Replace the vanilla JS Date object with an indepentent day-of-week check.
-            var weekdayProvided = defaultLocaleWeekdaysShort.indexOf(weekdayStr),
-                weekdayActual = new Date(parsedInput[0], parsedInput[1], parsedInput[2]).getDay();
-            if (weekdayProvided !== weekdayActual) {
+    string = config._i
+        .replace(/\([^\)]*\)|[\n\t]/g, ' ') // Remove comments and folding whitespace
+        .replace(/(\s\s+)/g, ' ') // Replace multiple-spaces with a single space
+        .replace(/^\s|\s$/g, ''); // Remove leading and trailing spaces
+    match = basicRfcRegex.exec(string);
+
+    if (match) {
+        dayFormat = match[1] ? 'ddd' + ((match[1].length === 5) ? ', ' : ' ') : '';
+        dateFormat = 'D MMM ' + ((match[2].length > 10) ? 'YYYY ' : 'YY ');
+        timeFormat = 'HH:mm' + (match[4] ? ':ss' : '');
+
+        // TODO: Replace the vanilla JS Date object with an indepentent day-of-week check.
+        if (match[1]) { // day of week given
+            var momentDate = new Date(match[2]);
+            var momentDay = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][momentDate.getDay()];
+
+            if (match[1].substr(0,3) !== momentDay) {
                 getParsingFlags(config).weekdayMismatch = true;
                 config._isValid = false;
-                return false;
-            }
-        }
-        return true;
-    }
-
-    var obsOffsets = {
-        UT: 0,
-        GMT: 0,
-        EDT: -4 * 60,
-        EST: -5 * 60,
-        CDT: -5 * 60,
-        CST: -6 * 60,
-        MDT: -6 * 60,
-        MST: -7 * 60,
-        PDT: -7 * 60,
-        PST: -8 * 60
-    };
-
-    function calculateOffset(obsOffset, militaryOffset, numOffset) {
-        if (obsOffset) {
-            return obsOffsets[obsOffset];
-        } else if (militaryOffset) {
-            // the only allowed military tz is Z
-            return 0;
-        } else {
-            var hm = parseInt(numOffset, 10);
-            var m = hm % 100, h = (hm - m) / 100;
-            return h * 60 + m;
-        }
-    }
-
-    // date and time from ref 2822 format
-    function configFromRFC2822(config) {
-        var match = rfc2822.exec(preprocessRFC2822(config._i));
-        if (match) {
-            var parsedArray = extractFromRFC2822Strings(match[4], match[3], match[2], match[5], match[6], match[7]);
-            if (!checkWeekday(match[1], parsedArray, config)) {
                 return;
             }
-
-            config._a = parsedArray;
-            config._tzm = calculateOffset(match[8], match[9], match[10]);
-
-            config._d = createUTCDate.apply(null, config._a);
-            config._d.setUTCMinutes(config._d.getUTCMinutes() - config._tzm);
-
-            getParsingFlags(config).rfc2822 = true;
-        } else {
-            config._isValid = false;
         }
+
+        switch (match[5].length) {
+            case 2: // military
+                if (timezoneIndex === 0) {
+                    timezone = ' +0000';
+                } else {
+                    timezoneIndex = military.indexOf(match[5][1].toUpperCase()) - 12;
+                    timezone = ((timezoneIndex < 0) ? ' -' : ' +') +
+                        (('' + timezoneIndex).replace(/^-?/, '0')).match(/..$/)[0] + '00';
+                }
+                break;
+            case 4: // Zone
+                timezone = timezones[match[5]];
+                break;
+            default: // UT or +/-9999
+                timezone = timezones[' GMT'];
+        }
+        match[5] = timezone;
+        config._i = match.splice(1).join('');
+        tzFormat = ' ZZ';
+        config._f = dayFormat + dateFormat + timeFormat + tzFormat;
+        configFromStringAndFormat(config);
+        getParsingFlags(config).rfc2822 = true;
+    } else {
+        config._isValid = false;
+    }
+}
+
+// date from iso format or fallback
+function configFromString(config) {
+    var matched = aspNetJsonRegex.exec(config._i);
+
+    if (matched !== null) {
+        config._d = new Date(+matched[1]);
+        return;
     }
 
-    // date from iso format or fallback
-    function configFromString(config) {
-        var matched = aspNetJsonRegex.exec(config._i);
+    configFromISO(config);
+    if (config._isValid === false) {
+        delete config._isValid;
+    } else {
+        return;
+    }
 
-        if (matched !== null) {
-            config._d = new Date(+matched[1]);
-            return;
+    configFromRFC2822(config);
+    if (config._isValid === false) {
+        delete config._isValid;
+    } else {
+        return;
+    }
+
+    // Final attempt, use Input Fallback
+    hooks.createFromInputFallback(config);
+}
+
+hooks.createFromInputFallback = deprecate(
+    'value provided is not in a recognized RFC2822 or ISO format. moment construction falls back to js Date(), ' +
+    'which is not reliable across all browsers and versions. Non RFC2822/ISO date formats are ' +
+    'discouraged and will be removed in an upcoming major release. Please refer to ' +
+    'http://momentjs.com/guides/#/warnings/js-date/ for more info.',
+    function (config) {
+        config._d = new Date(config._i + (config._useUTC ? ' UTC' : ''));
+    }
+);
+
+// Pick the first defined of two or three arguments.
+function defaults(a, b, c) {
+    if (a != null) {
+        return a;
+    }
+    if (b != null) {
+        return b;
+    }
+    return c;
+}
+
+function currentDateArray(config) {
+    // hooks is actually the exported moment object
+    var nowValue = new Date(hooks.now());
+    if (config._useUTC) {
+        return [nowValue.getUTCFullYear(), nowValue.getUTCMonth(), nowValue.getUTCDate()];
+    }
+    return [nowValue.getFullYear(), nowValue.getMonth(), nowValue.getDate()];
+}
+
+// convert an array to a date.
+// the array should mirror the parameters below
+// note: all values past the year are optional and will default to the lowest possible value.
+// [year, month, day , hour, minute, second, millisecond]
+function configFromArray (config) {
+    var i, date, input = [], currentDate, yearToUse;
+
+    if (config._d) {
+        return;
+    }
+
+    currentDate = currentDateArray(config);
+
+    //compute day of the year from weeks and weekdays
+    if (config._w && config._a[DATE] == null && config._a[MONTH] == null) {
+        dayOfYearFromWeekInfo(config);
+    }
+
+    //if the day of the year is set, figure out what it is
+    if (config._dayOfYear != null) {
+        yearToUse = defaults(config._a[YEAR], currentDate[YEAR]);
+
+        if (config._dayOfYear > daysInYear(yearToUse) || config._dayOfYear === 0) {
+            getParsingFlags(config)._overflowDayOfYear = true;
         }
 
+        date = createUTCDate(yearToUse, 0, config._dayOfYear);
+        config._a[MONTH] = date.getUTCMonth();
+        config._a[DATE] = date.getUTCDate();
+    }
+
+    // Default to current date.
+    // * if no year, month, day of month are given, default to today
+    // * if day of month is given, default month and year
+    // * if month is given, default only year
+    // * if year is given, don't default anything
+    for (i = 0; i < 3 && config._a[i] == null; ++i) {
+        config._a[i] = input[i] = currentDate[i];
+    }
+
+    // Zero out whatever was not defaulted, including time
+    for (; i < 7; i++) {
+        config._a[i] = input[i] = (config._a[i] == null) ? (i === 2 ? 1 : 0) : config._a[i];
+    }
+
+    // Check for 24:00:00.000
+    if (config._a[HOUR] === 24 &&
+            config._a[MINUTE] === 0 &&
+            config._a[SECOND] === 0 &&
+            config._a[MILLISECOND] === 0) {
+        config._nextDay = true;
+        config._a[HOUR] = 0;
+    }
+
+    config._d = (config._useUTC ? createUTCDate : createDate).apply(null, input);
+    // Apply timezone offset from input. The actual utcOffset can be changed
+    // with parseZone.
+    if (config._tzm != null) {
+        config._d.setUTCMinutes(config._d.getUTCMinutes() - config._tzm);
+    }
+
+    if (config._nextDay) {
+        config._a[HOUR] = 24;
+    }
+}
+
+function dayOfYearFromWeekInfo(config) {
+    var w, weekYear, week, weekday, dow, doy, temp, weekdayOverflow;
+
+    w = config._w;
+    if (w.GG != null || w.W != null || w.E != null) {
+        dow = 1;
+        doy = 4;
+
+        // TODO: We need to take the current isoWeekYear, but that depends on
+        // how we interpret now (local, utc, fixed offset). So create
+        // a now version of current config (take local/utc/offset flags, and
+        // create now).
+        weekYear = defaults(w.GG, config._a[YEAR], weekOfYear(createLocal(), 1, 4).year);
+        week = defaults(w.W, 1);
+        weekday = defaults(w.E, 1);
+        if (weekday < 1 || weekday > 7) {
+            weekdayOverflow = true;
+        }
+    } else {
+        dow = config._locale._week.dow;
+        doy = config._locale._week.doy;
+
+        var curWeek = weekOfYear(createLocal(), dow, doy);
+
+        weekYear = defaults(w.gg, config._a[YEAR], curWeek.year);
+
+        // Default to current week.
+        week = defaults(w.w, curWeek.week);
+
+        if (w.d != null) {
+            // weekday -- low day numbers are considered next week
+            weekday = w.d;
+            if (weekday < 0 || weekday > 6) {
+                weekdayOverflow = true;
+            }
+        } else if (w.e != null) {
+            // local weekday -- counting starts from begining of week
+            weekday = w.e + dow;
+            if (w.e < 0 || w.e > 6) {
+                weekdayOverflow = true;
+            }
+        } else {
+            // default to begining of week
+            weekday = dow;
+        }
+    }
+    if (week < 1 || week > weeksInYear(weekYear, dow, doy)) {
+        getParsingFlags(config)._overflowWeeks = true;
+    } else if (weekdayOverflow != null) {
+        getParsingFlags(config)._overflowWeekday = true;
+    } else {
+        temp = dayOfYearFromWeeks(weekYear, week, weekday, dow, doy);
+        config._a[YEAR] = temp.year;
+        config._dayOfYear = temp.dayOfYear;
+    }
+}
+
+// constant that refers to the ISO standard
+hooks.ISO_8601 = function () {};
+
+// constant that refers to the RFC 2822 form
+hooks.RFC_2822 = function () {};
+
+// date from string and format string
+function configFromStringAndFormat(config) {
+    // TODO: Move this to another part of the creation flow to prevent circular deps
+    if (config._f === hooks.ISO_8601) {
         configFromISO(config);
-        if (config._isValid === false) {
-            delete config._isValid;
-        } else {
-            return;
-        }
-
+        return;
+    }
+    if (config._f === hooks.RFC_2822) {
         configFromRFC2822(config);
-        if (config._isValid === false) {
-            delete config._isValid;
-        } else {
-            return;
-        }
-
-        // Final attempt, use Input Fallback
-        hooks.createFromInputFallback(config);
+        return;
     }
+    config._a = [];
+    getParsingFlags(config).empty = true;
 
-    hooks.createFromInputFallback = deprecate(
-        'value provided is not in a recognized RFC2822 or ISO format. moment construction falls back to js Date(), ' +
-        'which is not reliable across all browsers and versions. Non RFC2822/ISO date formats are ' +
-        'discouraged and will be removed in an upcoming major release. Please refer to ' +
-        'http://momentjs.com/guides/#/warnings/js-date/ for more info.',
-        function (config) {
-            config._d = new Date(config._i + (config._useUTC ? ' UTC' : ''));
+    // This array is used to make a Date, either with `new Date` or `Date.UTC`
+    var string = '' + config._i,
+        i, parsedInput, tokens, token, skipped,
+        stringLength = string.length,
+        totalParsedInputLength = 0;
+
+    tokens = expandFormat(config._f, config._locale).match(formattingTokens) || [];
+
+    for (i = 0; i < tokens.length; i++) {
+        token = tokens[i];
+        parsedInput = (string.match(getParseRegexForToken(token, config)) || [])[0];
+        // console.log('token', token, 'parsedInput', parsedInput,
+        //         'regex', getParseRegexForToken(token, config));
+        if (parsedInput) {
+            skipped = string.substr(0, string.indexOf(parsedInput));
+            if (skipped.length > 0) {
+                getParsingFlags(config).unusedInput.push(skipped);
+            }
+            string = string.slice(string.indexOf(parsedInput) + parsedInput.length);
+            totalParsedInputLength += parsedInput.length;
         }
-    );
-
-    // constant that refers to the ISO standard
-    hooks.ISO_8601 = function () {};
-
-    // constant that refers to the RFC 2822 form
-    hooks.RFC_2822 = function () {};
-
-    // date from string and format string
-    function configFromStringAndFormat(config) {
-        // TODO: Move this to another part of the creation flow to prevent circular deps
-        if (config._f === hooks.ISO_8601) {
-            configFromISO(config);
-            return;
-        }
-        if (config._f === hooks.RFC_2822) {
-            configFromRFC2822(config);
-            return;
-        }
-        config._a = [];
-        getParsingFlags(config).empty = true;
-
-        // This array is used to make a Date, either with `new Date` or `Date.UTC`
-        var string = '' + config._i,
-            i, parsedInput, tokens, token, skipped,
-            stringLength = string.length,
-            totalParsedInputLength = 0;
-
-        tokens = expandFormat(config._f, config._locale).match(formattingTokens) || [];
-
-        for (i = 0; i < tokens.length; i++) {
-            token = tokens[i];
-            parsedInput = (string.match(getParseRegexForToken(token, config)) || [])[0];
-            // console.log('token', token, 'parsedInput', parsedInput,
-            //         'regex', getParseRegexForToken(token, config));
+        // don't parse if it's not a known token
+        if (formatTokenFunctions[token]) {
             if (parsedInput) {
-                skipped = string.substr(0, string.indexOf(parsedInput));
-                if (skipped.length > 0) {
-                    getParsingFlags(config).unusedInput.push(skipped);
-                }
-                string = string.slice(string.indexOf(parsedInput) + parsedInput.length);
-                totalParsedInputLength += parsedInput.length;
-            }
-            // don't parse if it's not a known token
-            if (formatTokenFunctions[token]) {
-                if (parsedInput) {
-                    getParsingFlags(config).empty = false;
-                }
-                else {
-                    getParsingFlags(config).unusedTokens.push(token);
-                }
-                addTimeToArrayFromToken(token, parsedInput, config);
-            }
-            else if (config._strict && !parsedInput) {
-                getParsingFlags(config).unusedTokens.push(token);
-            }
-        }
-
-        // add remaining unparsed input length to the string
-        getParsingFlags(config).charsLeftOver = stringLength - totalParsedInputLength;
-        if (string.length > 0) {
-            getParsingFlags(config).unusedInput.push(string);
-        }
-
-        // clear _12h flag if hour is <= 12
-        if (config._a[HOUR] <= 12 &&
-            getParsingFlags(config).bigHour === true &&
-            config._a[HOUR] > 0) {
-            getParsingFlags(config).bigHour = undefined;
-        }
-
-        getParsingFlags(config).parsedDateParts = config._a.slice(0);
-        getParsingFlags(config).meridiem = config._meridiem;
-        // handle meridiem
-        config._a[HOUR] = meridiemFixWrap(config._locale, config._a[HOUR], config._meridiem);
-
-        configFromArray(config);
-        checkOverflow(config);
-    }
-
-
-    function meridiemFixWrap (locale, hour, meridiem) {
-        var isPm;
-
-        if (meridiem == null) {
-            // nothing to do
-            return hour;
-        }
-        if (locale.meridiemHour != null) {
-            return locale.meridiemHour(hour, meridiem);
-        } else if (locale.isPM != null) {
-            // Fallback
-            isPm = locale.isPM(meridiem);
-            if (isPm && hour < 12) {
-                hour += 12;
-            }
-            if (!isPm && hour === 12) {
-                hour = 0;
-            }
-            return hour;
-        } else {
-            // this is not supposed to happen
-            return hour;
-        }
-    }
-
-    // date from string and array of format strings
-    function configFromStringAndArray(config) {
-        var tempConfig,
-            bestMoment,
-
-            scoreToBeat,
-            i,
-            currentScore;
-
-        if (config._f.length === 0) {
-            getParsingFlags(config).invalidFormat = true;
-            config._d = new Date(NaN);
-            return;
-        }
-
-        for (i = 0; i < config._f.length; i++) {
-            currentScore = 0;
-            tempConfig = copyConfig({}, config);
-            if (config._useUTC != null) {
-                tempConfig._useUTC = config._useUTC;
-            }
-            tempConfig._f = config._f[i];
-            configFromStringAndFormat(tempConfig);
-
-            if (!isValid(tempConfig)) {
-                continue;
-            }
-
-            // if there is any input that was not parsed add a penalty for that format
-            currentScore += getParsingFlags(tempConfig).charsLeftOver;
-
-            //or tokens
-            currentScore += getParsingFlags(tempConfig).unusedTokens.length * 10;
-
-            getParsingFlags(tempConfig).score = currentScore;
-
-            if (scoreToBeat == null || currentScore < scoreToBeat) {
-                scoreToBeat = currentScore;
-                bestMoment = tempConfig;
-            }
-        }
-
-        extend(config, bestMoment || tempConfig);
-    }
-
-    function configFromObject(config) {
-        if (config._d) {
-            return;
-        }
-
-        var i = normalizeObjectUnits(config._i);
-        config._a = map([i.year, i.month, i.day || i.date, i.hour, i.minute, i.second, i.millisecond], function (obj) {
-            return obj && parseInt(obj, 10);
-        });
-
-        configFromArray(config);
-    }
-
-    function createFromConfig (config) {
-        var res = new Moment(checkOverflow(prepareConfig(config)));
-        if (res._nextDay) {
-            // Adding is smart enough around DST
-            res.add(1, 'd');
-            res._nextDay = undefined;
-        }
-
-        return res;
-    }
-
-    function prepareConfig (config) {
-        var input = config._i,
-            format = config._f;
-
-        config._locale = config._locale || getLocale(config._l);
-
-        if (input === null || (format === undefined && input === '')) {
-            return createInvalid({nullInput: true});
-        }
-
-        if (typeof input === 'string') {
-            config._i = input = config._locale.preparse(input);
-        }
-
-        if (isMoment(input)) {
-            return new Moment(checkOverflow(input));
-        } else if (isDate(input)) {
-            config._d = input;
-        } else if (isArray(format)) {
-            configFromStringAndArray(config);
-        } else if (format) {
-            configFromStringAndFormat(config);
-        }  else {
-            configFromInput(config);
-        }
-
-        if (!isValid(config)) {
-            config._d = null;
-        }
-
-        return config;
-    }
-
-    function configFromInput(config) {
-        var input = config._i;
-        if (isUndefined(input)) {
-            config._d = new Date(hooks.now());
-        } else if (isDate(input)) {
-            config._d = new Date(input.valueOf());
-        } else if (typeof input === 'string') {
-            configFromString(config);
-        } else if (isArray(input)) {
-            config._a = map(input.slice(0), function (obj) {
-                return parseInt(obj, 10);
-            });
-            configFromArray(config);
-        } else if (isObject(input)) {
-            configFromObject(config);
-        } else if (isNumber(input)) {
-            // from milliseconds
-            config._d = new Date(input);
-        } else {
-            hooks.createFromInputFallback(config);
-        }
-    }
-
-    function createLocalOrUTC (input, format, locale, strict, isUTC) {
-        var c = {};
-
-        if (locale === true || locale === false) {
-            strict = locale;
-            locale = undefined;
-        }
-
-        if ((isObject(input) && isObjectEmpty(input)) ||
-                (isArray(input) && input.length === 0)) {
-            input = undefined;
-        }
-        // object construction must be done this way.
-        // https://github.com/moment/moment/issues/1423
-        c._isAMomentObject = true;
-        c._useUTC = c._isUTC = isUTC;
-        c._l = locale;
-        c._i = input;
-        c._f = format;
-        c._strict = strict;
-
-        return createFromConfig(c);
-    }
-
-    function createLocal (input, format, locale, strict) {
-        return createLocalOrUTC(input, format, locale, strict, false);
-    }
-
-    var prototypeMin = deprecate(
-        'moment().min is deprecated, use moment.max instead. http://momentjs.com/guides/#/warnings/min-max/',
-        function () {
-            var other = createLocal.apply(null, arguments);
-            if (this.isValid() && other.isValid()) {
-                return other < this ? this : other;
-            } else {
-                return createInvalid();
-            }
-        }
-    );
-
-    var prototypeMax = deprecate(
-        'moment().max is deprecated, use moment.min instead. http://momentjs.com/guides/#/warnings/min-max/',
-        function () {
-            var other = createLocal.apply(null, arguments);
-            if (this.isValid() && other.isValid()) {
-                return other > this ? this : other;
-            } else {
-                return createInvalid();
-            }
-        }
-    );
-
-    // Pick a moment m from moments so that m[fn](other) is true for all
-    // other. This relies on the function fn to be transitive.
-    //
-    // moments should either be an array of moment objects or an array, whose
-    // first element is an array of moment objects.
-    function pickBy(fn, moments) {
-        var res, i;
-        if (moments.length === 1 && isArray(moments[0])) {
-            moments = moments[0];
-        }
-        if (!moments.length) {
-            return createLocal();
-        }
-        res = moments[0];
-        for (i = 1; i < moments.length; ++i) {
-            if (!moments[i].isValid() || moments[i][fn](res)) {
-                res = moments[i];
-            }
-        }
-        return res;
-    }
-
-    // TODO: Use [].sort instead?
-    function min () {
-        var args = [].slice.call(arguments, 0);
-
-        return pickBy('isBefore', args);
-    }
-
-    function max () {
-        var args = [].slice.call(arguments, 0);
-
-        return pickBy('isAfter', args);
-    }
-
-    var now = function () {
-        return Date.now ? Date.now() : +(new Date());
-    };
-
-    var ordering = ['year', 'quarter', 'month', 'week', 'day', 'hour', 'minute', 'second', 'millisecond'];
-
-    function isDurationValid(m) {
-        for (var key in m) {
-            if (!(indexOf.call(ordering, key) !== -1 && (m[key] == null || !isNaN(m[key])))) {
-                return false;
-            }
-        }
-
-        var unitHasDecimal = false;
-        for (var i = 0; i < ordering.length; ++i) {
-            if (m[ordering[i]]) {
-                if (unitHasDecimal) {
-                    return false; // only allow non-integers for smallest unit
-                }
-                if (parseFloat(m[ordering[i]]) !== toInt(m[ordering[i]])) {
-                    unitHasDecimal = true;
-                }
-            }
-        }
-
-        return true;
-    }
-
-    function isValid$1() {
-        return this._isValid;
-    }
-
-    function createInvalid$1() {
-        return createDuration(NaN);
-    }
-
-    function Duration (duration) {
-        var normalizedInput = normalizeObjectUnits(duration),
-            years = normalizedInput.year || 0,
-            quarters = normalizedInput.quarter || 0,
-            months = normalizedInput.month || 0,
-            weeks = normalizedInput.week || 0,
-            days = normalizedInput.day || 0,
-            hours = normalizedInput.hour || 0,
-            minutes = normalizedInput.minute || 0,
-            seconds = normalizedInput.second || 0,
-            milliseconds = normalizedInput.millisecond || 0;
-
-        this._isValid = isDurationValid(normalizedInput);
-
-        // representation for dateAddRemove
-        this._milliseconds = +milliseconds +
-            seconds * 1e3 + // 1000
-            minutes * 6e4 + // 1000 * 60
-            hours * 1000 * 60 * 60; //using 1000 * 60 * 60 instead of 36e5 to avoid floating point rounding errors https://github.com/moment/moment/issues/2978
-        // Because of dateAddRemove treats 24 hours as different from a
-        // day when working around DST, we need to store them separately
-        this._days = +days +
-            weeks * 7;
-        // It is impossible to translate months into days without knowing
-        // which months you are are talking about, so we have to store
-        // it separately.
-        this._months = +months +
-            quarters * 3 +
-            years * 12;
-
-        this._data = {};
-
-        this._locale = getLocale();
-
-        this._bubble();
-    }
-
-    function isDuration (obj) {
-        return obj instanceof Duration;
-    }
-
-    function absRound (number) {
-        if (number < 0) {
-            return Math.round(-1 * number) * -1;
-        } else {
-            return Math.round(number);
-        }
-    }
-
-    // FORMATTING
-
-    function offset (token, separator) {
-        addFormatToken(token, 0, 0, function () {
-            var offset = this.utcOffset();
-            var sign = '+';
-            if (offset < 0) {
-                offset = -offset;
-                sign = '-';
-            }
-            return sign + zeroFill(~~(offset / 60), 2) + separator + zeroFill(~~(offset) % 60, 2);
-        });
-    }
-
-    offset('Z', ':');
-    offset('ZZ', '');
-
-    // PARSING
-
-    addRegexToken('Z',  matchShortOffset);
-    addRegexToken('ZZ', matchShortOffset);
-    addParseToken(['Z', 'ZZ'], function (input, array, config) {
-        config._useUTC = true;
-        config._tzm = offsetFromString(matchShortOffset, input);
-    });
-
-    // HELPERS
-
-    // timezone chunker
-    // '+10:00' > ['10',  '00']
-    // '-1530'  > ['-15', '30']
-    var chunkOffset = /([\+\-]|\d\d)/gi;
-
-    function offsetFromString(matcher, string) {
-        var matches = (string || '').match(matcher);
-
-        if (matches === null) {
-            return null;
-        }
-
-        var chunk   = matches[matches.length - 1] || [];
-        var parts   = (chunk + '').match(chunkOffset) || ['-', 0, 0];
-        var minutes = +(parts[1] * 60) + toInt(parts[2]);
-
-        return minutes === 0 ?
-          0 :
-          parts[0] === '+' ? minutes : -minutes;
-    }
-
-    // Return a moment from input, that is local/utc/zone equivalent to model.
-    function cloneWithOffset(input, model) {
-        var res, diff;
-        if (model._isUTC) {
-            res = model.clone();
-            diff = (isMoment(input) || isDate(input) ? input.valueOf() : createLocal(input).valueOf()) - res.valueOf();
-            // Use low-level api, because this fn is low-level api.
-            res._d.setTime(res._d.valueOf() + diff);
-            hooks.updateOffset(res, false);
-            return res;
-        } else {
-            return createLocal(input).local();
-        }
-    }
-
-    function getDateOffset (m) {
-        // On Firefox.24 Date#getTimezoneOffset returns a floating point.
-        // https://github.com/moment/moment/pull/1871
-        return -Math.round(m._d.getTimezoneOffset() / 15) * 15;
-    }
-
-    // HOOKS
-
-    // This function will be called whenever a moment is mutated.
-    // It is intended to keep the offset in sync with the timezone.
-    hooks.updateOffset = function () {};
-
-    // MOMENTS
-
-    // keepLocalTime = true means only change the timezone, without
-    // affecting the local hour. So 5:31:26 +0300 --[utcOffset(2, true)]-->
-    // 5:31:26 +0200 It is possible that 5:31:26 doesn't exist with offset
-    // +0200, so we adjust the time as needed, to be valid.
-    //
-    // Keeping the time actually adds/subtracts (one hour)
-    // from the actual represented time. That is why we call updateOffset
-    // a second time. In case it wants us to change the offset again
-    // _changeInProgress == true case, then we have to adjust, because
-    // there is no such time in the given timezone.
-    function getSetOffset (input, keepLocalTime, keepMinutes) {
-        var offset = this._offset || 0,
-            localAdjust;
-        if (!this.isValid()) {
-            return input != null ? this : NaN;
-        }
-        if (input != null) {
-            if (typeof input === 'string') {
-                input = offsetFromString(matchShortOffset, input);
-                if (input === null) {
-                    return this;
-                }
-            } else if (Math.abs(input) < 16 && !keepMinutes) {
-                input = input * 60;
-            }
-            if (!this._isUTC && keepLocalTime) {
-                localAdjust = getDateOffset(this);
-            }
-            this._offset = input;
-            this._isUTC = true;
-            if (localAdjust != null) {
-                this.add(localAdjust, 'm');
-            }
-            if (offset !== input) {
-                if (!keepLocalTime || this._changeInProgress) {
-                    addSubtract(this, createDuration(input - offset, 'm'), 1, false);
-                } else if (!this._changeInProgress) {
-                    this._changeInProgress = true;
-                    hooks.updateOffset(this, true);
-                    this._changeInProgress = null;
-                }
-            }
-            return this;
-        } else {
-            return this._isUTC ? offset : getDateOffset(this);
-        }
-    }
-
-    function getSetZone (input, keepLocalTime) {
-        if (input != null) {
-            if (typeof input !== 'string') {
-                input = -input;
-            }
-
-            this.utcOffset(input, keepLocalTime);
-
-            return this;
-        } else {
-            return -this.utcOffset();
-        }
-    }
-
-    function setOffsetToUTC (keepLocalTime) {
-        return this.utcOffset(0, keepLocalTime);
-    }
-
-    function setOffsetToLocal (keepLocalTime) {
-        if (this._isUTC) {
-            this.utcOffset(0, keepLocalTime);
-            this._isUTC = false;
-
-            if (keepLocalTime) {
-                this.subtract(getDateOffset(this), 'm');
-            }
-        }
-        return this;
-    }
-
-    function setOffsetToParsedOffset () {
-        if (this._tzm != null) {
-            this.utcOffset(this._tzm, false, true);
-        } else if (typeof this._i === 'string') {
-            var tZone = offsetFromString(matchOffset, this._i);
-            if (tZone != null) {
-                this.utcOffset(tZone);
+                getParsingFlags(config).empty = false;
             }
             else {
-                this.utcOffset(0, true);
+                getParsingFlags(config).unusedTokens.push(token);
+            }
+            addTimeToArrayFromToken(token, parsedInput, config);
+        }
+        else if (config._strict && !parsedInput) {
+            getParsingFlags(config).unusedTokens.push(token);
+        }
+    }
+
+    // add remaining unparsed input length to the string
+    getParsingFlags(config).charsLeftOver = stringLength - totalParsedInputLength;
+    if (string.length > 0) {
+        getParsingFlags(config).unusedInput.push(string);
+    }
+
+    // clear _12h flag if hour is <= 12
+    if (config._a[HOUR] <= 12 &&
+        getParsingFlags(config).bigHour === true &&
+        config._a[HOUR] > 0) {
+        getParsingFlags(config).bigHour = undefined;
+    }
+
+    getParsingFlags(config).parsedDateParts = config._a.slice(0);
+    getParsingFlags(config).meridiem = config._meridiem;
+    // handle meridiem
+    config._a[HOUR] = meridiemFixWrap(config._locale, config._a[HOUR], config._meridiem);
+
+    configFromArray(config);
+    checkOverflow(config);
+}
+
+
+function meridiemFixWrap (locale, hour, meridiem) {
+    var isPm;
+
+    if (meridiem == null) {
+        // nothing to do
+        return hour;
+    }
+    if (locale.meridiemHour != null) {
+        return locale.meridiemHour(hour, meridiem);
+    } else if (locale.isPM != null) {
+        // Fallback
+        isPm = locale.isPM(meridiem);
+        if (isPm && hour < 12) {
+            hour += 12;
+        }
+        if (!isPm && hour === 12) {
+            hour = 0;
+        }
+        return hour;
+    } else {
+        // this is not supposed to happen
+        return hour;
+    }
+}
+
+// date from string and array of format strings
+function configFromStringAndArray(config) {
+    var tempConfig,
+        bestMoment,
+
+        scoreToBeat,
+        i,
+        currentScore;
+
+    if (config._f.length === 0) {
+        getParsingFlags(config).invalidFormat = true;
+        config._d = new Date(NaN);
+        return;
+    }
+
+    for (i = 0; i < config._f.length; i++) {
+        currentScore = 0;
+        tempConfig = copyConfig({}, config);
+        if (config._useUTC != null) {
+            tempConfig._useUTC = config._useUTC;
+        }
+        tempConfig._f = config._f[i];
+        configFromStringAndFormat(tempConfig);
+
+        if (!isValid(tempConfig)) {
+            continue;
+        }
+
+        // if there is any input that was not parsed add a penalty for that format
+        currentScore += getParsingFlags(tempConfig).charsLeftOver;
+
+        //or tokens
+        currentScore += getParsingFlags(tempConfig).unusedTokens.length * 10;
+
+        getParsingFlags(tempConfig).score = currentScore;
+
+        if (scoreToBeat == null || currentScore < scoreToBeat) {
+            scoreToBeat = currentScore;
+            bestMoment = tempConfig;
+        }
+    }
+
+    extend(config, bestMoment || tempConfig);
+}
+
+function configFromObject(config) {
+    if (config._d) {
+        return;
+    }
+
+    var i = normalizeObjectUnits(config._i);
+    config._a = map([i.year, i.month, i.day || i.date, i.hour, i.minute, i.second, i.millisecond], function (obj) {
+        return obj && parseInt(obj, 10);
+    });
+
+    configFromArray(config);
+}
+
+function createFromConfig (config) {
+    var res = new Moment(checkOverflow(prepareConfig(config)));
+    if (res._nextDay) {
+        // Adding is smart enough around DST
+        res.add(1, 'd');
+        res._nextDay = undefined;
+    }
+
+    return res;
+}
+
+function prepareConfig (config) {
+    var input = config._i,
+        format = config._f;
+
+    config._locale = config._locale || getLocale(config._l);
+
+    if (input === null || (format === undefined && input === '')) {
+        return createInvalid({nullInput: true});
+    }
+
+    if (typeof input === 'string') {
+        config._i = input = config._locale.preparse(input);
+    }
+
+    if (isMoment(input)) {
+        return new Moment(checkOverflow(input));
+    } else if (isDate(input)) {
+        config._d = input;
+    } else if (isArray(format)) {
+        configFromStringAndArray(config);
+    } else if (format) {
+        configFromStringAndFormat(config);
+    }  else {
+        configFromInput(config);
+    }
+
+    if (!isValid(config)) {
+        config._d = null;
+    }
+
+    return config;
+}
+
+function configFromInput(config) {
+    var input = config._i;
+    if (isUndefined(input)) {
+        config._d = new Date(hooks.now());
+    } else if (isDate(input)) {
+        config._d = new Date(input.valueOf());
+    } else if (typeof input === 'string') {
+        configFromString(config);
+    } else if (isArray(input)) {
+        config._a = map(input.slice(0), function (obj) {
+            return parseInt(obj, 10);
+        });
+        configFromArray(config);
+    } else if (isObject(input)) {
+        configFromObject(config);
+    } else if (isNumber(input)) {
+        // from milliseconds
+        config._d = new Date(input);
+    } else {
+        hooks.createFromInputFallback(config);
+    }
+}
+
+function createLocalOrUTC (input, format, locale, strict, isUTC) {
+    var c = {};
+
+    if (locale === true || locale === false) {
+        strict = locale;
+        locale = undefined;
+    }
+
+    if ((isObject(input) && isObjectEmpty(input)) ||
+            (isArray(input) && input.length === 0)) {
+        input = undefined;
+    }
+    // object construction must be done this way.
+    // https://github.com/moment/moment/issues/1423
+    c._isAMomentObject = true;
+    c._useUTC = c._isUTC = isUTC;
+    c._l = locale;
+    c._i = input;
+    c._f = format;
+    c._strict = strict;
+
+    return createFromConfig(c);
+}
+
+function createLocal (input, format, locale, strict) {
+    return createLocalOrUTC(input, format, locale, strict, false);
+}
+
+var prototypeMin = deprecate(
+    'moment().min is deprecated, use moment.max instead. http://momentjs.com/guides/#/warnings/min-max/',
+    function () {
+        var other = createLocal.apply(null, arguments);
+        if (this.isValid() && other.isValid()) {
+            return other < this ? this : other;
+        } else {
+            return createInvalid();
+        }
+    }
+);
+
+var prototypeMax = deprecate(
+    'moment().max is deprecated, use moment.min instead. http://momentjs.com/guides/#/warnings/min-max/',
+    function () {
+        var other = createLocal.apply(null, arguments);
+        if (this.isValid() && other.isValid()) {
+            return other > this ? this : other;
+        } else {
+            return createInvalid();
+        }
+    }
+);
+
+// Pick a moment m from moments so that m[fn](other) is true for all
+// other. This relies on the function fn to be transitive.
+//
+// moments should either be an array of moment objects or an array, whose
+// first element is an array of moment objects.
+function pickBy(fn, moments) {
+    var res, i;
+    if (moments.length === 1 && isArray(moments[0])) {
+        moments = moments[0];
+    }
+    if (!moments.length) {
+        return createLocal();
+    }
+    res = moments[0];
+    for (i = 1; i < moments.length; ++i) {
+        if (!moments[i].isValid() || moments[i][fn](res)) {
+            res = moments[i];
+        }
+    }
+    return res;
+}
+
+// TODO: Use [].sort instead?
+function min () {
+    var args = [].slice.call(arguments, 0);
+
+    return pickBy('isBefore', args);
+}
+
+function max () {
+    var args = [].slice.call(arguments, 0);
+
+    return pickBy('isAfter', args);
+}
+
+var now = function () {
+    return Date.now ? Date.now() : +(new Date());
+};
+
+var ordering = ['year', 'quarter', 'month', 'week', 'day', 'hour', 'minute', 'second', 'millisecond'];
+
+function isDurationValid(m) {
+    for (var key in m) {
+        if (!(ordering.indexOf(key) !== -1 && (m[key] == null || !isNaN(m[key])))) {
+            return false;
+        }
+    }
+
+    var unitHasDecimal = false;
+    for (var i = 0; i < ordering.length; ++i) {
+        if (m[ordering[i]]) {
+            if (unitHasDecimal) {
+                return false; // only allow non-integers for smallest unit
+            }
+            if (parseFloat(m[ordering[i]]) !== toInt(m[ordering[i]])) {
+                unitHasDecimal = true;
+            }
+        }
+    }
+
+    return true;
+}
+
+function isValid$1() {
+    return this._isValid;
+}
+
+function createInvalid$1() {
+    return createDuration(NaN);
+}
+
+function Duration (duration) {
+    var normalizedInput = normalizeObjectUnits(duration),
+        years = normalizedInput.year || 0,
+        quarters = normalizedInput.quarter || 0,
+        months = normalizedInput.month || 0,
+        weeks = normalizedInput.week || 0,
+        days = normalizedInput.day || 0,
+        hours = normalizedInput.hour || 0,
+        minutes = normalizedInput.minute || 0,
+        seconds = normalizedInput.second || 0,
+        milliseconds = normalizedInput.millisecond || 0;
+
+    this._isValid = isDurationValid(normalizedInput);
+
+    // representation for dateAddRemove
+    this._milliseconds = +milliseconds +
+        seconds * 1e3 + // 1000
+        minutes * 6e4 + // 1000 * 60
+        hours * 1000 * 60 * 60; //using 1000 * 60 * 60 instead of 36e5 to avoid floating point rounding errors https://github.com/moment/moment/issues/2978
+    // Because of dateAddRemove treats 24 hours as different from a
+    // day when working around DST, we need to store them separately
+    this._days = +days +
+        weeks * 7;
+    // It is impossible translate months into days without knowing
+    // which months you are are talking about, so we have to store
+    // it separately.
+    this._months = +months +
+        quarters * 3 +
+        years * 12;
+
+    this._data = {};
+
+    this._locale = getLocale();
+
+    this._bubble();
+}
+
+function isDuration (obj) {
+    return obj instanceof Duration;
+}
+
+function absRound (number) {
+    if (number < 0) {
+        return Math.round(-1 * number) * -1;
+    } else {
+        return Math.round(number);
+    }
+}
+
+// FORMATTING
+
+function offset (token, separator) {
+    addFormatToken(token, 0, 0, function () {
+        var offset = this.utcOffset();
+        var sign = '+';
+        if (offset < 0) {
+            offset = -offset;
+            sign = '-';
+        }
+        return sign + zeroFill(~~(offset / 60), 2) + separator + zeroFill(~~(offset) % 60, 2);
+    });
+}
+
+offset('Z', ':');
+offset('ZZ', '');
+
+// PARSING
+
+addRegexToken('Z',  matchShortOffset);
+addRegexToken('ZZ', matchShortOffset);
+addParseToken(['Z', 'ZZ'], function (input, array, config) {
+    config._useUTC = true;
+    config._tzm = offsetFromString(matchShortOffset, input);
+});
+
+// HELPERS
+
+// timezone chunker
+// '+10:00' > ['10',  '00']
+// '-1530'  > ['-15', '30']
+var chunkOffset = /([\+\-]|\d\d)/gi;
+
+function offsetFromString(matcher, string) {
+    var matches = (string || '').match(matcher);
+
+    if (matches === null) {
+        return null;
+    }
+
+    var chunk   = matches[matches.length - 1] || [];
+    var parts   = (chunk + '').match(chunkOffset) || ['-', 0, 0];
+    var minutes = +(parts[1] * 60) + toInt(parts[2]);
+
+    return minutes === 0 ?
+      0 :
+      parts[0] === '+' ? minutes : -minutes;
+}
+
+// Return a moment from input, that is local/utc/zone equivalent to model.
+function cloneWithOffset(input, model) {
+    var res, diff;
+    if (model._isUTC) {
+        res = model.clone();
+        diff = (isMoment(input) || isDate(input) ? input.valueOf() : createLocal(input).valueOf()) - res.valueOf();
+        // Use low-level api, because this fn is low-level api.
+        res._d.setTime(res._d.valueOf() + diff);
+        hooks.updateOffset(res, false);
+        return res;
+    } else {
+        return createLocal(input).local();
+    }
+}
+
+function getDateOffset (m) {
+    // On Firefox.24 Date#getTimezoneOffset returns a floating point.
+    // https://github.com/moment/moment/pull/1871
+    return -Math.round(m._d.getTimezoneOffset() / 15) * 15;
+}
+
+// HOOKS
+
+// This function will be called whenever a moment is mutated.
+// It is intended to keep the offset in sync with the timezone.
+hooks.updateOffset = function () {};
+
+// MOMENTS
+
+// keepLocalTime = true means only change the timezone, without
+// affecting the local hour. So 5:31:26 +0300 --[utcOffset(2, true)]-->
+// 5:31:26 +0200 It is possible that 5:31:26 doesn't exist with offset
+// +0200, so we adjust the time as needed, to be valid.
+//
+// Keeping the time actually adds/subtracts (one hour)
+// from the actual represented time. That is why we call updateOffset
+// a second time. In case it wants us to change the offset again
+// _changeInProgress == true case, then we have to adjust, because
+// there is no such time in the given timezone.
+function getSetOffset (input, keepLocalTime, keepMinutes) {
+    var offset = this._offset || 0,
+        localAdjust;
+    if (!this.isValid()) {
+        return input != null ? this : NaN;
+    }
+    if (input != null) {
+        if (typeof input === 'string') {
+            input = offsetFromString(matchShortOffset, input);
+            if (input === null) {
+                return this;
+            }
+        } else if (Math.abs(input) < 16 && !keepMinutes) {
+            input = input * 60;
+        }
+        if (!this._isUTC && keepLocalTime) {
+            localAdjust = getDateOffset(this);
+        }
+        this._offset = input;
+        this._isUTC = true;
+        if (localAdjust != null) {
+            this.add(localAdjust, 'm');
+        }
+        if (offset !== input) {
+            if (!keepLocalTime || this._changeInProgress) {
+                addSubtract(this, createDuration(input - offset, 'm'), 1, false);
+            } else if (!this._changeInProgress) {
+                this._changeInProgress = true;
+                hooks.updateOffset(this, true);
+                this._changeInProgress = null;
             }
         }
         return this;
+    } else {
+        return this._isUTC ? offset : getDateOffset(this);
     }
+}
 
-    function hasAlignedHourOffset (input) {
-        if (!this.isValid()) {
-            return false;
-        }
-        input = input ? createLocal(input).utcOffset() : 0;
-
-        return (this.utcOffset() - input) % 60 === 0;
-    }
-
-    function isDaylightSavingTime () {
-        return (
-            this.utcOffset() > this.clone().month(0).utcOffset() ||
-            this.utcOffset() > this.clone().month(5).utcOffset()
-        );
-    }
-
-    function isDaylightSavingTimeShifted () {
-        if (!isUndefined(this._isDSTShifted)) {
-            return this._isDSTShifted;
+function getSetZone (input, keepLocalTime) {
+    if (input != null) {
+        if (typeof input !== 'string') {
+            input = -input;
         }
 
-        var c = {};
+        this.utcOffset(input, keepLocalTime);
 
-        copyConfig(c, this);
-        c = prepareConfig(c);
+        return this;
+    } else {
+        return -this.utcOffset();
+    }
+}
 
-        if (c._a) {
-            var other = c._isUTC ? createUTC(c._a) : createLocal(c._a);
-            this._isDSTShifted = this.isValid() &&
-                compareArrays(c._a, other.toArray()) > 0;
-        } else {
-            this._isDSTShifted = false;
+function setOffsetToUTC (keepLocalTime) {
+    return this.utcOffset(0, keepLocalTime);
+}
+
+function setOffsetToLocal (keepLocalTime) {
+    if (this._isUTC) {
+        this.utcOffset(0, keepLocalTime);
+        this._isUTC = false;
+
+        if (keepLocalTime) {
+            this.subtract(getDateOffset(this), 'm');
         }
+    }
+    return this;
+}
 
+function setOffsetToParsedOffset () {
+    if (this._tzm != null) {
+        this.utcOffset(this._tzm, false, true);
+    } else if (typeof this._i === 'string') {
+        var tZone = offsetFromString(matchOffset, this._i);
+        if (tZone != null) {
+            this.utcOffset(tZone);
+        }
+        else {
+            this.utcOffset(0, true);
+        }
+    }
+    return this;
+}
+
+function hasAlignedHourOffset (input) {
+    if (!this.isValid()) {
+        return false;
+    }
+    input = input ? createLocal(input).utcOffset() : 0;
+
+    return (this.utcOffset() - input) % 60 === 0;
+}
+
+function isDaylightSavingTime () {
+    return (
+        this.utcOffset() > this.clone().month(0).utcOffset() ||
+        this.utcOffset() > this.clone().month(5).utcOffset()
+    );
+}
+
+function isDaylightSavingTimeShifted () {
+    if (!isUndefined(this._isDSTShifted)) {
         return this._isDSTShifted;
     }
 
-    function isLocal () {
-        return this.isValid() ? !this._isUTC : false;
+    var c = {};
+
+    copyConfig(c, this);
+    c = prepareConfig(c);
+
+    if (c._a) {
+        var other = c._isUTC ? createUTC(c._a) : createLocal(c._a);
+        this._isDSTShifted = this.isValid() &&
+            compareArrays(c._a, other.toArray()) > 0;
+    } else {
+        this._isDSTShifted = false;
     }
 
-    function isUtcOffset () {
-        return this.isValid() ? this._isUTC : false;
-    }
+    return this._isDSTShifted;
+}
 
-    function isUtc () {
-        return this.isValid() ? this._isUTC && this._offset === 0 : false;
-    }
+function isLocal () {
+    return this.isValid() ? !this._isUTC : false;
+}
 
-    // ASP.NET json date format regex
-    var aspNetRegex = /^(\-|\+)?(?:(\d*)[. ])?(\d+)\:(\d+)(?:\:(\d+)(\.\d*)?)?$/;
+function isUtcOffset () {
+    return this.isValid() ? this._isUTC : false;
+}
 
-    // from http://docs.closure-library.googlecode.com/git/closure_goog_date_date.js.source.html
-    // somewhat more in line with 4.4.3.2 2004 spec, but allows decimal anywhere
-    // and further modified to allow for strings containing both week and day
-    var isoRegex = /^(-|\+)?P(?:([-+]?[0-9,.]*)Y)?(?:([-+]?[0-9,.]*)M)?(?:([-+]?[0-9,.]*)W)?(?:([-+]?[0-9,.]*)D)?(?:T(?:([-+]?[0-9,.]*)H)?(?:([-+]?[0-9,.]*)M)?(?:([-+]?[0-9,.]*)S)?)?$/;
+function isUtc () {
+    return this.isValid() ? this._isUTC && this._offset === 0 : false;
+}
 
-    function createDuration (input, key) {
-        var duration = input,
-            // matching against regexp is expensive, do it on demand
-            match = null,
-            sign,
-            ret,
-            diffRes;
+// ASP.NET json date format regex
+var aspNetRegex = /^(\-)?(?:(\d*)[. ])?(\d+)\:(\d+)(?:\:(\d+)(\.\d*)?)?$/;
 
-        if (isDuration(input)) {
-            duration = {
-                ms : input._milliseconds,
-                d  : input._days,
-                M  : input._months
-            };
-        } else if (isNumber(input)) {
-            duration = {};
-            if (key) {
-                duration[key] = input;
-            } else {
-                duration.milliseconds = input;
-            }
-        } else if (!!(match = aspNetRegex.exec(input))) {
-            sign = (match[1] === '-') ? -1 : 1;
-            duration = {
-                y  : 0,
-                d  : toInt(match[DATE])                         * sign,
-                h  : toInt(match[HOUR])                         * sign,
-                m  : toInt(match[MINUTE])                       * sign,
-                s  : toInt(match[SECOND])                       * sign,
-                ms : toInt(absRound(match[MILLISECOND] * 1000)) * sign // the millisecond decimal point is included in the match
-            };
-        } else if (!!(match = isoRegex.exec(input))) {
-            sign = (match[1] === '-') ? -1 : (match[1] === '+') ? 1 : 1;
-            duration = {
-                y : parseIso(match[2], sign),
-                M : parseIso(match[3], sign),
-                w : parseIso(match[4], sign),
-                d : parseIso(match[5], sign),
-                h : parseIso(match[6], sign),
-                m : parseIso(match[7], sign),
-                s : parseIso(match[8], sign)
-            };
-        } else if (duration == null) {// checks for null or undefined
-            duration = {};
-        } else if (typeof duration === 'object' && ('from' in duration || 'to' in duration)) {
-            diffRes = momentsDifference(createLocal(duration.from), createLocal(duration.to));
+// from http://docs.closure-library.googlecode.com/git/closure_goog_date_date.js.source.html
+// somewhat more in line with 4.4.3.2 2004 spec, but allows decimal anywhere
+// and further modified to allow for strings containing both week and day
+var isoRegex = /^(-)?P(?:(-?[0-9,.]*)Y)?(?:(-?[0-9,.]*)M)?(?:(-?[0-9,.]*)W)?(?:(-?[0-9,.]*)D)?(?:T(?:(-?[0-9,.]*)H)?(?:(-?[0-9,.]*)M)?(?:(-?[0-9,.]*)S)?)?$/;
 
-            duration = {};
-            duration.ms = diffRes.milliseconds;
-            duration.M = diffRes.months;
-        }
+function createDuration (input, key) {
+    var duration = input,
+        // matching against regexp is expensive, do it on demand
+        match = null,
+        sign,
+        ret,
+        diffRes;
 
-        ret = new Duration(duration);
-
-        if (isDuration(input) && hasOwnProp(input, '_locale')) {
-            ret._locale = input._locale;
-        }
-
-        return ret;
-    }
-
-    createDuration.fn = Duration.prototype;
-    createDuration.invalid = createInvalid$1;
-
-    function parseIso (inp, sign) {
-        // We'd normally use ~~inp for this, but unfortunately it also
-        // converts floats to ints.
-        // inp may be undefined, so careful calling replace on it.
-        var res = inp && parseFloat(inp.replace(',', '.'));
-        // apply sign while we're at it
-        return (isNaN(res) ? 0 : res) * sign;
-    }
-
-    function positiveMomentsDifference(base, other) {
-        var res = {milliseconds: 0, months: 0};
-
-        res.months = other.month() - base.month() +
-            (other.year() - base.year()) * 12;
-        if (base.clone().add(res.months, 'M').isAfter(other)) {
-            --res.months;
-        }
-
-        res.milliseconds = +other - +(base.clone().add(res.months, 'M'));
-
-        return res;
-    }
-
-    function momentsDifference(base, other) {
-        var res;
-        if (!(base.isValid() && other.isValid())) {
-            return {milliseconds: 0, months: 0};
-        }
-
-        other = cloneWithOffset(other, base);
-        if (base.isBefore(other)) {
-            res = positiveMomentsDifference(base, other);
-        } else {
-            res = positiveMomentsDifference(other, base);
-            res.milliseconds = -res.milliseconds;
-            res.months = -res.months;
-        }
-
-        return res;
-    }
-
-    // TODO: remove 'name' arg after deprecation is removed
-    function createAdder(direction, name) {
-        return function (val, period) {
-            var dur, tmp;
-            //invert the arguments, but complain about it
-            if (period !== null && !isNaN(+period)) {
-                deprecateSimple(name, 'moment().' + name  + '(period, number) is deprecated. Please use moment().' + name + '(number, period). ' +
-                'See http://momentjs.com/guides/#/warnings/add-inverted-param/ for more info.');
-                tmp = val; val = period; period = tmp;
-            }
-
-            val = typeof val === 'string' ? +val : val;
-            dur = createDuration(val, period);
-            addSubtract(this, dur, direction);
-            return this;
+    if (isDuration(input)) {
+        duration = {
+            ms : input._milliseconds,
+            d  : input._days,
+            M  : input._months
         };
-    }
-
-    function addSubtract (mom, duration, isAdding, updateOffset) {
-        var milliseconds = duration._milliseconds,
-            days = absRound(duration._days),
-            months = absRound(duration._months);
-
-        if (!mom.isValid()) {
-            // No op
-            return;
-        }
-
-        updateOffset = updateOffset == null ? true : updateOffset;
-
-        if (months) {
-            setMonth(mom, get(mom, 'Month') + months * isAdding);
-        }
-        if (days) {
-            set$1(mom, 'Date', get(mom, 'Date') + days * isAdding);
-        }
-        if (milliseconds) {
-            mom._d.setTime(mom._d.valueOf() + milliseconds * isAdding);
-        }
-        if (updateOffset) {
-            hooks.updateOffset(mom, days || months);
-        }
-    }
-
-    var add      = createAdder(1, 'add');
-    var subtract = createAdder(-1, 'subtract');
-
-    function getCalendarFormat(myMoment, now) {
-        var diff = myMoment.diff(now, 'days', true);
-        return diff < -6 ? 'sameElse' :
-                diff < -1 ? 'lastWeek' :
-                diff < 0 ? 'lastDay' :
-                diff < 1 ? 'sameDay' :
-                diff < 2 ? 'nextDay' :
-                diff < 7 ? 'nextWeek' : 'sameElse';
-    }
-
-    function calendar$1 (time, formats) {
-        // We want to compare the start of today, vs this.
-        // Getting start-of-today depends on whether we're local/utc/offset or not.
-        var now = time || createLocal(),
-            sod = cloneWithOffset(now, this).startOf('day'),
-            format = hooks.calendarFormat(this, sod) || 'sameElse';
-
-        var output = formats && (isFunction(formats[format]) ? formats[format].call(this, now) : formats[format]);
-
-        return this.format(output || this.localeData().calendar(format, this, createLocal(now)));
-    }
-
-    function clone () {
-        return new Moment(this);
-    }
-
-    function isAfter (input, units) {
-        var localInput = isMoment(input) ? input : createLocal(input);
-        if (!(this.isValid() && localInput.isValid())) {
-            return false;
-        }
-        units = normalizeUnits(!isUndefined(units) ? units : 'millisecond');
-        if (units === 'millisecond') {
-            return this.valueOf() > localInput.valueOf();
+    } else if (isNumber(input)) {
+        duration = {};
+        if (key) {
+            duration[key] = input;
         } else {
-            return localInput.valueOf() < this.clone().startOf(units).valueOf();
+            duration.milliseconds = input;
         }
+    } else if (!!(match = aspNetRegex.exec(input))) {
+        sign = (match[1] === '-') ? -1 : 1;
+        duration = {
+            y  : 0,
+            d  : toInt(match[DATE])                         * sign,
+            h  : toInt(match[HOUR])                         * sign,
+            m  : toInt(match[MINUTE])                       * sign,
+            s  : toInt(match[SECOND])                       * sign,
+            ms : toInt(absRound(match[MILLISECOND] * 1000)) * sign // the millisecond decimal point is included in the match
+        };
+    } else if (!!(match = isoRegex.exec(input))) {
+        sign = (match[1] === '-') ? -1 : 1;
+        duration = {
+            y : parseIso(match[2], sign),
+            M : parseIso(match[3], sign),
+            w : parseIso(match[4], sign),
+            d : parseIso(match[5], sign),
+            h : parseIso(match[6], sign),
+            m : parseIso(match[7], sign),
+            s : parseIso(match[8], sign)
+        };
+    } else if (duration == null) {// checks for null or undefined
+        duration = {};
+    } else if (typeof duration === 'object' && ('from' in duration || 'to' in duration)) {
+        diffRes = momentsDifference(createLocal(duration.from), createLocal(duration.to));
+
+        duration = {};
+        duration.ms = diffRes.milliseconds;
+        duration.M = diffRes.months;
     }
 
-    function isBefore (input, units) {
-        var localInput = isMoment(input) ? input : createLocal(input);
-        if (!(this.isValid() && localInput.isValid())) {
-            return false;
-        }
-        units = normalizeUnits(!isUndefined(units) ? units : 'millisecond');
-        if (units === 'millisecond') {
-            return this.valueOf() < localInput.valueOf();
-        } else {
-            return this.clone().endOf(units).valueOf() < localInput.valueOf();
-        }
+    ret = new Duration(duration);
+
+    if (isDuration(input) && hasOwnProp(input, '_locale')) {
+        ret._locale = input._locale;
     }
 
-    function isBetween (from, to, units, inclusivity) {
-        inclusivity = inclusivity || '()';
-        return (inclusivity[0] === '(' ? this.isAfter(from, units) : !this.isBefore(from, units)) &&
-            (inclusivity[1] === ')' ? this.isBefore(to, units) : !this.isAfter(to, units));
+    return ret;
+}
+
+createDuration.fn = Duration.prototype;
+createDuration.invalid = createInvalid$1;
+
+function parseIso (inp, sign) {
+    // We'd normally use ~~inp for this, but unfortunately it also
+    // converts floats to ints.
+    // inp may be undefined, so careful calling replace on it.
+    var res = inp && parseFloat(inp.replace(',', '.'));
+    // apply sign while we're at it
+    return (isNaN(res) ? 0 : res) * sign;
+}
+
+function positiveMomentsDifference(base, other) {
+    var res = {milliseconds: 0, months: 0};
+
+    res.months = other.month() - base.month() +
+        (other.year() - base.year()) * 12;
+    if (base.clone().add(res.months, 'M').isAfter(other)) {
+        --res.months;
     }
 
-    function isSame (input, units) {
-        var localInput = isMoment(input) ? input : createLocal(input),
-            inputMs;
-        if (!(this.isValid() && localInput.isValid())) {
-            return false;
-        }
-        units = normalizeUnits(units || 'millisecond');
-        if (units === 'millisecond') {
-            return this.valueOf() === localInput.valueOf();
-        } else {
-            inputMs = localInput.valueOf();
-            return this.clone().startOf(units).valueOf() <= inputMs && inputMs <= this.clone().endOf(units).valueOf();
-        }
+    res.milliseconds = +other - +(base.clone().add(res.months, 'M'));
+
+    return res;
+}
+
+function momentsDifference(base, other) {
+    var res;
+    if (!(base.isValid() && other.isValid())) {
+        return {milliseconds: 0, months: 0};
     }
 
-    function isSameOrAfter (input, units) {
-        return this.isSame(input, units) || this.isAfter(input,units);
+    other = cloneWithOffset(other, base);
+    if (base.isBefore(other)) {
+        res = positiveMomentsDifference(base, other);
+    } else {
+        res = positiveMomentsDifference(other, base);
+        res.milliseconds = -res.milliseconds;
+        res.months = -res.months;
     }
 
-    function isSameOrBefore (input, units) {
-        return this.isSame(input, units) || this.isBefore(input,units);
+    return res;
+}
+
+// TODO: remove 'name' arg after deprecation is removed
+function createAdder(direction, name) {
+    return function (val, period) {
+        var dur, tmp;
+        //invert the arguments, but complain about it
+        if (period !== null && !isNaN(+period)) {
+            deprecateSimple(name, 'moment().' + name  + '(period, number) is deprecated. Please use moment().' + name + '(number, period). ' +
+            'See http://momentjs.com/guides/#/warnings/add-inverted-param/ for more info.');
+            tmp = val; val = period; period = tmp;
+        }
+
+        val = typeof val === 'string' ? +val : val;
+        dur = createDuration(val, period);
+        addSubtract(this, dur, direction);
+        return this;
+    };
+}
+
+function addSubtract (mom, duration, isAdding, updateOffset) {
+    var milliseconds = duration._milliseconds,
+        days = absRound(duration._days),
+        months = absRound(duration._months);
+
+    if (!mom.isValid()) {
+        // No op
+        return;
     }
 
-    function diff (input, units, asFloat) {
-        var that,
-            zoneDelta,
-            output;
+    updateOffset = updateOffset == null ? true : updateOffset;
 
-        if (!this.isValid()) {
-            return NaN;
-        }
+    if (milliseconds) {
+        mom._d.setTime(mom._d.valueOf() + milliseconds * isAdding);
+    }
+    if (days) {
+        set$1(mom, 'Date', get(mom, 'Date') + days * isAdding);
+    }
+    if (months) {
+        setMonth(mom, get(mom, 'Month') + months * isAdding);
+    }
+    if (updateOffset) {
+        hooks.updateOffset(mom, days || months);
+    }
+}
 
-        that = cloneWithOffset(input, this);
+var add      = createAdder(1, 'add');
+var subtract = createAdder(-1, 'subtract');
 
-        if (!that.isValid()) {
-            return NaN;
-        }
+function getCalendarFormat(myMoment, now) {
+    var diff = myMoment.diff(now, 'days', true);
+    return diff < -6 ? 'sameElse' :
+            diff < -1 ? 'lastWeek' :
+            diff < 0 ? 'lastDay' :
+            diff < 1 ? 'sameDay' :
+            diff < 2 ? 'nextDay' :
+            diff < 7 ? 'nextWeek' : 'sameElse';
+}
 
-        zoneDelta = (that.utcOffset() - this.utcOffset()) * 6e4;
+function calendar$1 (time, formats) {
+    // We want to compare the start of today, vs this.
+    // Getting start-of-today depends on whether we're local/utc/offset or not.
+    var now = time || createLocal(),
+        sod = cloneWithOffset(now, this).startOf('day'),
+        format = hooks.calendarFormat(this, sod) || 'sameElse';
 
-        units = normalizeUnits(units);
+    var output = formats && (isFunction(formats[format]) ? formats[format].call(this, now) : formats[format]);
 
-        switch (units) {
-            case 'year': output = monthDiff(this, that) / 12; break;
-            case 'month': output = monthDiff(this, that); break;
-            case 'quarter': output = monthDiff(this, that) / 3; break;
-            case 'second': output = (this - that) / 1e3; break; // 1000
-            case 'minute': output = (this - that) / 6e4; break; // 1000 * 60
-            case 'hour': output = (this - that) / 36e5; break; // 1000 * 60 * 60
-            case 'day': output = (this - that - zoneDelta) / 864e5; break; // 1000 * 60 * 60 * 24, negate dst
-            case 'week': output = (this - that - zoneDelta) / 6048e5; break; // 1000 * 60 * 60 * 24 * 7, negate dst
-            default: output = this - that;
-        }
+    return this.format(output || this.localeData().calendar(format, this, createLocal(now)));
+}
 
-        return asFloat ? output : absFloor(output);
+function clone () {
+    return new Moment(this);
+}
+
+function isAfter (input, units) {
+    var localInput = isMoment(input) ? input : createLocal(input);
+    if (!(this.isValid() && localInput.isValid())) {
+        return false;
+    }
+    units = normalizeUnits(!isUndefined(units) ? units : 'millisecond');
+    if (units === 'millisecond') {
+        return this.valueOf() > localInput.valueOf();
+    } else {
+        return localInput.valueOf() < this.clone().startOf(units).valueOf();
+    }
+}
+
+function isBefore (input, units) {
+    var localInput = isMoment(input) ? input : createLocal(input);
+    if (!(this.isValid() && localInput.isValid())) {
+        return false;
+    }
+    units = normalizeUnits(!isUndefined(units) ? units : 'millisecond');
+    if (units === 'millisecond') {
+        return this.valueOf() < localInput.valueOf();
+    } else {
+        return this.clone().endOf(units).valueOf() < localInput.valueOf();
+    }
+}
+
+function isBetween (from, to, units, inclusivity) {
+    inclusivity = inclusivity || '()';
+    return (inclusivity[0] === '(' ? this.isAfter(from, units) : !this.isBefore(from, units)) &&
+        (inclusivity[1] === ')' ? this.isBefore(to, units) : !this.isAfter(to, units));
+}
+
+function isSame (input, units) {
+    var localInput = isMoment(input) ? input : createLocal(input),
+        inputMs;
+    if (!(this.isValid() && localInput.isValid())) {
+        return false;
+    }
+    units = normalizeUnits(units || 'millisecond');
+    if (units === 'millisecond') {
+        return this.valueOf() === localInput.valueOf();
+    } else {
+        inputMs = localInput.valueOf();
+        return this.clone().startOf(units).valueOf() <= inputMs && inputMs <= this.clone().endOf(units).valueOf();
+    }
+}
+
+function isSameOrAfter (input, units) {
+    return this.isSame(input, units) || this.isAfter(input,units);
+}
+
+function isSameOrBefore (input, units) {
+    return this.isSame(input, units) || this.isBefore(input,units);
+}
+
+function diff (input, units, asFloat) {
+    var that,
+        zoneDelta,
+        delta, output;
+
+    if (!this.isValid()) {
+        return NaN;
     }
 
-    function monthDiff (a, b) {
-        // difference in months
-        var wholeMonthDiff = ((b.year() - a.year()) * 12) + (b.month() - a.month()),
-            // b is in (anchor - 1 month, anchor + 1 month)
-            anchor = a.clone().add(wholeMonthDiff, 'months'),
-            anchor2, adjust;
+    that = cloneWithOffset(input, this);
 
-        if (b - anchor < 0) {
-            anchor2 = a.clone().add(wholeMonthDiff - 1, 'months');
-            // linear across the month
-            adjust = (b - anchor) / (anchor - anchor2);
-        } else {
-            anchor2 = a.clone().add(wholeMonthDiff + 1, 'months');
-            // linear across the month
-            adjust = (b - anchor) / (anchor2 - anchor);
-        }
-
-        //check for negative zero, return zero if negative zero
-        return -(wholeMonthDiff + adjust) || 0;
+    if (!that.isValid()) {
+        return NaN;
     }
 
-    hooks.defaultFormat = 'YYYY-MM-DDTHH:mm:ssZ';
-    hooks.defaultFormatUtc = 'YYYY-MM-DDTHH:mm:ss[Z]';
+    zoneDelta = (that.utcOffset() - this.utcOffset()) * 6e4;
 
-    function toString () {
-        return this.clone().locale('en').format('ddd MMM DD YYYY HH:mm:ss [GMT]ZZ');
-    }
+    units = normalizeUnits(units);
 
-    function toISOString(keepOffset) {
-        if (!this.isValid()) {
-            return null;
-        }
-        var utc = keepOffset !== true;
-        var m = utc ? this.clone().utc() : this;
-        if (m.year() < 0 || m.year() > 9999) {
-            return formatMoment(m, utc ? 'YYYYYY-MM-DD[T]HH:mm:ss.SSS[Z]' : 'YYYYYY-MM-DD[T]HH:mm:ss.SSSZ');
-        }
-        if (isFunction(Date.prototype.toISOString)) {
-            // native implementation is ~50x faster, use it when we can
-            if (utc) {
-                return this.toDate().toISOString();
-            } else {
-                return new Date(this.valueOf() + this.utcOffset() * 60 * 1000).toISOString().replace('Z', formatMoment(m, 'Z'));
-            }
-        }
-        return formatMoment(m, utc ? 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]' : 'YYYY-MM-DD[T]HH:mm:ss.SSSZ');
-    }
-
-    /**
-     * Return a human readable representation of a moment that can
-     * also be evaluated to get a new moment which is the same
-     *
-     * @link https://nodejs.org/dist/latest/docs/api/util.html#util_custom_inspect_function_on_objects
-     */
-    function inspect () {
-        if (!this.isValid()) {
-            return 'moment.invalid(/* ' + this._i + ' */)';
-        }
-        var func = 'moment';
-        var zone = '';
-        if (!this.isLocal()) {
-            func = this.utcOffset() === 0 ? 'moment.utc' : 'moment.parseZone';
-            zone = 'Z';
-        }
-        var prefix = '[' + func + '("]';
-        var year = (0 <= this.year() && this.year() <= 9999) ? 'YYYY' : 'YYYYYY';
-        var datetime = '-MM-DD[T]HH:mm:ss.SSS';
-        var suffix = zone + '[")]';
-
-        return this.format(prefix + year + datetime + suffix);
-    }
-
-    function format (inputString) {
-        if (!inputString) {
-            inputString = this.isUtc() ? hooks.defaultFormatUtc : hooks.defaultFormat;
-        }
-        var output = formatMoment(this, inputString);
-        return this.localeData().postformat(output);
-    }
-
-    function from (time, withoutSuffix) {
-        if (this.isValid() &&
-                ((isMoment(time) && time.isValid()) ||
-                 createLocal(time).isValid())) {
-            return createDuration({to: this, from: time}).locale(this.locale()).humanize(!withoutSuffix);
-        } else {
-            return this.localeData().invalidDate();
-        }
-    }
-
-    function fromNow (withoutSuffix) {
-        return this.from(createLocal(), withoutSuffix);
-    }
-
-    function to (time, withoutSuffix) {
-        if (this.isValid() &&
-                ((isMoment(time) && time.isValid()) ||
-                 createLocal(time).isValid())) {
-            return createDuration({from: this, to: time}).locale(this.locale()).humanize(!withoutSuffix);
-        } else {
-            return this.localeData().invalidDate();
-        }
-    }
-
-    function toNow (withoutSuffix) {
-        return this.to(createLocal(), withoutSuffix);
-    }
-
-    // If passed a locale key, it will set the locale for this
-    // instance.  Otherwise, it will return the locale configuration
-    // variables for this instance.
-    function locale (key) {
-        var newLocaleData;
-
-        if (key === undefined) {
-            return this._locale._abbr;
-        } else {
-            newLocaleData = getLocale(key);
-            if (newLocaleData != null) {
-                this._locale = newLocaleData;
-            }
-            return this;
-        }
-    }
-
-    var lang = deprecate(
-        'moment().lang() is deprecated. Instead, use moment().localeData() to get the language configuration. Use moment().locale() to change languages.',
-        function (key) {
-            if (key === undefined) {
-                return this.localeData();
-            } else {
-                return this.locale(key);
-            }
-        }
-    );
-
-    function localeData () {
-        return this._locale;
-    }
-
-    function startOf (units) {
-        units = normalizeUnits(units);
-        // the following switch intentionally omits break keywords
-        // to utilize falling through the cases.
-        switch (units) {
-            case 'year':
-                this.month(0);
-                /* falls through */
-            case 'quarter':
-            case 'month':
-                this.date(1);
-                /* falls through */
-            case 'week':
-            case 'isoWeek':
-            case 'day':
-            case 'date':
-                this.hours(0);
-                /* falls through */
-            case 'hour':
-                this.minutes(0);
-                /* falls through */
-            case 'minute':
-                this.seconds(0);
-                /* falls through */
-            case 'second':
-                this.milliseconds(0);
-        }
-
-        // weeks are a special case
-        if (units === 'week') {
-            this.weekday(0);
-        }
-        if (units === 'isoWeek') {
-            this.isoWeekday(1);
-        }
-
-        // quarters are also special
+    if (units === 'year' || units === 'month' || units === 'quarter') {
+        output = monthDiff(this, that);
         if (units === 'quarter') {
-            this.month(Math.floor(this.month() / 3) * 3);
+            output = output / 3;
+        } else if (units === 'year') {
+            output = output / 12;
         }
+    } else {
+        delta = this - that;
+        output = units === 'second' ? delta / 1e3 : // 1000
+            units === 'minute' ? delta / 6e4 : // 1000 * 60
+            units === 'hour' ? delta / 36e5 : // 1000 * 60 * 60
+            units === 'day' ? (delta - zoneDelta) / 864e5 : // 1000 * 60 * 60 * 24, negate dst
+            units === 'week' ? (delta - zoneDelta) / 6048e5 : // 1000 * 60 * 60 * 24 * 7, negate dst
+            delta;
+    }
+    return asFloat ? output : absFloor(output);
+}
 
+function monthDiff (a, b) {
+    // difference in months
+    var wholeMonthDiff = ((b.year() - a.year()) * 12) + (b.month() - a.month()),
+        // b is in (anchor - 1 month, anchor + 1 month)
+        anchor = a.clone().add(wholeMonthDiff, 'months'),
+        anchor2, adjust;
+
+    if (b - anchor < 0) {
+        anchor2 = a.clone().add(wholeMonthDiff - 1, 'months');
+        // linear across the month
+        adjust = (b - anchor) / (anchor - anchor2);
+    } else {
+        anchor2 = a.clone().add(wholeMonthDiff + 1, 'months');
+        // linear across the month
+        adjust = (b - anchor) / (anchor2 - anchor);
+    }
+
+    //check for negative zero, return zero if negative zero
+    return -(wholeMonthDiff + adjust) || 0;
+}
+
+hooks.defaultFormat = 'YYYY-MM-DDTHH:mm:ssZ';
+hooks.defaultFormatUtc = 'YYYY-MM-DDTHH:mm:ss[Z]';
+
+function toString () {
+    return this.clone().locale('en').format('ddd MMM DD YYYY HH:mm:ss [GMT]ZZ');
+}
+
+function toISOString() {
+    if (!this.isValid()) {
+        return null;
+    }
+    var m = this.clone().utc();
+    if (m.year() < 0 || m.year() > 9999) {
+        return formatMoment(m, 'YYYYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
+    }
+    if (isFunction(Date.prototype.toISOString)) {
+        // native implementation is ~50x faster, use it when we can
+        return this.toDate().toISOString();
+    }
+    return formatMoment(m, 'YYYY-MM-DD[T]HH:mm:ss.SSS[Z]');
+}
+
+/**
+ * Return a human readable representation of a moment that can
+ * also be evaluated to get a new moment which is the same
+ *
+ * @link https://nodejs.org/dist/latest/docs/api/util.html#util_custom_inspect_function_on_objects
+ */
+function inspect () {
+    if (!this.isValid()) {
+        return 'moment.invalid(/* ' + this._i + ' */)';
+    }
+    var func = 'moment';
+    var zone = '';
+    if (!this.isLocal()) {
+        func = this.utcOffset() === 0 ? 'moment.utc' : 'moment.parseZone';
+        zone = 'Z';
+    }
+    var prefix = '[' + func + '("]';
+    var year = (0 <= this.year() && this.year() <= 9999) ? 'YYYY' : 'YYYYYY';
+    var datetime = '-MM-DD[T]HH:mm:ss.SSS';
+    var suffix = zone + '[")]';
+
+    return this.format(prefix + year + datetime + suffix);
+}
+
+function format (inputString) {
+    if (!inputString) {
+        inputString = this.isUtc() ? hooks.defaultFormatUtc : hooks.defaultFormat;
+    }
+    var output = formatMoment(this, inputString);
+    return this.localeData().postformat(output);
+}
+
+function from (time, withoutSuffix) {
+    if (this.isValid() &&
+            ((isMoment(time) && time.isValid()) ||
+             createLocal(time).isValid())) {
+        return createDuration({to: this, from: time}).locale(this.locale()).humanize(!withoutSuffix);
+    } else {
+        return this.localeData().invalidDate();
+    }
+}
+
+function fromNow (withoutSuffix) {
+    return this.from(createLocal(), withoutSuffix);
+}
+
+function to (time, withoutSuffix) {
+    if (this.isValid() &&
+            ((isMoment(time) && time.isValid()) ||
+             createLocal(time).isValid())) {
+        return createDuration({from: this, to: time}).locale(this.locale()).humanize(!withoutSuffix);
+    } else {
+        return this.localeData().invalidDate();
+    }
+}
+
+function toNow (withoutSuffix) {
+    return this.to(createLocal(), withoutSuffix);
+}
+
+// If passed a locale key, it will set the locale for this
+// instance.  Otherwise, it will return the locale configuration
+// variables for this instance.
+function locale (key) {
+    var newLocaleData;
+
+    if (key === undefined) {
+        return this._locale._abbr;
+    } else {
+        newLocaleData = getLocale(key);
+        if (newLocaleData != null) {
+            this._locale = newLocaleData;
+        }
         return this;
     }
+}
 
-    function endOf (units) {
-        units = normalizeUnits(units);
-        if (units === undefined || units === 'millisecond') {
-            return this;
-        }
-
-        // 'date' is an alias for 'day', so it should be considered as such.
-        if (units === 'date') {
-            units = 'day';
-        }
-
-        return this.startOf(units).add(1, (units === 'isoWeek' ? 'week' : units)).subtract(1, 'ms');
-    }
-
-    function valueOf () {
-        return this._d.valueOf() - ((this._offset || 0) * 60000);
-    }
-
-    function unix () {
-        return Math.floor(this.valueOf() / 1000);
-    }
-
-    function toDate () {
-        return new Date(this.valueOf());
-    }
-
-    function toArray () {
-        var m = this;
-        return [m.year(), m.month(), m.date(), m.hour(), m.minute(), m.second(), m.millisecond()];
-    }
-
-    function toObject () {
-        var m = this;
-        return {
-            years: m.year(),
-            months: m.month(),
-            date: m.date(),
-            hours: m.hours(),
-            minutes: m.minutes(),
-            seconds: m.seconds(),
-            milliseconds: m.milliseconds()
-        };
-    }
-
-    function toJSON () {
-        // new Date(NaN).toJSON() === null
-        return this.isValid() ? this.toISOString() : null;
-    }
-
-    function isValid$2 () {
-        return isValid(this);
-    }
-
-    function parsingFlags () {
-        return extend({}, getParsingFlags(this));
-    }
-
-    function invalidAt () {
-        return getParsingFlags(this).overflow;
-    }
-
-    function creationData() {
-        return {
-            input: this._i,
-            format: this._f,
-            locale: this._locale,
-            isUTC: this._isUTC,
-            strict: this._strict
-        };
-    }
-
-    // FORMATTING
-
-    addFormatToken(0, ['gg', 2], 0, function () {
-        return this.weekYear() % 100;
-    });
-
-    addFormatToken(0, ['GG', 2], 0, function () {
-        return this.isoWeekYear() % 100;
-    });
-
-    function addWeekYearFormatToken (token, getter) {
-        addFormatToken(0, [token, token.length], 0, getter);
-    }
-
-    addWeekYearFormatToken('gggg',     'weekYear');
-    addWeekYearFormatToken('ggggg',    'weekYear');
-    addWeekYearFormatToken('GGGG',  'isoWeekYear');
-    addWeekYearFormatToken('GGGGG', 'isoWeekYear');
-
-    // ALIASES
-
-    addUnitAlias('weekYear', 'gg');
-    addUnitAlias('isoWeekYear', 'GG');
-
-    // PRIORITY
-
-    addUnitPriority('weekYear', 1);
-    addUnitPriority('isoWeekYear', 1);
-
-
-    // PARSING
-
-    addRegexToken('G',      matchSigned);
-    addRegexToken('g',      matchSigned);
-    addRegexToken('GG',     match1to2, match2);
-    addRegexToken('gg',     match1to2, match2);
-    addRegexToken('GGGG',   match1to4, match4);
-    addRegexToken('gggg',   match1to4, match4);
-    addRegexToken('GGGGG',  match1to6, match6);
-    addRegexToken('ggggg',  match1to6, match6);
-
-    addWeekParseToken(['gggg', 'ggggg', 'GGGG', 'GGGGG'], function (input, week, config, token) {
-        week[token.substr(0, 2)] = toInt(input);
-    });
-
-    addWeekParseToken(['gg', 'GG'], function (input, week, config, token) {
-        week[token] = hooks.parseTwoDigitYear(input);
-    });
-
-    // MOMENTS
-
-    function getSetWeekYear (input) {
-        return getSetWeekYearHelper.call(this,
-                input,
-                this.week(),
-                this.weekday(),
-                this.localeData()._week.dow,
-                this.localeData()._week.doy);
-    }
-
-    function getSetISOWeekYear (input) {
-        return getSetWeekYearHelper.call(this,
-                input, this.isoWeek(), this.isoWeekday(), 1, 4);
-    }
-
-    function getISOWeeksInYear () {
-        return weeksInYear(this.year(), 1, 4);
-    }
-
-    function getWeeksInYear () {
-        var weekInfo = this.localeData()._week;
-        return weeksInYear(this.year(), weekInfo.dow, weekInfo.doy);
-    }
-
-    function getSetWeekYearHelper(input, week, weekday, dow, doy) {
-        var weeksTarget;
-        if (input == null) {
-            return weekOfYear(this, dow, doy).year;
+var lang = deprecate(
+    'moment().lang() is deprecated. Instead, use moment().localeData() to get the language configuration. Use moment().locale() to change languages.',
+    function (key) {
+        if (key === undefined) {
+            return this.localeData();
         } else {
-            weeksTarget = weeksInYear(input, dow, doy);
-            if (week > weeksTarget) {
-                week = weeksTarget;
-            }
-            return setWeekAll.call(this, input, week, weekday, dow, doy);
+            return this.locale(key);
         }
     }
+);
 
-    function setWeekAll(weekYear, week, weekday, dow, doy) {
-        var dayOfYearData = dayOfYearFromWeeks(weekYear, week, weekday, dow, doy),
-            date = createUTCDate(dayOfYearData.year, 0, dayOfYearData.dayOfYear);
+function localeData () {
+    return this._locale;
+}
 
-        this.year(date.getUTCFullYear());
-        this.month(date.getUTCMonth());
-        this.date(date.getUTCDate());
+function startOf (units) {
+    units = normalizeUnits(units);
+    // the following switch intentionally omits break keywords
+    // to utilize falling through the cases.
+    switch (units) {
+        case 'year':
+            this.month(0);
+            /* falls through */
+        case 'quarter':
+        case 'month':
+            this.date(1);
+            /* falls through */
+        case 'week':
+        case 'isoWeek':
+        case 'day':
+        case 'date':
+            this.hours(0);
+            /* falls through */
+        case 'hour':
+            this.minutes(0);
+            /* falls through */
+        case 'minute':
+            this.seconds(0);
+            /* falls through */
+        case 'second':
+            this.milliseconds(0);
+    }
+
+    // weeks are a special case
+    if (units === 'week') {
+        this.weekday(0);
+    }
+    if (units === 'isoWeek') {
+        this.isoWeekday(1);
+    }
+
+    // quarters are also special
+    if (units === 'quarter') {
+        this.month(Math.floor(this.month() / 3) * 3);
+    }
+
+    return this;
+}
+
+function endOf (units) {
+    units = normalizeUnits(units);
+    if (units === undefined || units === 'millisecond') {
         return this;
     }
 
-    // FORMATTING
-
-    addFormatToken('Q', 0, 'Qo', 'quarter');
-
-    // ALIASES
-
-    addUnitAlias('quarter', 'Q');
-
-    // PRIORITY
-
-    addUnitPriority('quarter', 7);
-
-    // PARSING
-
-    addRegexToken('Q', match1);
-    addParseToken('Q', function (input, array) {
-        array[MONTH] = (toInt(input) - 1) * 3;
-    });
-
-    // MOMENTS
-
-    function getSetQuarter (input) {
-        return input == null ? Math.ceil((this.month() + 1) / 3) : this.month((input - 1) * 3 + this.month() % 3);
+    // 'date' is an alias for 'day', so it should be considered as such.
+    if (units === 'date') {
+        units = 'day';
     }
 
-    // FORMATTING
+    return this.startOf(units).add(1, (units === 'isoWeek' ? 'week' : units)).subtract(1, 'ms');
+}
 
-    addFormatToken('D', ['DD', 2], 'Do', 'date');
+function valueOf () {
+    return this._d.valueOf() - ((this._offset || 0) * 60000);
+}
 
-    // ALIASES
+function unix () {
+    return Math.floor(this.valueOf() / 1000);
+}
 
-    addUnitAlias('date', 'D');
+function toDate () {
+    return new Date(this.valueOf());
+}
 
-    // PRIORITY
-    addUnitPriority('date', 9);
+function toArray () {
+    var m = this;
+    return [m.year(), m.month(), m.date(), m.hour(), m.minute(), m.second(), m.millisecond()];
+}
 
-    // PARSING
+function toObject () {
+    var m = this;
+    return {
+        years: m.year(),
+        months: m.month(),
+        date: m.date(),
+        hours: m.hours(),
+        minutes: m.minutes(),
+        seconds: m.seconds(),
+        milliseconds: m.milliseconds()
+    };
+}
 
-    addRegexToken('D',  match1to2);
-    addRegexToken('DD', match1to2, match2);
-    addRegexToken('Do', function (isStrict, locale) {
-        // TODO: Remove "ordinalParse" fallback in next major release.
-        return isStrict ?
-          (locale._dayOfMonthOrdinalParse || locale._ordinalParse) :
-          locale._dayOfMonthOrdinalParseLenient;
-    });
+function toJSON () {
+    // new Date(NaN).toJSON() === null
+    return this.isValid() ? this.toISOString() : null;
+}
 
-    addParseToken(['D', 'DD'], DATE);
-    addParseToken('Do', function (input, array) {
-        array[DATE] = toInt(input.match(match1to2)[0]);
-    });
+function isValid$2 () {
+    return isValid(this);
+}
 
-    // MOMENTS
+function parsingFlags () {
+    return extend({}, getParsingFlags(this));
+}
 
-    var getSetDayOfMonth = makeGetSet('Date', true);
+function invalidAt () {
+    return getParsingFlags(this).overflow;
+}
 
-    // FORMATTING
+function creationData() {
+    return {
+        input: this._i,
+        format: this._f,
+        locale: this._locale,
+        isUTC: this._isUTC,
+        strict: this._strict
+    };
+}
 
-    addFormatToken('DDD', ['DDDD', 3], 'DDDo', 'dayOfYear');
+// FORMATTING
 
-    // ALIASES
+addFormatToken(0, ['gg', 2], 0, function () {
+    return this.weekYear() % 100;
+});
 
-    addUnitAlias('dayOfYear', 'DDD');
+addFormatToken(0, ['GG', 2], 0, function () {
+    return this.isoWeekYear() % 100;
+});
 
-    // PRIORITY
-    addUnitPriority('dayOfYear', 4);
+function addWeekYearFormatToken (token, getter) {
+    addFormatToken(0, [token, token.length], 0, getter);
+}
 
-    // PARSING
+addWeekYearFormatToken('gggg',     'weekYear');
+addWeekYearFormatToken('ggggg',    'weekYear');
+addWeekYearFormatToken('GGGG',  'isoWeekYear');
+addWeekYearFormatToken('GGGGG', 'isoWeekYear');
 
-    addRegexToken('DDD',  match1to3);
-    addRegexToken('DDDD', match3);
-    addParseToken(['DDD', 'DDDD'], function (input, array, config) {
-        config._dayOfYear = toInt(input);
-    });
+// ALIASES
 
-    // HELPERS
+addUnitAlias('weekYear', 'gg');
+addUnitAlias('isoWeekYear', 'GG');
 
-    // MOMENTS
+// PRIORITY
 
-    function getSetDayOfYear (input) {
-        var dayOfYear = Math.round((this.clone().startOf('day') - this.clone().startOf('year')) / 864e5) + 1;
-        return input == null ? dayOfYear : this.add((input - dayOfYear), 'd');
+addUnitPriority('weekYear', 1);
+addUnitPriority('isoWeekYear', 1);
+
+
+// PARSING
+
+addRegexToken('G',      matchSigned);
+addRegexToken('g',      matchSigned);
+addRegexToken('GG',     match1to2, match2);
+addRegexToken('gg',     match1to2, match2);
+addRegexToken('GGGG',   match1to4, match4);
+addRegexToken('gggg',   match1to4, match4);
+addRegexToken('GGGGG',  match1to6, match6);
+addRegexToken('ggggg',  match1to6, match6);
+
+addWeekParseToken(['gggg', 'ggggg', 'GGGG', 'GGGGG'], function (input, week, config, token) {
+    week[token.substr(0, 2)] = toInt(input);
+});
+
+addWeekParseToken(['gg', 'GG'], function (input, week, config, token) {
+    week[token] = hooks.parseTwoDigitYear(input);
+});
+
+// MOMENTS
+
+function getSetWeekYear (input) {
+    return getSetWeekYearHelper.call(this,
+            input,
+            this.week(),
+            this.weekday(),
+            this.localeData()._week.dow,
+            this.localeData()._week.doy);
+}
+
+function getSetISOWeekYear (input) {
+    return getSetWeekYearHelper.call(this,
+            input, this.isoWeek(), this.isoWeekday(), 1, 4);
+}
+
+function getISOWeeksInYear () {
+    return weeksInYear(this.year(), 1, 4);
+}
+
+function getWeeksInYear () {
+    var weekInfo = this.localeData()._week;
+    return weeksInYear(this.year(), weekInfo.dow, weekInfo.doy);
+}
+
+function getSetWeekYearHelper(input, week, weekday, dow, doy) {
+    var weeksTarget;
+    if (input == null) {
+        return weekOfYear(this, dow, doy).year;
+    } else {
+        weeksTarget = weeksInYear(input, dow, doy);
+        if (week > weeksTarget) {
+            week = weeksTarget;
+        }
+        return setWeekAll.call(this, input, week, weekday, dow, doy);
+    }
+}
+
+function setWeekAll(weekYear, week, weekday, dow, doy) {
+    var dayOfYearData = dayOfYearFromWeeks(weekYear, week, weekday, dow, doy),
+        date = createUTCDate(dayOfYearData.year, 0, dayOfYearData.dayOfYear);
+
+    this.year(date.getUTCFullYear());
+    this.month(date.getUTCMonth());
+    this.date(date.getUTCDate());
+    return this;
+}
+
+// FORMATTING
+
+addFormatToken('Q', 0, 'Qo', 'quarter');
+
+// ALIASES
+
+addUnitAlias('quarter', 'Q');
+
+// PRIORITY
+
+addUnitPriority('quarter', 7);
+
+// PARSING
+
+addRegexToken('Q', match1);
+addParseToken('Q', function (input, array) {
+    array[MONTH] = (toInt(input) - 1) * 3;
+});
+
+// MOMENTS
+
+function getSetQuarter (input) {
+    return input == null ? Math.ceil((this.month() + 1) / 3) : this.month((input - 1) * 3 + this.month() % 3);
+}
+
+// FORMATTING
+
+addFormatToken('D', ['DD', 2], 'Do', 'date');
+
+// ALIASES
+
+addUnitAlias('date', 'D');
+
+// PRIOROITY
+addUnitPriority('date', 9);
+
+// PARSING
+
+addRegexToken('D',  match1to2);
+addRegexToken('DD', match1to2, match2);
+addRegexToken('Do', function (isStrict, locale) {
+    // TODO: Remove "ordinalParse" fallback in next major release.
+    return isStrict ?
+      (locale._dayOfMonthOrdinalParse || locale._ordinalParse) :
+      locale._dayOfMonthOrdinalParseLenient;
+});
+
+addParseToken(['D', 'DD'], DATE);
+addParseToken('Do', function (input, array) {
+    array[DATE] = toInt(input.match(match1to2)[0], 10);
+});
+
+// MOMENTS
+
+var getSetDayOfMonth = makeGetSet('Date', true);
+
+// FORMATTING
+
+addFormatToken('DDD', ['DDDD', 3], 'DDDo', 'dayOfYear');
+
+// ALIASES
+
+addUnitAlias('dayOfYear', 'DDD');
+
+// PRIORITY
+addUnitPriority('dayOfYear', 4);
+
+// PARSING
+
+addRegexToken('DDD',  match1to3);
+addRegexToken('DDDD', match3);
+addParseToken(['DDD', 'DDDD'], function (input, array, config) {
+    config._dayOfYear = toInt(input);
+});
+
+// HELPERS
+
+// MOMENTS
+
+function getSetDayOfYear (input) {
+    var dayOfYear = Math.round((this.clone().startOf('day') - this.clone().startOf('year')) / 864e5) + 1;
+    return input == null ? dayOfYear : this.add((input - dayOfYear), 'd');
+}
+
+// FORMATTING
+
+addFormatToken('m', ['mm', 2], 0, 'minute');
+
+// ALIASES
+
+addUnitAlias('minute', 'm');
+
+// PRIORITY
+
+addUnitPriority('minute', 14);
+
+// PARSING
+
+addRegexToken('m',  match1to2);
+addRegexToken('mm', match1to2, match2);
+addParseToken(['m', 'mm'], MINUTE);
+
+// MOMENTS
+
+var getSetMinute = makeGetSet('Minutes', false);
+
+// FORMATTING
+
+addFormatToken('s', ['ss', 2], 0, 'second');
+
+// ALIASES
+
+addUnitAlias('second', 's');
+
+// PRIORITY
+
+addUnitPriority('second', 15);
+
+// PARSING
+
+addRegexToken('s',  match1to2);
+addRegexToken('ss', match1to2, match2);
+addParseToken(['s', 'ss'], SECOND);
+
+// MOMENTS
+
+var getSetSecond = makeGetSet('Seconds', false);
+
+// FORMATTING
+
+addFormatToken('S', 0, 0, function () {
+    return ~~(this.millisecond() / 100);
+});
+
+addFormatToken(0, ['SS', 2], 0, function () {
+    return ~~(this.millisecond() / 10);
+});
+
+addFormatToken(0, ['SSS', 3], 0, 'millisecond');
+addFormatToken(0, ['SSSS', 4], 0, function () {
+    return this.millisecond() * 10;
+});
+addFormatToken(0, ['SSSSS', 5], 0, function () {
+    return this.millisecond() * 100;
+});
+addFormatToken(0, ['SSSSSS', 6], 0, function () {
+    return this.millisecond() * 1000;
+});
+addFormatToken(0, ['SSSSSSS', 7], 0, function () {
+    return this.millisecond() * 10000;
+});
+addFormatToken(0, ['SSSSSSSS', 8], 0, function () {
+    return this.millisecond() * 100000;
+});
+addFormatToken(0, ['SSSSSSSSS', 9], 0, function () {
+    return this.millisecond() * 1000000;
+});
+
+
+// ALIASES
+
+addUnitAlias('millisecond', 'ms');
+
+// PRIORITY
+
+addUnitPriority('millisecond', 16);
+
+// PARSING
+
+addRegexToken('S',    match1to3, match1);
+addRegexToken('SS',   match1to3, match2);
+addRegexToken('SSS',  match1to3, match3);
+
+var token;
+for (token = 'SSSS'; token.length <= 9; token += 'S') {
+    addRegexToken(token, matchUnsigned);
+}
+
+function parseMs(input, array) {
+    array[MILLISECOND] = toInt(('0.' + input) * 1000);
+}
+
+for (token = 'S'; token.length <= 9; token += 'S') {
+    addParseToken(token, parseMs);
+}
+// MOMENTS
+
+var getSetMillisecond = makeGetSet('Milliseconds', false);
+
+// FORMATTING
+
+addFormatToken('z',  0, 0, 'zoneAbbr');
+addFormatToken('zz', 0, 0, 'zoneName');
+
+// MOMENTS
+
+function getZoneAbbr () {
+    return this._isUTC ? 'UTC' : '';
+}
+
+function getZoneName () {
+    return this._isUTC ? 'Coordinated Universal Time' : '';
+}
+
+var proto = Moment.prototype;
+
+proto.add               = add;
+proto.calendar          = calendar$1;
+proto.clone             = clone;
+proto.diff              = diff;
+proto.endOf             = endOf;
+proto.format            = format;
+proto.from              = from;
+proto.fromNow           = fromNow;
+proto.to                = to;
+proto.toNow             = toNow;
+proto.get               = stringGet;
+proto.invalidAt         = invalidAt;
+proto.isAfter           = isAfter;
+proto.isBefore          = isBefore;
+proto.isBetween         = isBetween;
+proto.isSame            = isSame;
+proto.isSameOrAfter     = isSameOrAfter;
+proto.isSameOrBefore    = isSameOrBefore;
+proto.isValid           = isValid$2;
+proto.lang              = lang;
+proto.locale            = locale;
+proto.localeData        = localeData;
+proto.max               = prototypeMax;
+proto.min               = prototypeMin;
+proto.parsingFlags      = parsingFlags;
+proto.set               = stringSet;
+proto.startOf           = startOf;
+proto.subtract          = subtract;
+proto.toArray           = toArray;
+proto.toObject          = toObject;
+proto.toDate            = toDate;
+proto.toISOString       = toISOString;
+proto.inspect           = inspect;
+proto.toJSON            = toJSON;
+proto.toString          = toString;
+proto.unix              = unix;
+proto.valueOf           = valueOf;
+proto.creationData      = creationData;
+
+// Year
+proto.year       = getSetYear;
+proto.isLeapYear = getIsLeapYear;
+
+// Week Year
+proto.weekYear    = getSetWeekYear;
+proto.isoWeekYear = getSetISOWeekYear;
+
+// Quarter
+proto.quarter = proto.quarters = getSetQuarter;
+
+// Month
+proto.month       = getSetMonth;
+proto.daysInMonth = getDaysInMonth;
+
+// Week
+proto.week           = proto.weeks        = getSetWeek;
+proto.isoWeek        = proto.isoWeeks     = getSetISOWeek;
+proto.weeksInYear    = getWeeksInYear;
+proto.isoWeeksInYear = getISOWeeksInYear;
+
+// Day
+proto.date       = getSetDayOfMonth;
+proto.day        = proto.days             = getSetDayOfWeek;
+proto.weekday    = getSetLocaleDayOfWeek;
+proto.isoWeekday = getSetISODayOfWeek;
+proto.dayOfYear  = getSetDayOfYear;
+
+// Hour
+proto.hour = proto.hours = getSetHour;
+
+// Minute
+proto.minute = proto.minutes = getSetMinute;
+
+// Second
+proto.second = proto.seconds = getSetSecond;
+
+// Millisecond
+proto.millisecond = proto.milliseconds = getSetMillisecond;
+
+// Offset
+proto.utcOffset            = getSetOffset;
+proto.utc                  = setOffsetToUTC;
+proto.local                = setOffsetToLocal;
+proto.parseZone            = setOffsetToParsedOffset;
+proto.hasAlignedHourOffset = hasAlignedHourOffset;
+proto.isDST                = isDaylightSavingTime;
+proto.isLocal              = isLocal;
+proto.isUtcOffset          = isUtcOffset;
+proto.isUtc                = isUtc;
+proto.isUTC                = isUtc;
+
+// Timezone
+proto.zoneAbbr = getZoneAbbr;
+proto.zoneName = getZoneName;
+
+// Deprecations
+proto.dates  = deprecate('dates accessor is deprecated. Use date instead.', getSetDayOfMonth);
+proto.months = deprecate('months accessor is deprecated. Use month instead', getSetMonth);
+proto.years  = deprecate('years accessor is deprecated. Use year instead', getSetYear);
+proto.zone   = deprecate('moment().zone is deprecated, use moment().utcOffset instead. http://momentjs.com/guides/#/warnings/zone/', getSetZone);
+proto.isDSTShifted = deprecate('isDSTShifted is deprecated. See http://momentjs.com/guides/#/warnings/dst-shifted/ for more information', isDaylightSavingTimeShifted);
+
+function createUnix (input) {
+    return createLocal(input * 1000);
+}
+
+function createInZone () {
+    return createLocal.apply(null, arguments).parseZone();
+}
+
+function preParsePostFormat (string) {
+    return string;
+}
+
+var proto$1 = Locale.prototype;
+
+proto$1.calendar        = calendar;
+proto$1.longDateFormat  = longDateFormat;
+proto$1.invalidDate     = invalidDate;
+proto$1.ordinal         = ordinal;
+proto$1.preparse        = preParsePostFormat;
+proto$1.postformat      = preParsePostFormat;
+proto$1.relativeTime    = relativeTime;
+proto$1.pastFuture      = pastFuture;
+proto$1.set             = set;
+
+// Month
+proto$1.months            =        localeMonths;
+proto$1.monthsShort       =        localeMonthsShort;
+proto$1.monthsParse       =        localeMonthsParse;
+proto$1.monthsRegex       = monthsRegex;
+proto$1.monthsShortRegex  = monthsShortRegex;
+
+// Week
+proto$1.week = localeWeek;
+proto$1.firstDayOfYear = localeFirstDayOfYear;
+proto$1.firstDayOfWeek = localeFirstDayOfWeek;
+
+// Day of Week
+proto$1.weekdays       =        localeWeekdays;
+proto$1.weekdaysMin    =        localeWeekdaysMin;
+proto$1.weekdaysShort  =        localeWeekdaysShort;
+proto$1.weekdaysParse  =        localeWeekdaysParse;
+
+proto$1.weekdaysRegex       =        weekdaysRegex;
+proto$1.weekdaysShortRegex  =        weekdaysShortRegex;
+proto$1.weekdaysMinRegex    =        weekdaysMinRegex;
+
+// Hours
+proto$1.isPM = localeIsPM;
+proto$1.meridiem = localeMeridiem;
+
+function get$1 (format, index, field, setter) {
+    var locale = getLocale();
+    var utc = createUTC().set(setter, index);
+    return locale[field](utc, format);
+}
+
+function listMonthsImpl (format, index, field) {
+    if (isNumber(format)) {
+        index = format;
+        format = undefined;
     }
 
-    // FORMATTING
+    format = format || '';
 
-    addFormatToken('m', ['mm', 2], 0, 'minute');
-
-    // ALIASES
-
-    addUnitAlias('minute', 'm');
-
-    // PRIORITY
-
-    addUnitPriority('minute', 14);
-
-    // PARSING
-
-    addRegexToken('m',  match1to2);
-    addRegexToken('mm', match1to2, match2);
-    addParseToken(['m', 'mm'], MINUTE);
-
-    // MOMENTS
-
-    var getSetMinute = makeGetSet('Minutes', false);
-
-    // FORMATTING
-
-    addFormatToken('s', ['ss', 2], 0, 'second');
-
-    // ALIASES
-
-    addUnitAlias('second', 's');
-
-    // PRIORITY
-
-    addUnitPriority('second', 15);
-
-    // PARSING
-
-    addRegexToken('s',  match1to2);
-    addRegexToken('ss', match1to2, match2);
-    addParseToken(['s', 'ss'], SECOND);
-
-    // MOMENTS
-
-    var getSetSecond = makeGetSet('Seconds', false);
-
-    // FORMATTING
-
-    addFormatToken('S', 0, 0, function () {
-        return ~~(this.millisecond() / 100);
-    });
-
-    addFormatToken(0, ['SS', 2], 0, function () {
-        return ~~(this.millisecond() / 10);
-    });
-
-    addFormatToken(0, ['SSS', 3], 0, 'millisecond');
-    addFormatToken(0, ['SSSS', 4], 0, function () {
-        return this.millisecond() * 10;
-    });
-    addFormatToken(0, ['SSSSS', 5], 0, function () {
-        return this.millisecond() * 100;
-    });
-    addFormatToken(0, ['SSSSSS', 6], 0, function () {
-        return this.millisecond() * 1000;
-    });
-    addFormatToken(0, ['SSSSSSS', 7], 0, function () {
-        return this.millisecond() * 10000;
-    });
-    addFormatToken(0, ['SSSSSSSS', 8], 0, function () {
-        return this.millisecond() * 100000;
-    });
-    addFormatToken(0, ['SSSSSSSSS', 9], 0, function () {
-        return this.millisecond() * 1000000;
-    });
-
-
-    // ALIASES
-
-    addUnitAlias('millisecond', 'ms');
-
-    // PRIORITY
-
-    addUnitPriority('millisecond', 16);
-
-    // PARSING
-
-    addRegexToken('S',    match1to3, match1);
-    addRegexToken('SS',   match1to3, match2);
-    addRegexToken('SSS',  match1to3, match3);
-
-    var token;
-    for (token = 'SSSS'; token.length <= 9; token += 'S') {
-        addRegexToken(token, matchUnsigned);
+    if (index != null) {
+        return get$1(format, index, field, 'month');
     }
 
-    function parseMs(input, array) {
-        array[MILLISECOND] = toInt(('0.' + input) * 1000);
+    var i;
+    var out = [];
+    for (i = 0; i < 12; i++) {
+        out[i] = get$1(format, i, field, 'month');
     }
+    return out;
+}
 
-    for (token = 'S'; token.length <= 9; token += 'S') {
-        addParseToken(token, parseMs);
-    }
-    // MOMENTS
-
-    var getSetMillisecond = makeGetSet('Milliseconds', false);
-
-    // FORMATTING
-
-    addFormatToken('z',  0, 0, 'zoneAbbr');
-    addFormatToken('zz', 0, 0, 'zoneName');
-
-    // MOMENTS
-
-    function getZoneAbbr () {
-        return this._isUTC ? 'UTC' : '';
-    }
-
-    function getZoneName () {
-        return this._isUTC ? 'Coordinated Universal Time' : '';
-    }
-
-    var proto = Moment.prototype;
-
-    proto.add               = add;
-    proto.calendar          = calendar$1;
-    proto.clone             = clone;
-    proto.diff              = diff;
-    proto.endOf             = endOf;
-    proto.format            = format;
-    proto.from              = from;
-    proto.fromNow           = fromNow;
-    proto.to                = to;
-    proto.toNow             = toNow;
-    proto.get               = stringGet;
-    proto.invalidAt         = invalidAt;
-    proto.isAfter           = isAfter;
-    proto.isBefore          = isBefore;
-    proto.isBetween         = isBetween;
-    proto.isSame            = isSame;
-    proto.isSameOrAfter     = isSameOrAfter;
-    proto.isSameOrBefore    = isSameOrBefore;
-    proto.isValid           = isValid$2;
-    proto.lang              = lang;
-    proto.locale            = locale;
-    proto.localeData        = localeData;
-    proto.max               = prototypeMax;
-    proto.min               = prototypeMin;
-    proto.parsingFlags      = parsingFlags;
-    proto.set               = stringSet;
-    proto.startOf           = startOf;
-    proto.subtract          = subtract;
-    proto.toArray           = toArray;
-    proto.toObject          = toObject;
-    proto.toDate            = toDate;
-    proto.toISOString       = toISOString;
-    proto.inspect           = inspect;
-    proto.toJSON            = toJSON;
-    proto.toString          = toString;
-    proto.unix              = unix;
-    proto.valueOf           = valueOf;
-    proto.creationData      = creationData;
-    proto.year       = getSetYear;
-    proto.isLeapYear = getIsLeapYear;
-    proto.weekYear    = getSetWeekYear;
-    proto.isoWeekYear = getSetISOWeekYear;
-    proto.quarter = proto.quarters = getSetQuarter;
-    proto.month       = getSetMonth;
-    proto.daysInMonth = getDaysInMonth;
-    proto.week           = proto.weeks        = getSetWeek;
-    proto.isoWeek        = proto.isoWeeks     = getSetISOWeek;
-    proto.weeksInYear    = getWeeksInYear;
-    proto.isoWeeksInYear = getISOWeeksInYear;
-    proto.date       = getSetDayOfMonth;
-    proto.day        = proto.days             = getSetDayOfWeek;
-    proto.weekday    = getSetLocaleDayOfWeek;
-    proto.isoWeekday = getSetISODayOfWeek;
-    proto.dayOfYear  = getSetDayOfYear;
-    proto.hour = proto.hours = getSetHour;
-    proto.minute = proto.minutes = getSetMinute;
-    proto.second = proto.seconds = getSetSecond;
-    proto.millisecond = proto.milliseconds = getSetMillisecond;
-    proto.utcOffset            = getSetOffset;
-    proto.utc                  = setOffsetToUTC;
-    proto.local                = setOffsetToLocal;
-    proto.parseZone            = setOffsetToParsedOffset;
-    proto.hasAlignedHourOffset = hasAlignedHourOffset;
-    proto.isDST                = isDaylightSavingTime;
-    proto.isLocal              = isLocal;
-    proto.isUtcOffset          = isUtcOffset;
-    proto.isUtc                = isUtc;
-    proto.isUTC                = isUtc;
-    proto.zoneAbbr = getZoneAbbr;
-    proto.zoneName = getZoneName;
-    proto.dates  = deprecate('dates accessor is deprecated. Use date instead.', getSetDayOfMonth);
-    proto.months = deprecate('months accessor is deprecated. Use month instead', getSetMonth);
-    proto.years  = deprecate('years accessor is deprecated. Use year instead', getSetYear);
-    proto.zone   = deprecate('moment().zone is deprecated, use moment().utcOffset instead. http://momentjs.com/guides/#/warnings/zone/', getSetZone);
-    proto.isDSTShifted = deprecate('isDSTShifted is deprecated. See http://momentjs.com/guides/#/warnings/dst-shifted/ for more information', isDaylightSavingTimeShifted);
-
-    function createUnix (input) {
-        return createLocal(input * 1000);
-    }
-
-    function createInZone () {
-        return createLocal.apply(null, arguments).parseZone();
-    }
-
-    function preParsePostFormat (string) {
-        return string;
-    }
-
-    var proto$1 = Locale.prototype;
-
-    proto$1.calendar        = calendar;
-    proto$1.longDateFormat  = longDateFormat;
-    proto$1.invalidDate     = invalidDate;
-    proto$1.ordinal         = ordinal;
-    proto$1.preparse        = preParsePostFormat;
-    proto$1.postformat      = preParsePostFormat;
-    proto$1.relativeTime    = relativeTime;
-    proto$1.pastFuture      = pastFuture;
-    proto$1.set             = set;
-
-    proto$1.months            =        localeMonths;
-    proto$1.monthsShort       =        localeMonthsShort;
-    proto$1.monthsParse       =        localeMonthsParse;
-    proto$1.monthsRegex       = monthsRegex;
-    proto$1.monthsShortRegex  = monthsShortRegex;
-    proto$1.week = localeWeek;
-    proto$1.firstDayOfYear = localeFirstDayOfYear;
-    proto$1.firstDayOfWeek = localeFirstDayOfWeek;
-
-    proto$1.weekdays       =        localeWeekdays;
-    proto$1.weekdaysMin    =        localeWeekdaysMin;
-    proto$1.weekdaysShort  =        localeWeekdaysShort;
-    proto$1.weekdaysParse  =        localeWeekdaysParse;
-
-    proto$1.weekdaysRegex       =        weekdaysRegex;
-    proto$1.weekdaysShortRegex  =        weekdaysShortRegex;
-    proto$1.weekdaysMinRegex    =        weekdaysMinRegex;
-
-    proto$1.isPM = localeIsPM;
-    proto$1.meridiem = localeMeridiem;
-
-    function get$1 (format, index, field, setter) {
-        var locale = getLocale();
-        var utc = createUTC().set(setter, index);
-        return locale[field](utc, format);
-    }
-
-    function listMonthsImpl (format, index, field) {
+// ()
+// (5)
+// (fmt, 5)
+// (fmt)
+// (true)
+// (true, 5)
+// (true, fmt, 5)
+// (true, fmt)
+function listWeekdaysImpl (localeSorted, format, index, field) {
+    if (typeof localeSorted === 'boolean') {
         if (isNumber(format)) {
             index = format;
             format = undefined;
         }
 
         format = format || '';
+    } else {
+        format = localeSorted;
+        index = format;
+        localeSorted = false;
 
-        if (index != null) {
-            return get$1(format, index, field, 'month');
-        }
-
-        var i;
-        var out = [];
-        for (i = 0; i < 12; i++) {
-            out[i] = get$1(format, i, field, 'month');
-        }
-        return out;
-    }
-
-    // ()
-    // (5)
-    // (fmt, 5)
-    // (fmt)
-    // (true)
-    // (true, 5)
-    // (true, fmt, 5)
-    // (true, fmt)
-    function listWeekdaysImpl (localeSorted, format, index, field) {
-        if (typeof localeSorted === 'boolean') {
-            if (isNumber(format)) {
-                index = format;
-                format = undefined;
-            }
-
-            format = format || '';
-        } else {
-            format = localeSorted;
+        if (isNumber(format)) {
             index = format;
-            localeSorted = false;
-
-            if (isNumber(format)) {
-                index = format;
-                format = undefined;
-            }
-
-            format = format || '';
+            format = undefined;
         }
 
-        var locale = getLocale(),
-            shift = localeSorted ? locale._week.dow : 0;
+        format = format || '';
+    }
 
-        if (index != null) {
-            return get$1(format, (index + shift) % 7, field, 'day');
+    var locale = getLocale(),
+        shift = localeSorted ? locale._week.dow : 0;
+
+    if (index != null) {
+        return get$1(format, (index + shift) % 7, field, 'day');
+    }
+
+    var i;
+    var out = [];
+    for (i = 0; i < 7; i++) {
+        out[i] = get$1(format, (i + shift) % 7, field, 'day');
+    }
+    return out;
+}
+
+function listMonths (format, index) {
+    return listMonthsImpl(format, index, 'months');
+}
+
+function listMonthsShort (format, index) {
+    return listMonthsImpl(format, index, 'monthsShort');
+}
+
+function listWeekdays (localeSorted, format, index) {
+    return listWeekdaysImpl(localeSorted, format, index, 'weekdays');
+}
+
+function listWeekdaysShort (localeSorted, format, index) {
+    return listWeekdaysImpl(localeSorted, format, index, 'weekdaysShort');
+}
+
+function listWeekdaysMin (localeSorted, format, index) {
+    return listWeekdaysImpl(localeSorted, format, index, 'weekdaysMin');
+}
+
+getSetGlobalLocale('en', {
+    dayOfMonthOrdinalParse: /\d{1,2}(th|st|nd|rd)/,
+    ordinal : function (number) {
+        var b = number % 10,
+            output = (toInt(number % 100 / 10) === 1) ? 'th' :
+            (b === 1) ? 'st' :
+            (b === 2) ? 'nd' :
+            (b === 3) ? 'rd' : 'th';
+        return number + output;
+    }
+});
+
+// Side effect imports
+hooks.lang = deprecate('moment.lang is deprecated. Use moment.locale instead.', getSetGlobalLocale);
+hooks.langData = deprecate('moment.langData is deprecated. Use moment.localeData instead.', getLocale);
+
+var mathAbs = Math.abs;
+
+function abs () {
+    var data           = this._data;
+
+    this._milliseconds = mathAbs(this._milliseconds);
+    this._days         = mathAbs(this._days);
+    this._months       = mathAbs(this._months);
+
+    data.milliseconds  = mathAbs(data.milliseconds);
+    data.seconds       = mathAbs(data.seconds);
+    data.minutes       = mathAbs(data.minutes);
+    data.hours         = mathAbs(data.hours);
+    data.months        = mathAbs(data.months);
+    data.years         = mathAbs(data.years);
+
+    return this;
+}
+
+function addSubtract$1 (duration, input, value, direction) {
+    var other = createDuration(input, value);
+
+    duration._milliseconds += direction * other._milliseconds;
+    duration._days         += direction * other._days;
+    duration._months       += direction * other._months;
+
+    return duration._bubble();
+}
+
+// supports only 2.0-style add(1, 's') or add(duration)
+function add$1 (input, value) {
+    return addSubtract$1(this, input, value, 1);
+}
+
+// supports only 2.0-style subtract(1, 's') or subtract(duration)
+function subtract$1 (input, value) {
+    return addSubtract$1(this, input, value, -1);
+}
+
+function absCeil (number) {
+    if (number < 0) {
+        return Math.floor(number);
+    } else {
+        return Math.ceil(number);
+    }
+}
+
+function bubble () {
+    var milliseconds = this._milliseconds;
+    var days         = this._days;
+    var months       = this._months;
+    var data         = this._data;
+    var seconds, minutes, hours, years, monthsFromDays;
+
+    // if we have a mix of positive and negative values, bubble down first
+    // check: https://github.com/moment/moment/issues/2166
+    if (!((milliseconds >= 0 && days >= 0 && months >= 0) ||
+            (milliseconds <= 0 && days <= 0 && months <= 0))) {
+        milliseconds += absCeil(monthsToDays(months) + days) * 864e5;
+        days = 0;
+        months = 0;
+    }
+
+    // The following code bubbles up values, see the tests for
+    // examples of what that means.
+    data.milliseconds = milliseconds % 1000;
+
+    seconds           = absFloor(milliseconds / 1000);
+    data.seconds      = seconds % 60;
+
+    minutes           = absFloor(seconds / 60);
+    data.minutes      = minutes % 60;
+
+    hours             = absFloor(minutes / 60);
+    data.hours        = hours % 24;
+
+    days += absFloor(hours / 24);
+
+    // convert days to months
+    monthsFromDays = absFloor(daysToMonths(days));
+    months += monthsFromDays;
+    days -= absCeil(monthsToDays(monthsFromDays));
+
+    // 12 months -> 1 year
+    years = absFloor(months / 12);
+    months %= 12;
+
+    data.days   = days;
+    data.months = months;
+    data.years  = years;
+
+    return this;
+}
+
+function daysToMonths (days) {
+    // 400 years have 146097 days (taking into account leap year rules)
+    // 400 years have 12 months === 4800
+    return days * 4800 / 146097;
+}
+
+function monthsToDays (months) {
+    // the reverse of daysToMonths
+    return months * 146097 / 4800;
+}
+
+function as (units) {
+    if (!this.isValid()) {
+        return NaN;
+    }
+    var days;
+    var months;
+    var milliseconds = this._milliseconds;
+
+    units = normalizeUnits(units);
+
+    if (units === 'month' || units === 'year') {
+        days   = this._days   + milliseconds / 864e5;
+        months = this._months + daysToMonths(days);
+        return units === 'month' ? months : months / 12;
+    } else {
+        // handle milliseconds separately because of floating point math errors (issue #1867)
+        days = this._days + Math.round(monthsToDays(this._months));
+        switch (units) {
+            case 'week'   : return days / 7     + milliseconds / 6048e5;
+            case 'day'    : return days         + milliseconds / 864e5;
+            case 'hour'   : return days * 24    + milliseconds / 36e5;
+            case 'minute' : return days * 1440  + milliseconds / 6e4;
+            case 'second' : return days * 86400 + milliseconds / 1000;
+            // Math.floor prevents floating point math errors here
+            case 'millisecond': return Math.floor(days * 864e5) + milliseconds;
+            default: throw new Error('Unknown unit ' + units);
         }
-
-        var i;
-        var out = [];
-        for (i = 0; i < 7; i++) {
-            out[i] = get$1(format, (i + shift) % 7, field, 'day');
-        }
-        return out;
     }
+}
 
-    function listMonths (format, index) {
-        return listMonthsImpl(format, index, 'months');
+// TODO: Use this.as('ms')?
+function valueOf$1 () {
+    if (!this.isValid()) {
+        return NaN;
     }
+    return (
+        this._milliseconds +
+        this._days * 864e5 +
+        (this._months % 12) * 2592e6 +
+        toInt(this._months / 12) * 31536e6
+    );
+}
 
-    function listMonthsShort (format, index) {
-        return listMonthsImpl(format, index, 'monthsShort');
-    }
-
-    function listWeekdays (localeSorted, format, index) {
-        return listWeekdaysImpl(localeSorted, format, index, 'weekdays');
-    }
-
-    function listWeekdaysShort (localeSorted, format, index) {
-        return listWeekdaysImpl(localeSorted, format, index, 'weekdaysShort');
-    }
-
-    function listWeekdaysMin (localeSorted, format, index) {
-        return listWeekdaysImpl(localeSorted, format, index, 'weekdaysMin');
-    }
-
-    getSetGlobalLocale('en', {
-        dayOfMonthOrdinalParse: /\d{1,2}(th|st|nd|rd)/,
-        ordinal : function (number) {
-            var b = number % 10,
-                output = (toInt(number % 100 / 10) === 1) ? 'th' :
-                (b === 1) ? 'st' :
-                (b === 2) ? 'nd' :
-                (b === 3) ? 'rd' : 'th';
-            return number + output;
-        }
-    });
-
-    // Side effect imports
-
-    hooks.lang = deprecate('moment.lang is deprecated. Use moment.locale instead.', getSetGlobalLocale);
-    hooks.langData = deprecate('moment.langData is deprecated. Use moment.localeData instead.', getLocale);
-
-    var mathAbs = Math.abs;
-
-    function abs () {
-        var data           = this._data;
-
-        this._milliseconds = mathAbs(this._milliseconds);
-        this._days         = mathAbs(this._days);
-        this._months       = mathAbs(this._months);
-
-        data.milliseconds  = mathAbs(data.milliseconds);
-        data.seconds       = mathAbs(data.seconds);
-        data.minutes       = mathAbs(data.minutes);
-        data.hours         = mathAbs(data.hours);
-        data.months        = mathAbs(data.months);
-        data.years         = mathAbs(data.years);
-
-        return this;
-    }
-
-    function addSubtract$1 (duration, input, value, direction) {
-        var other = createDuration(input, value);
-
-        duration._milliseconds += direction * other._milliseconds;
-        duration._days         += direction * other._days;
-        duration._months       += direction * other._months;
-
-        return duration._bubble();
-    }
-
-    // supports only 2.0-style add(1, 's') or add(duration)
-    function add$1 (input, value) {
-        return addSubtract$1(this, input, value, 1);
-    }
-
-    // supports only 2.0-style subtract(1, 's') or subtract(duration)
-    function subtract$1 (input, value) {
-        return addSubtract$1(this, input, value, -1);
-    }
-
-    function absCeil (number) {
-        if (number < 0) {
-            return Math.floor(number);
-        } else {
-            return Math.ceil(number);
-        }
-    }
-
-    function bubble () {
-        var milliseconds = this._milliseconds;
-        var days         = this._days;
-        var months       = this._months;
-        var data         = this._data;
-        var seconds, minutes, hours, years, monthsFromDays;
-
-        // if we have a mix of positive and negative values, bubble down first
-        // check: https://github.com/moment/moment/issues/2166
-        if (!((milliseconds >= 0 && days >= 0 && months >= 0) ||
-                (milliseconds <= 0 && days <= 0 && months <= 0))) {
-            milliseconds += absCeil(monthsToDays(months) + days) * 864e5;
-            days = 0;
-            months = 0;
-        }
-
-        // The following code bubbles up values, see the tests for
-        // examples of what that means.
-        data.milliseconds = milliseconds % 1000;
-
-        seconds           = absFloor(milliseconds / 1000);
-        data.seconds      = seconds % 60;
-
-        minutes           = absFloor(seconds / 60);
-        data.minutes      = minutes % 60;
-
-        hours             = absFloor(minutes / 60);
-        data.hours        = hours % 24;
-
-        days += absFloor(hours / 24);
-
-        // convert days to months
-        monthsFromDays = absFloor(daysToMonths(days));
-        months += monthsFromDays;
-        days -= absCeil(monthsToDays(monthsFromDays));
-
-        // 12 months -> 1 year
-        years = absFloor(months / 12);
-        months %= 12;
-
-        data.days   = days;
-        data.months = months;
-        data.years  = years;
-
-        return this;
-    }
-
-    function daysToMonths (days) {
-        // 400 years have 146097 days (taking into account leap year rules)
-        // 400 years have 12 months === 4800
-        return days * 4800 / 146097;
-    }
-
-    function monthsToDays (months) {
-        // the reverse of daysToMonths
-        return months * 146097 / 4800;
-    }
-
-    function as (units) {
-        if (!this.isValid()) {
-            return NaN;
-        }
-        var days;
-        var months;
-        var milliseconds = this._milliseconds;
-
-        units = normalizeUnits(units);
-
-        if (units === 'month' || units === 'year') {
-            days   = this._days   + milliseconds / 864e5;
-            months = this._months + daysToMonths(days);
-            return units === 'month' ? months : months / 12;
-        } else {
-            // handle milliseconds separately because of floating point math errors (issue #1867)
-            days = this._days + Math.round(monthsToDays(this._months));
-            switch (units) {
-                case 'week'   : return days / 7     + milliseconds / 6048e5;
-                case 'day'    : return days         + milliseconds / 864e5;
-                case 'hour'   : return days * 24    + milliseconds / 36e5;
-                case 'minute' : return days * 1440  + milliseconds / 6e4;
-                case 'second' : return days * 86400 + milliseconds / 1000;
-                // Math.floor prevents floating point math errors here
-                case 'millisecond': return Math.floor(days * 864e5) + milliseconds;
-                default: throw new Error('Unknown unit ' + units);
-            }
-        }
-    }
-
-    // TODO: Use this.as('ms')?
-    function valueOf$1 () {
-        if (!this.isValid()) {
-            return NaN;
-        }
-        return (
-            this._milliseconds +
-            this._days * 864e5 +
-            (this._months % 12) * 2592e6 +
-            toInt(this._months / 12) * 31536e6
-        );
-    }
-
-    function makeAs (alias) {
-        return function () {
-            return this.as(alias);
-        };
-    }
-
-    var asMilliseconds = makeAs('ms');
-    var asSeconds      = makeAs('s');
-    var asMinutes      = makeAs('m');
-    var asHours        = makeAs('h');
-    var asDays         = makeAs('d');
-    var asWeeks        = makeAs('w');
-    var asMonths       = makeAs('M');
-    var asYears        = makeAs('y');
-
-    function clone$1 () {
-        return createDuration(this);
-    }
-
-    function get$2 (units) {
-        units = normalizeUnits(units);
-        return this.isValid() ? this[units + 's']() : NaN;
-    }
-
-    function makeGetter(name) {
-        return function () {
-            return this.isValid() ? this._data[name] : NaN;
-        };
-    }
-
-    var milliseconds = makeGetter('milliseconds');
-    var seconds      = makeGetter('seconds');
-    var minutes      = makeGetter('minutes');
-    var hours        = makeGetter('hours');
-    var days         = makeGetter('days');
-    var months       = makeGetter('months');
-    var years        = makeGetter('years');
-
-    function weeks () {
-        return absFloor(this.days() / 7);
-    }
-
-    var round = Math.round;
-    var thresholds = {
-        ss: 44,         // a few seconds to seconds
-        s : 45,         // seconds to minute
-        m : 45,         // minutes to hour
-        h : 22,         // hours to day
-        d : 26,         // days to month
-        M : 11          // months to year
+function makeAs (alias) {
+    return function () {
+        return this.as(alias);
     };
+}
 
-    // helper function for moment.fn.from, moment.fn.fromNow, and moment.duration.fn.humanize
-    function substituteTimeAgo(string, number, withoutSuffix, isFuture, locale) {
-        return locale.relativeTime(number || 1, !!withoutSuffix, string, isFuture);
+var asMilliseconds = makeAs('ms');
+var asSeconds      = makeAs('s');
+var asMinutes      = makeAs('m');
+var asHours        = makeAs('h');
+var asDays         = makeAs('d');
+var asWeeks        = makeAs('w');
+var asMonths       = makeAs('M');
+var asYears        = makeAs('y');
+
+function get$2 (units) {
+    units = normalizeUnits(units);
+    return this.isValid() ? this[units + 's']() : NaN;
+}
+
+function makeGetter(name) {
+    return function () {
+        return this.isValid() ? this._data[name] : NaN;
+    };
+}
+
+var milliseconds = makeGetter('milliseconds');
+var seconds      = makeGetter('seconds');
+var minutes      = makeGetter('minutes');
+var hours        = makeGetter('hours');
+var days         = makeGetter('days');
+var months       = makeGetter('months');
+var years        = makeGetter('years');
+
+function weeks () {
+    return absFloor(this.days() / 7);
+}
+
+var round = Math.round;
+var thresholds = {
+    ss: 44,         // a few seconds to seconds
+    s : 45,         // seconds to minute
+    m : 45,         // minutes to hour
+    h : 22,         // hours to day
+    d : 26,         // days to month
+    M : 11          // months to year
+};
+
+// helper function for moment.fn.from, moment.fn.fromNow, and moment.duration.fn.humanize
+function substituteTimeAgo(string, number, withoutSuffix, isFuture, locale) {
+    return locale.relativeTime(number || 1, !!withoutSuffix, string, isFuture);
+}
+
+function relativeTime$1 (posNegDuration, withoutSuffix, locale) {
+    var duration = createDuration(posNegDuration).abs();
+    var seconds  = round(duration.as('s'));
+    var minutes  = round(duration.as('m'));
+    var hours    = round(duration.as('h'));
+    var days     = round(duration.as('d'));
+    var months   = round(duration.as('M'));
+    var years    = round(duration.as('y'));
+
+    var a = seconds <= thresholds.ss && ['s', seconds]  ||
+            seconds < thresholds.s   && ['ss', seconds] ||
+            minutes <= 1             && ['m']           ||
+            minutes < thresholds.m   && ['mm', minutes] ||
+            hours   <= 1             && ['h']           ||
+            hours   < thresholds.h   && ['hh', hours]   ||
+            days    <= 1             && ['d']           ||
+            days    < thresholds.d   && ['dd', days]    ||
+            months  <= 1             && ['M']           ||
+            months  < thresholds.M   && ['MM', months]  ||
+            years   <= 1             && ['y']           || ['yy', years];
+
+    a[2] = withoutSuffix;
+    a[3] = +posNegDuration > 0;
+    a[4] = locale;
+    return substituteTimeAgo.apply(null, a);
+}
+
+// This function allows you to set the rounding function for relative time strings
+function getSetRelativeTimeRounding (roundingFunction) {
+    if (roundingFunction === undefined) {
+        return round;
     }
-
-    function relativeTime$1 (posNegDuration, withoutSuffix, locale) {
-        var duration = createDuration(posNegDuration).abs();
-        var seconds  = round(duration.as('s'));
-        var minutes  = round(duration.as('m'));
-        var hours    = round(duration.as('h'));
-        var days     = round(duration.as('d'));
-        var months   = round(duration.as('M'));
-        var years    = round(duration.as('y'));
-
-        var a = seconds <= thresholds.ss && ['s', seconds]  ||
-                seconds < thresholds.s   && ['ss', seconds] ||
-                minutes <= 1             && ['m']           ||
-                minutes < thresholds.m   && ['mm', minutes] ||
-                hours   <= 1             && ['h']           ||
-                hours   < thresholds.h   && ['hh', hours]   ||
-                days    <= 1             && ['d']           ||
-                days    < thresholds.d   && ['dd', days]    ||
-                months  <= 1             && ['M']           ||
-                months  < thresholds.M   && ['MM', months]  ||
-                years   <= 1             && ['y']           || ['yy', years];
-
-        a[2] = withoutSuffix;
-        a[3] = +posNegDuration > 0;
-        a[4] = locale;
-        return substituteTimeAgo.apply(null, a);
-    }
-
-    // This function allows you to set the rounding function for relative time strings
-    function getSetRelativeTimeRounding (roundingFunction) {
-        if (roundingFunction === undefined) {
-            return round;
-        }
-        if (typeof(roundingFunction) === 'function') {
-            round = roundingFunction;
-            return true;
-        }
-        return false;
-    }
-
-    // This function allows you to set a threshold for relative time strings
-    function getSetRelativeTimeThreshold (threshold, limit) {
-        if (thresholds[threshold] === undefined) {
-            return false;
-        }
-        if (limit === undefined) {
-            return thresholds[threshold];
-        }
-        thresholds[threshold] = limit;
-        if (threshold === 's') {
-            thresholds.ss = limit - 1;
-        }
+    if (typeof(roundingFunction) === 'function') {
+        round = roundingFunction;
         return true;
     }
+    return false;
+}
 
-    function humanize (withSuffix) {
-        if (!this.isValid()) {
-            return this.localeData().invalidDate();
-        }
+// This function allows you to set a threshold for relative time strings
+function getSetRelativeTimeThreshold (threshold, limit) {
+    if (thresholds[threshold] === undefined) {
+        return false;
+    }
+    if (limit === undefined) {
+        return thresholds[threshold];
+    }
+    thresholds[threshold] = limit;
+    if (threshold === 's') {
+        thresholds.ss = limit - 1;
+    }
+    return true;
+}
 
-        var locale = this.localeData();
-        var output = relativeTime$1(this, !withSuffix, locale);
-
-        if (withSuffix) {
-            output = locale.pastFuture(+this, output);
-        }
-
-        return locale.postformat(output);
+function humanize (withSuffix) {
+    if (!this.isValid()) {
+        return this.localeData().invalidDate();
     }
 
-    var abs$1 = Math.abs;
+    var locale = this.localeData();
+    var output = relativeTime$1(this, !withSuffix, locale);
 
-    function sign(x) {
-        return ((x > 0) - (x < 0)) || +x;
+    if (withSuffix) {
+        output = locale.pastFuture(+this, output);
     }
 
-    function toISOString$1() {
-        // for ISO strings we do not use the normal bubbling rules:
-        //  * milliseconds bubble up until they become hours
-        //  * days do not bubble at all
-        //  * months bubble up until they become years
-        // This is because there is no context-free conversion between hours and days
-        // (think of clock changes)
-        // and also not between days and months (28-31 days per month)
-        if (!this.isValid()) {
-            return this.localeData().invalidDate();
-        }
+    return locale.postformat(output);
+}
 
-        var seconds = abs$1(this._milliseconds) / 1000;
-        var days         = abs$1(this._days);
-        var months       = abs$1(this._months);
-        var minutes, hours, years;
+var abs$1 = Math.abs;
 
-        // 3600 seconds -> 60 minutes -> 1 hour
-        minutes           = absFloor(seconds / 60);
-        hours             = absFloor(minutes / 60);
-        seconds %= 60;
-        minutes %= 60;
-
-        // 12 months -> 1 year
-        years  = absFloor(months / 12);
-        months %= 12;
-
-
-        // inspired by https://github.com/dordille/moment-isoduration/blob/master/moment.isoduration.js
-        var Y = years;
-        var M = months;
-        var D = days;
-        var h = hours;
-        var m = minutes;
-        var s = seconds ? seconds.toFixed(3).replace(/\.?0+$/, '') : '';
-        var total = this.asSeconds();
-
-        if (!total) {
-            // this is the same as C#'s (Noda) and python (isodate)...
-            // but not other JS (goog.date)
-            return 'P0D';
-        }
-
-        var totalSign = total < 0 ? '-' : '';
-        var ymSign = sign(this._months) !== sign(total) ? '-' : '';
-        var daysSign = sign(this._days) !== sign(total) ? '-' : '';
-        var hmsSign = sign(this._milliseconds) !== sign(total) ? '-' : '';
-
-        return totalSign + 'P' +
-            (Y ? ymSign + Y + 'Y' : '') +
-            (M ? ymSign + M + 'M' : '') +
-            (D ? daysSign + D + 'D' : '') +
-            ((h || m || s) ? 'T' : '') +
-            (h ? hmsSign + h + 'H' : '') +
-            (m ? hmsSign + m + 'M' : '') +
-            (s ? hmsSign + s + 'S' : '');
+function toISOString$1() {
+    // for ISO strings we do not use the normal bubbling rules:
+    //  * milliseconds bubble up until they become hours
+    //  * days do not bubble at all
+    //  * months bubble up until they become years
+    // This is because there is no context-free conversion between hours and days
+    // (think of clock changes)
+    // and also not between days and months (28-31 days per month)
+    if (!this.isValid()) {
+        return this.localeData().invalidDate();
     }
 
-    var proto$2 = Duration.prototype;
+    var seconds = abs$1(this._milliseconds) / 1000;
+    var days         = abs$1(this._days);
+    var months       = abs$1(this._months);
+    var minutes, hours, years;
 
-    proto$2.isValid        = isValid$1;
-    proto$2.abs            = abs;
-    proto$2.add            = add$1;
-    proto$2.subtract       = subtract$1;
-    proto$2.as             = as;
-    proto$2.asMilliseconds = asMilliseconds;
-    proto$2.asSeconds      = asSeconds;
-    proto$2.asMinutes      = asMinutes;
-    proto$2.asHours        = asHours;
-    proto$2.asDays         = asDays;
-    proto$2.asWeeks        = asWeeks;
-    proto$2.asMonths       = asMonths;
-    proto$2.asYears        = asYears;
-    proto$2.valueOf        = valueOf$1;
-    proto$2._bubble        = bubble;
-    proto$2.clone          = clone$1;
-    proto$2.get            = get$2;
-    proto$2.milliseconds   = milliseconds;
-    proto$2.seconds        = seconds;
-    proto$2.minutes        = minutes;
-    proto$2.hours          = hours;
-    proto$2.days           = days;
-    proto$2.weeks          = weeks;
-    proto$2.months         = months;
-    proto$2.years          = years;
-    proto$2.humanize       = humanize;
-    proto$2.toISOString    = toISOString$1;
-    proto$2.toString       = toISOString$1;
-    proto$2.toJSON         = toISOString$1;
-    proto$2.locale         = locale;
-    proto$2.localeData     = localeData;
+    // 3600 seconds -> 60 minutes -> 1 hour
+    minutes           = absFloor(seconds / 60);
+    hours             = absFloor(minutes / 60);
+    seconds %= 60;
+    minutes %= 60;
 
-    proto$2.toIsoString = deprecate('toIsoString() is deprecated. Please use toISOString() instead (notice the capitals)', toISOString$1);
-    proto$2.lang = lang;
-
-    // Side effect imports
-
-    // FORMATTING
-
-    addFormatToken('X', 0, 0, 'unix');
-    addFormatToken('x', 0, 0, 'valueOf');
-
-    // PARSING
-
-    addRegexToken('x', matchSigned);
-    addRegexToken('X', matchTimestamp);
-    addParseToken('X', function (input, array, config) {
-        config._d = new Date(parseFloat(input, 10) * 1000);
-    });
-    addParseToken('x', function (input, array, config) {
-        config._d = new Date(toInt(input));
-    });
-
-    // Side effect imports
+    // 12 months -> 1 year
+    years  = absFloor(months / 12);
+    months %= 12;
 
 
-    hooks.version = '2.22.2';
+    // inspired by https://github.com/dordille/moment-isoduration/blob/master/moment.isoduration.js
+    var Y = years;
+    var M = months;
+    var D = days;
+    var h = hours;
+    var m = minutes;
+    var s = seconds;
+    var total = this.asSeconds();
 
-    setHookCallback(createLocal);
+    if (!total) {
+        // this is the same as C#'s (Noda) and python (isodate)...
+        // but not other JS (goog.date)
+        return 'P0D';
+    }
 
-    hooks.fn                    = proto;
-    hooks.min                   = min;
-    hooks.max                   = max;
-    hooks.now                   = now;
-    hooks.utc                   = createUTC;
-    hooks.unix                  = createUnix;
-    hooks.months                = listMonths;
-    hooks.isDate                = isDate;
-    hooks.locale                = getSetGlobalLocale;
-    hooks.invalid               = createInvalid;
-    hooks.duration              = createDuration;
-    hooks.isMoment              = isMoment;
-    hooks.weekdays              = listWeekdays;
-    hooks.parseZone             = createInZone;
-    hooks.localeData            = getLocale;
-    hooks.isDuration            = isDuration;
-    hooks.monthsShort           = listMonthsShort;
-    hooks.weekdaysMin           = listWeekdaysMin;
-    hooks.defineLocale          = defineLocale;
-    hooks.updateLocale          = updateLocale;
-    hooks.locales               = listLocales;
-    hooks.weekdaysShort         = listWeekdaysShort;
-    hooks.normalizeUnits        = normalizeUnits;
-    hooks.relativeTimeRounding  = getSetRelativeTimeRounding;
-    hooks.relativeTimeThreshold = getSetRelativeTimeThreshold;
-    hooks.calendarFormat        = getCalendarFormat;
-    hooks.prototype             = proto;
+    return (total < 0 ? '-' : '') +
+        'P' +
+        (Y ? Y + 'Y' : '') +
+        (M ? M + 'M' : '') +
+        (D ? D + 'D' : '') +
+        ((h || m || s) ? 'T' : '') +
+        (h ? h + 'H' : '') +
+        (m ? m + 'M' : '') +
+        (s ? s + 'S' : '');
+}
 
-    // currently HTML5 input type only supports 24-hour formats
-    hooks.HTML5_FMT = {
-        DATETIME_LOCAL: 'YYYY-MM-DDTHH:mm',             // <input type="datetime-local" />
-        DATETIME_LOCAL_SECONDS: 'YYYY-MM-DDTHH:mm:ss',  // <input type="datetime-local" step="1" />
-        DATETIME_LOCAL_MS: 'YYYY-MM-DDTHH:mm:ss.SSS',   // <input type="datetime-local" step="0.001" />
-        DATE: 'YYYY-MM-DD',                             // <input type="date" />
-        TIME: 'HH:mm',                                  // <input type="time" />
-        TIME_SECONDS: 'HH:mm:ss',                       // <input type="time" step="1" />
-        TIME_MS: 'HH:mm:ss.SSS',                        // <input type="time" step="0.001" />
-        WEEK: 'YYYY-[W]WW',                             // <input type="week" />
-        MONTH: 'YYYY-MM'                                // <input type="month" />
-    };
+var proto$2 = Duration.prototype;
 
-    return hooks;
+proto$2.isValid        = isValid$1;
+proto$2.abs            = abs;
+proto$2.add            = add$1;
+proto$2.subtract       = subtract$1;
+proto$2.as             = as;
+proto$2.asMilliseconds = asMilliseconds;
+proto$2.asSeconds      = asSeconds;
+proto$2.asMinutes      = asMinutes;
+proto$2.asHours        = asHours;
+proto$2.asDays         = asDays;
+proto$2.asWeeks        = asWeeks;
+proto$2.asMonths       = asMonths;
+proto$2.asYears        = asYears;
+proto$2.valueOf        = valueOf$1;
+proto$2._bubble        = bubble;
+proto$2.get            = get$2;
+proto$2.milliseconds   = milliseconds;
+proto$2.seconds        = seconds;
+proto$2.minutes        = minutes;
+proto$2.hours          = hours;
+proto$2.days           = days;
+proto$2.weeks          = weeks;
+proto$2.months         = months;
+proto$2.years          = years;
+proto$2.humanize       = humanize;
+proto$2.toISOString    = toISOString$1;
+proto$2.toString       = toISOString$1;
+proto$2.toJSON         = toISOString$1;
+proto$2.locale         = locale;
+proto$2.localeData     = localeData;
+
+// Deprecations
+proto$2.toIsoString = deprecate('toIsoString() is deprecated. Please use toISOString() instead (notice the capitals)', toISOString$1);
+proto$2.lang = lang;
+
+// Side effect imports
+
+// FORMATTING
+
+addFormatToken('X', 0, 0, 'unix');
+addFormatToken('x', 0, 0, 'valueOf');
+
+// PARSING
+
+addRegexToken('x', matchSigned);
+addRegexToken('X', matchTimestamp);
+addParseToken('X', function (input, array, config) {
+    config._d = new Date(parseFloat(input, 10) * 1000);
+});
+addParseToken('x', function (input, array, config) {
+    config._d = new Date(toInt(input));
+});
+
+// Side effect imports
+
+
+hooks.version = '2.18.1';
+
+setHookCallback(createLocal);
+
+hooks.fn                    = proto;
+hooks.min                   = min;
+hooks.max                   = max;
+hooks.now                   = now;
+hooks.utc                   = createUTC;
+hooks.unix                  = createUnix;
+hooks.months                = listMonths;
+hooks.isDate                = isDate;
+hooks.locale                = getSetGlobalLocale;
+hooks.invalid               = createInvalid;
+hooks.duration              = createDuration;
+hooks.isMoment              = isMoment;
+hooks.weekdays              = listWeekdays;
+hooks.parseZone             = createInZone;
+hooks.localeData            = getLocale;
+hooks.isDuration            = isDuration;
+hooks.monthsShort           = listMonthsShort;
+hooks.weekdaysMin           = listWeekdaysMin;
+hooks.defineLocale          = defineLocale;
+hooks.updateLocale          = updateLocale;
+hooks.locales               = listLocales;
+hooks.weekdaysShort         = listWeekdaysShort;
+hooks.normalizeUnits        = normalizeUnits;
+hooks.relativeTimeRounding = getSetRelativeTimeRounding;
+hooks.relativeTimeThreshold = getSetRelativeTimeThreshold;
+hooks.calendarFormat        = getCalendarFormat;
+hooks.prototype             = proto;
+
+return hooks;
 
 })));
 
-},{}],60:[function(require,module,exports){
+},{}],59:[function(require,module,exports){
 /**!
  * Sortable
  * @author	RubaXa   <trash@rubaxa.org>
@@ -36001,7 +35589,7 @@ module.exports = {
 })(function sortableFactory() {
 	"use strict";
 
-	if (typeof window === "undefined" || !window.document) {
+	if (typeof window == "undefined" || !window.document) {
 		return function sortableError() {
 			throw new Error("Sortable.js requires a window with a document");
 		};
@@ -36045,18 +35633,16 @@ module.exports = {
 		win = window,
 		document = win.document,
 		parseInt = win.parseInt,
-		setTimeout = win.setTimeout,
 
 		$ = win.jQuery || win.Zepto,
 		Polymer = win.Polymer,
 
 		captureMode = false,
-		passiveMode = false,
 
-		supportDraggable = ('draggable' in document.createElement('div')),
+		supportDraggable = !!('draggable' in document.createElement('div')),
 		supportCssPointerEvents = (function (el) {
 			// false when IE11
-			if (!!navigator.userAgent.match(/(?:Trident.*rv[ :]?11\.|msie)/i)) {
+			if (!!navigator.userAgent.match(/Trident.*rv[ :]?11\./)) {
 				return false;
 			}
 			el = document.createElement('x');
@@ -36197,20 +35783,6 @@ module.exports = {
 		}
 	;
 
-	// Detect support a passive mode
-	try {
-		window.addEventListener('test', null, Object.defineProperty({}, 'passive', {
-			get: function () {
-				// `false`, because everything starts to work incorrectly and instead of d'n'd,
-				// begins the page has scrolled.
-				passiveMode = false;
-				captureMode = {
-					capture: false,
-					passive: passiveMode
-				};
-			}
-		}));
-	} catch (err) {}
 
 	/**
 	 * @class  Sortable
@@ -36258,8 +35830,7 @@ module.exports = {
 			fallbackClass: 'sortable-fallback',
 			fallbackOnBody: false,
 			fallbackTolerance: 0,
-			fallbackOffset: {x: 0, y: 0},
-			supportPointer: Sortable.supportPointer !== false
+			fallbackOffset: {x: 0, y: 0}
 		};
 
 
@@ -36283,7 +35854,7 @@ module.exports = {
 		// Bind events
 		_on(el, 'mousedown', this._onTapStart);
 		_on(el, 'touchstart', this._onTapStart);
-		options.supportPointer && _on(el, 'pointerdown', this._onTapStart);
+		_on(el, 'pointerdown', this._onTapStart);
 
 		if (this.nativeDraggable) {
 			_on(el, 'dragover', this);
@@ -36308,7 +35879,7 @@ module.exports = {
 				type = evt.type,
 				touch = evt.touches && evt.touches[0],
 				target = (touch || evt).target,
-				originalTarget = evt.target.shadowRoot && (evt.path && evt.path[0]) || target,
+				originalTarget = evt.target.shadowRoot && evt.path[0] || target,
 				filter = options.filter,
 				startIndex;
 
@@ -36320,14 +35891,10 @@ module.exports = {
 				return;
 			}
 
-			if (/mousedown|pointerdown/.test(type) && evt.button !== 0 || options.disabled) {
+			if (type === 'mousedown' && evt.button !== 0 || options.disabled) {
 				return; // only left button or enabled
 			}
 
-			// cancel dnd if original target is content editable
-			if (originalTarget.isContentEditable) {
-				return;
-			}
 
 			target = _closest(target, options.draggable, el);
 
@@ -36346,7 +35913,7 @@ module.exports = {
 			// Check filter
 			if (typeof filter === 'function') {
 				if (filter.call(this, evt, target, this)) {
-					_dispatchEvent(_this, originalTarget, 'filter', target, el, el, startIndex);
+					_dispatchEvent(_this, originalTarget, 'filter', target, el, startIndex);
 					preventOnFilter && evt.preventDefault();
 					return; // cancel dnd
 				}
@@ -36356,7 +35923,7 @@ module.exports = {
 					criteria = _closest(originalTarget, criteria.trim(), el);
 
 					if (criteria) {
-						_dispatchEvent(_this, criteria, 'filter', target, el, el, startIndex);
+						_dispatchEvent(_this, criteria, 'filter', target, el, startIndex);
 						return true;
 					}
 				});
@@ -36396,7 +35963,7 @@ module.exports = {
 				this._lastX = (touch || evt).clientX;
 				this._lastY = (touch || evt).clientY;
 
-				dragEl.style['will-change'] = 'all';
+				dragEl.style['will-change'] = 'transform';
 
 				dragStartFn = function () {
 					// Delayed drag has been triggered
@@ -36413,7 +35980,7 @@ module.exports = {
 					_this._triggerDragStart(evt, touch);
 
 					// Drag start event
-					_dispatchEvent(_this, rootEl, 'choose', dragEl, rootEl, rootEl, oldIndex);
+					_dispatchEvent(_this, rootEl, 'choose', dragEl, rootEl, oldIndex);
 				};
 
 				// Disable "draggable"
@@ -36424,8 +35991,8 @@ module.exports = {
 				_on(ownerDocument, 'mouseup', _this._onDrop);
 				_on(ownerDocument, 'touchend', _this._onDrop);
 				_on(ownerDocument, 'touchcancel', _this._onDrop);
+				_on(ownerDocument, 'pointercancel', _this._onDrop);
 				_on(ownerDocument, 'selectstart', _this);
-				options.supportPointer && _on(ownerDocument, 'pointercancel', _this._onDrop);
 
 				if (options.delay) {
 					// If the user moves the pointer or let go the click or touch
@@ -36436,7 +36003,7 @@ module.exports = {
 					_on(ownerDocument, 'touchcancel', _this._disableDelayedDrag);
 					_on(ownerDocument, 'mousemove', _this._disableDelayedDrag);
 					_on(ownerDocument, 'touchmove', _this._disableDelayedDrag);
-					options.supportPointer && _on(ownerDocument, 'pointermove', _this._disableDelayedDrag);
+					_on(ownerDocument, 'pointermove', _this._disableDelayedDrag);
 
 					_this._dragStartTimer = setTimeout(dragStartFn, options.delay);
 				} else {
@@ -36483,7 +36050,7 @@ module.exports = {
 			try {
 				if (document.selection) {
 					// Timeout neccessary for IE9
-					_nextTick(function () {
+					setTimeout(function () {
 						document.selection.empty();
 					});
 				} else {
@@ -36504,7 +36071,7 @@ module.exports = {
 				Sortable.active = this;
 
 				// Drag start event
-				_dispatchEvent(this, rootEl, 'start', dragEl, rootEl, rootEl, oldIndex);
+				_dispatchEvent(this, rootEl, 'start', dragEl, rootEl, oldIndex);
 			} else {
 				this._nulling();
 			}
@@ -36523,14 +36090,9 @@ module.exports = {
 					_css(ghostEl, 'display', 'none');
 				}
 
-				var target = document.elementFromPoint(touchEvt.clientX, touchEvt.clientY);
-				var parent = target;
-				var i = touchDragOverListeners.length;
-
-				if (target && target.shadowRoot) {
-					target = target.shadowRoot.elementFromPoint(touchEvt.clientX, touchEvt.clientY);
-					parent = target;
-				}
+				var target = document.elementFromPoint(touchEvt.clientX, touchEvt.clientY),
+					parent = target,
+					i = touchDragOverListeners.length;
 
 				if (parent) {
 					do {
@@ -36628,26 +36190,22 @@ module.exports = {
 		},
 
 		_onDragStart: function (/**Event*/evt, /**boolean*/useFallback) {
-			var _this = this;
-			var dataTransfer = evt.dataTransfer;
-			var options = _this.options;
+			var dataTransfer = evt.dataTransfer,
+				options = this.options;
 
-			_this._offUpEvents();
+			this._offUpEvents();
 
-			if (activeGroup.checkPull(_this, _this, dragEl, evt)) {
+			if (activeGroup.checkPull(this, this, dragEl, evt)) {
 				cloneEl = _clone(dragEl);
 
 				cloneEl.draggable = false;
 				cloneEl.style['will-change'] = '';
 
 				_css(cloneEl, 'display', 'none');
-				_toggleClass(cloneEl, _this.options.chosenClass, false);
+				_toggleClass(cloneEl, this.options.chosenClass, false);
 
-				// #1143: IFrame support workaround
-				_this._cloneId = _nextTick(function () {
-					rootEl.insertBefore(cloneEl, dragEl);
-					_dispatchEvent(_this, rootEl, 'clone', dragEl);
-				});
+				rootEl.insertBefore(cloneEl, dragEl);
+				_dispatchEvent(this, rootEl, 'clone', dragEl);
 			}
 
 			_toggleClass(dragEl, options.dragClass, true);
@@ -36655,36 +36213,27 @@ module.exports = {
 			if (useFallback) {
 				if (useFallback === 'touch') {
 					// Bind touch events
-					_on(document, 'touchmove', _this._onTouchMove);
-					_on(document, 'touchend', _this._onDrop);
-					_on(document, 'touchcancel', _this._onDrop);
-
-					if (options.supportPointer) {
-						_on(document, 'pointermove', _this._onTouchMove);
-						_on(document, 'pointerup', _this._onDrop);
-					}
+					_on(document, 'touchmove', this._onTouchMove);
+					_on(document, 'touchend', this._onDrop);
+					_on(document, 'touchcancel', this._onDrop);
+					_on(document, 'pointermove', this._onTouchMove);
+					_on(document, 'pointerup', this._onDrop);
 				} else {
 					// Old brwoser
-					_on(document, 'mousemove', _this._onTouchMove);
-					_on(document, 'mouseup', _this._onDrop);
+					_on(document, 'mousemove', this._onTouchMove);
+					_on(document, 'mouseup', this._onDrop);
 				}
 
-				_this._loopId = setInterval(_this._emulateDragOver, 50);
+				this._loopId = setInterval(this._emulateDragOver, 50);
 			}
 			else {
 				if (dataTransfer) {
 					dataTransfer.effectAllowed = 'move';
-					options.setData && options.setData.call(_this, dataTransfer, dragEl);
+					options.setData && options.setData.call(this, dataTransfer, dragEl);
 				}
 
-				_on(document, 'drop', _this);
-
-				// #1143: Бывает элемент с IFrame внутри блокирует `drop`,
-				// поэтому если вызвался `mouseover`, значит надо отменять весь d'n'd.
-				// Breaking Chrome 62+
-				// _on(document, 'mouseover', _this);
-
-				_this._dragStartId = _nextTick(_this._dragStarted);
+				_on(document, 'drop', this);
+				setTimeout(this._dragStarted, 0);
 			}
 		},
 
@@ -36899,11 +36448,7 @@ module.exports = {
 			clearInterval(autoScroll.pid);
 			clearTimeout(this._dragStartTimer);
 
-			_cancelNextTick(this._cloneId);
-			_cancelNextTick(this._dragStartId);
-
 			// Unbind events
-			_off(document, 'mouseover', this);
 			_off(document, 'mousemove', this._onTouchMove);
 
 			if (this.nativeDraggable) {
@@ -36939,21 +36484,21 @@ module.exports = {
 					_toggleClass(dragEl, this.options.chosenClass, false);
 
 					// Drag stop event
-					_dispatchEvent(this, rootEl, 'unchoose', dragEl, parentEl, rootEl, oldIndex);
+					_dispatchEvent(this, rootEl, 'unchoose', dragEl, rootEl, oldIndex);
 
 					if (rootEl !== parentEl) {
 						newIndex = _index(dragEl, options.draggable);
 
 						if (newIndex >= 0) {
 							// Add event
-							_dispatchEvent(null, parentEl, 'add', dragEl, parentEl, rootEl, oldIndex, newIndex);
+							_dispatchEvent(null, parentEl, 'add', dragEl, rootEl, oldIndex, newIndex);
 
 							// Remove event
-							_dispatchEvent(this, rootEl, 'remove', dragEl, parentEl, rootEl, oldIndex, newIndex);
+							_dispatchEvent(this, rootEl, 'remove', dragEl, rootEl, oldIndex, newIndex);
 
 							// drag from one list and drop into another
-							_dispatchEvent(null, parentEl, 'sort', dragEl, parentEl, rootEl, oldIndex, newIndex);
-							_dispatchEvent(this, rootEl, 'sort', dragEl, parentEl, rootEl, oldIndex, newIndex);
+							_dispatchEvent(null, parentEl, 'sort', dragEl, rootEl, oldIndex, newIndex);
+							_dispatchEvent(this, rootEl, 'sort', dragEl, rootEl, oldIndex, newIndex);
 						}
 					}
 					else {
@@ -36963,8 +36508,8 @@ module.exports = {
 
 							if (newIndex >= 0) {
 								// drag & drop within the same list
-								_dispatchEvent(this, rootEl, 'update', dragEl, parentEl, rootEl, oldIndex, newIndex);
-								_dispatchEvent(this, rootEl, 'sort', dragEl, parentEl, rootEl, oldIndex, newIndex);
+								_dispatchEvent(this, rootEl, 'update', dragEl, rootEl, oldIndex, newIndex);
+								_dispatchEvent(this, rootEl, 'sort', dragEl, rootEl, oldIndex, newIndex);
 							}
 						}
 					}
@@ -36975,7 +36520,7 @@ module.exports = {
 							newIndex = oldIndex;
 						}
 
-						_dispatchEvent(this, rootEl, 'end', dragEl, parentEl, rootEl, oldIndex, newIndex);
+						_dispatchEvent(this, rootEl, 'end', dragEl, rootEl, oldIndex, newIndex);
 
 						// Save sorting
 						this.save();
@@ -37031,10 +36576,6 @@ module.exports = {
 						this._onDragOver(evt);
 						_globalDragOver(evt);
 					}
-					break;
-
-				case 'mouseover':
-					this._onDrop(evt);
 					break;
 
 				case 'selectstart':
@@ -37284,7 +36825,7 @@ module.exports = {
 
 
 
-	function _dispatchEvent(sortable, rootEl, name, targetEl, toEl, fromEl, startIndex, newIndex) {
+	function _dispatchEvent(sortable, rootEl, name, targetEl, fromEl, startIndex, newIndex) {
 		sortable = (sortable || rootEl[expando]);
 
 		var evt = document.createEvent('Event'),
@@ -37293,7 +36834,7 @@ module.exports = {
 
 		evt.initEvent(name, true, true);
 
-		evt.to = toEl || rootEl;
+		evt.to = rootEl;
 		evt.from = fromEl || rootEl;
 		evt.item = targetEl || rootEl;
 		evt.clone = cloneEl;
@@ -37449,15 +36990,12 @@ module.exports = {
 	}
 
 	function _clone(el) {
-		if (Polymer && Polymer.dom) {
-			return Polymer.dom(el).cloneNode(true);
-		}
-		else if ($) {
-			return $(el).clone(true)[0];
-		}
-		else {
-			return el.cloneNode(true);
-		}
+		return $
+			? $(el).clone(true)[0]
+			: (Polymer && Polymer.dom
+				? Polymer.dom(el).cloneNode(true)
+				: el.cloneNode(true)
+			);
 	}
 
 	function _saveInputCheckedState(root) {
@@ -37470,20 +37008,23 @@ module.exports = {
 		}
 	}
 
-	function _nextTick(fn) {
-		return setTimeout(fn, 0);
-	}
-
-	function _cancelNextTick(id) {
-		return clearTimeout(id);
-	}
-
-	// Fixed #973:
+	// Fixed #973: 
 	_on(document, 'touchmove', function (evt) {
 		if (Sortable.active) {
 			evt.preventDefault();
 		}
 	});
+
+	try {
+		window.addEventListener('test', null, Object.defineProperty({}, 'passive', {
+			get: function () {
+				captureMode = {
+					capture: false,
+					passive: false
+				};
+			}
+		}));
+	} catch (err) {}
 
 	// Export utils
 	Sortable.utils = {
@@ -37499,9 +37040,7 @@ module.exports = {
 		closest: _closest,
 		toggleClass: _toggleClass,
 		clone: _clone,
-		index: _index,
-		nextTick: _nextTick,
-		cancelNextTick: _cancelNextTick
+		index: _index
 	};
 
 
@@ -37516,11 +37055,11 @@ module.exports = {
 
 
 	// Export
-	Sortable.version = '1.7.0';
+	Sortable.version = '1.6.0';
 	return Sortable;
 });
 
-},{}],61:[function(require,module,exports){
+},{}],60:[function(require,module,exports){
 ;(function () {
 
   var vSortable = {}
@@ -37567,7 +37106,7 @@ module.exports = {
 
 })()
 
-},{"sortablejs":60}],62:[function(require,module,exports){
+},{"sortablejs":59}],61:[function(require,module,exports){
 'use strict';
 
 var _Labs = require('./views/labs/Labs.js');
@@ -37769,7 +37308,6 @@ router.afterEach(function (transition) {
             Messenger().post({
                 message: 'Fehler beim entsperren des Kontaktes',
                 type: 'error'
-                // showCloseButton: true
             });
         });
     }
@@ -38056,7 +37594,7 @@ $(function () {
     $('body').tooltip({ selector: '[data-toggle="tooltip"]' });
 });
 
-},{"./mixins/Authorizer":75,"./views/admin/AdminLogs.js":78,"./views/admin/NewUser.js":79,"./views/admin/SettingProperties.js":80,"./views/admin/Settings.js":81,"./views/admin/SettingsEmail.js":82,"./views/admin/SettingsUserEdit.js":83,"./views/admin/SettingsUsers.js":84,"./views/admin/SingleProperty.js":85,"./views/contacts/ContactSingle.js":94,"./views/contacts/Contacts.js":95,"./views/countries/Countries.js":98,"./views/dashboard/Dashboard.js":100,"./views/dashboard/DentistStats.js":101,"./views/dashboard/Stats.js":102,"./views/dentists/DentistSingle.js":106,"./views/dentists/DentistsDashboard.js":107,"./views/dentists/NewDent.js":108,"./views/dentistscontacts/DentistContactSingle.js":112,"./views/dentistscontacts/DentistsContacts.js":113,"./views/labUsers/LabUsers.js":116,"./views/labs/Calendar.js":118,"./views/labs/DentistDates.js":119,"./views/labs/LabImage.js":120,"./views/labs/LabSettings.js":121,"./views/labs/LabSingle.js":122,"./views/labs/Labs.js":123,"./views/labs/MyDates.js":124,"./views/labs/NewLab.js":125,"./views/links/Links.js":134,"./views/pages/DocsPage.js":136,"./views/pages/DownloadsPage.js":138,"./views/pages/GuidesPage.js":140,"./views/pages/PartnerPage.js":142,"./views/pages/Upgrades.js":144,"./views/todo/Todo.js":146,"./views/tools/Tools.js":148,"lodash":58,"vue-sortable":61}],63:[function(require,module,exports){
+},{"./mixins/Authorizer":74,"./views/admin/AdminLogs.js":77,"./views/admin/NewUser.js":78,"./views/admin/SettingProperties.js":79,"./views/admin/Settings.js":80,"./views/admin/SettingsEmail.js":81,"./views/admin/SettingsUserEdit.js":82,"./views/admin/SettingsUsers.js":83,"./views/admin/SingleProperty.js":84,"./views/contacts/ContactSingle.js":93,"./views/contacts/Contacts.js":94,"./views/countries/Countries.js":97,"./views/dashboard/Dashboard.js":99,"./views/dashboard/DentistStats.js":100,"./views/dashboard/Stats.js":101,"./views/dentists/DentistSingle.js":105,"./views/dentists/DentistsDashboard.js":106,"./views/dentists/NewDent.js":107,"./views/dentistscontacts/DentistContactSingle.js":111,"./views/dentistscontacts/DentistsContacts.js":112,"./views/labUsers/LabUsers.js":115,"./views/labs/Calendar.js":117,"./views/labs/DentistDates.js":118,"./views/labs/LabImage.js":119,"./views/labs/LabSettings.js":120,"./views/labs/LabSingle.js":121,"./views/labs/Labs.js":122,"./views/labs/MyDates.js":123,"./views/labs/NewLab.js":124,"./views/links/Links.js":133,"./views/pages/DocsPage.js":135,"./views/pages/DownloadsPage.js":137,"./views/pages/GuidesPage.js":139,"./views/pages/PartnerPage.js":141,"./views/pages/Upgrades.js":143,"./views/todo/Todo.js":145,"./views/tools/Tools.js":147,"lodash":57,"vue-sortable":60}],62:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -38098,9 +37636,9 @@ exports.default = {
   }
 };
 
-},{"../../components/admin/newproperty-modal.template.html":64}],64:[function(require,module,exports){
+},{"../../components/admin/newproperty-modal.template.html":63}],63:[function(require,module,exports){
 module.exports = '<div id="newproperty" class="modal fade" role="dialog">\n  <div class="modal-dialog">\n\n    <!-- Modal content-->\n    <div class="modal-content">\n      <div class="modal-header">\n        <button type="button" class="close" data-dismiss="modal">&times;</button>\n        <h4 class="modal-title">{{ title }}</h4>\n      </div>\n      <div class="modal-body">\n        <form role="form" action="">\n          <div class="form-group">\n            <label for="name">Name:</label>\n            <input type="text" class="form-control" id="name" v-model="property.name">\n          </div>\n          <div class="form-group">\n            <label for="default-value">Standard-Wert:</label>\n            <input type="string" class="form-control" id="default-value" v-model="property.default">\n          </div>\n          <div class="form-group">\n            <label for="type">Datentyp:</label>\n            <select class="form-control" v-model="property.type">\n              <option v-for="option in options" v-bind:value="option.value">{{ option.text }}</option>\n            </select>\n          </div>\n        </form>\n      </div>\n      <div class="modal-footer">\n        <button type="submit" class="btn btn-default" @click="saveProperty">Eigenschaft speichern</button>\n      </div>\n    </div>\n\n  </div>\n</div>\n';
-},{}],65:[function(require,module,exports){
+},{}],64:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -38163,9 +37701,9 @@ exports.default = {
   }
 };
 
-},{"./ContactsTable.template.html":66}],66:[function(require,module,exports){
+},{"./ContactsTable.template.html":65}],65:[function(require,module,exports){
 module.exports = '<blockquote>\n	{{ msg }}\n</blockquote>\n<input type="text" v-model="setmsg">';
-},{}],67:[function(require,module,exports){
+},{}],66:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -38188,7 +37726,7 @@ exports.default = {
     }
 };
 
-},{"./calendarmodal.template.html":71}],68:[function(require,module,exports){
+},{"./calendarmodal.template.html":70}],67:[function(require,module,exports){
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -38211,7 +37749,7 @@ exports.default = {
     }
 };
 
-},{"./calendarmodaldentist.template.html":72}],69:[function(require,module,exports){
+},{"./calendarmodaldentist.template.html":71}],68:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -38274,7 +37812,7 @@ exports.default = {
     }
 };
 
-},{"./datemodal.template.html":73}],70:[function(require,module,exports){
+},{"./datemodal.template.html":72}],69:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -38332,15 +37870,15 @@ exports.default = {
   }
 };
 
-},{"./newpatientrefer-modal.template.html":74}],71:[function(require,module,exports){
+},{"./newpatientrefer-modal.template.html":73}],70:[function(require,module,exports){
 module.exports = '<div id="myModal" class="modal fade" role="dialog">\n  <div class="modal-dialog modal-lg">\n\n    <!-- Modal content-->\n    <div class="modal-content">\n      <div class="modal-header">\n        <button type="button" class="close" data-dismiss="modal">&times;</button>\n        <h4 class="modal-title">Terminierung</h4>\n      </div>\n      <div class="modal-body" style="min-height:400px;">\n        <div v-if="(whoami.lab && whoami.lab.length && (whoami.lab[0].membership === 1 || whoami.lab[0].membership === 4)) || (whoami.labs && whoami.labs.length && (whoami.labs[0].membership === 1 || whoami.labs[0].membership === 4))">\n          <p class="text-justify">\n            <strong>Wichtig: Sollten Sie einen vorhandenen Termin vorverlegen, löschen Sie bitte den alten, damit keine SMS zur Terminerinnerung an den Kontakt verschickt wird und der Termin wieder verfügbar ist.</strong>\n          </p>\n          <hr/>\n        </div>\n\n        <div id="modal-body"></div>\n      </div>\n      <div class="modal-footer">\n        <button type="button" class="btn btn-default" data-dismiss="modal">Schließen</button>\n      </div>\n    </div>\n\n  </div>\n</div>\n';
-},{}],72:[function(require,module,exports){
+},{}],71:[function(require,module,exports){
 module.exports = '<div id="myModal" class="modal fade" role="dialog">\n    <div class="modal-dialog modal-lg">\n\n        <!-- Modal content-->\n        <div class="modal-content">\n            <div class="modal-header">\n                <button type="button" class="close" data-dismiss="modal">&times;</button>\n                <h4 class="modal-title">Terminierung</h4>\n            </div>\n            <div class="modal-body" style="min-height:400px;">\n                <div id="modal-body"></div>\n            </div>\n            <div class="modal-footer">\n                <button type="button" class="btn btn-default" data-dismiss="modal">Schließen</button>\n            </div>\n        </div>\n\n    </div>\n</div>\n';
-},{}],73:[function(require,module,exports){
+},{}],72:[function(require,module,exports){
 module.exports = '<div id="termin" class="modal fade" role="dialog">\n  <div class="modal-dialog">\n\n    <!-- Modal content-->\n    <div class="modal-content">\n      <div class="modal-header">\n        <button type="button" class="close" data-dismiss="modal">&times;</button>\n        <h4 class="modal-title">{{ title }}</h4>\n      </div>\n      <div class="modal-body">\n        <div class="row">\n          <div class="col-md-8">\n            <form role="form" method="POST" action="/admin/pat/{id}/refer/{id}">\n              <div class="form-group">\n                <label for="lab">Wann :</label>\n                <div class="input-group date" data-provide="datepicker">\n                  <input type="text" id="datepicker" class="datepicker form-control" v-model="selected">\n                  <div class="input-group-addon">\n                    <span class="glyphicon glyphicon-th"></span>\n                  </div>\n                </div>\n              </div>\n            </form>\n          </div>\n          <div class="col-md-4">\n            <label>Vorhandene Termine – "{{ contact.lab.name }}"</label>\n            <ul>\n              <li v-for="date in contact.lab.dates">{{ date.date }}</li>\n            </ul>\n          </div>\n        </div>\n      </div>\n      <div class="modal-footer">\n        <button type="submit" class="btn btn-default" @click="saveDate(selected)">Los!</button>\n      </div>\n      </form>\n    </div>\n\n  </div>\n</div>\n';
-},{}],74:[function(require,module,exports){
+},{}],73:[function(require,module,exports){
 module.exports = '<div id="assigncontact" class="modal fade" role="dialog">\n    <div class="modal-dialog">\n        <!-- Modal content-->\n        <div class="modal-content">\n            <div class="modal-header">\n                <button type="button" class="close" data-dismiss="modal">&times;</button>\n                <h4 class="modal-title">{{ title }} <strong>{{ selected.name }}</strong></h4>\n            </div>\n            <div class="modal-body">\n                <form role="form">\n                    <div class="form-group">\n                        <label for="lab">Anderes Labor suchen und wählen:</label>\n                        <div class="input-group">\n                            <input type="text" class="form-control" placeholder="Suchen..." v-model="searchlab">\n                            <span class="input-group-btn">\n                <button class="btn btn-default" type="button"><i class="fa fa-search" aria-hidden="true"></i></button>\n              </span>\n                        </div>\n                    </div>\n                    <div class="form-group">\n                        <select class="form-control" v-model="selected" size="10">\n                            <option v-for="lab in labs | orderBy \'name\' | filterBy searchlab in \'name\' \'labmeta.city\'" v-if="lab.status == \'aktiv\'" v-bind:value="lab">\n                                {{ lab.name }} [{{ lab.labmeta.city }}]\n                            </option>\n                        </select>\n                    </div>\n                    <div class="radio">\n                        <label>\n                            <input type="radio" v-model="refertype" value="notavailable" checked> Kontakt ist nicht erreichbar\n                        </label>\n                    </div>\n                    <div class="radio">\n                        <label>\n                            <input type="radio" v-model="refertype" value="selfcontact"> Labor vereinbart selber einen Termin\n                        </label>\n                    </div>\n                    <div class="radio">\n                        <label>\n                            <input type="radio" v-model="refertype" value="justmove"> Einfach verschieben\n                        </label>\n                    </div>\n            </div>\n            <div class="modal-footer">\n                <button type="submit" class="btn btn-primary" @click="refer(selected)">Jetzt weiterleiten</button>\n            </div>\n            </form>\n        </div>\n    </div>\n</div>\n';
-},{}],75:[function(require,module,exports){
+},{}],74:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -38397,7 +37935,7 @@ module.exports = {
     }
 };
 
-},{}],76:[function(require,module,exports){
+},{}],75:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -38415,7 +37953,7 @@ var store = {
 
 exports.default = store;
 
-},{}],77:[function(require,module,exports){
+},{}],76:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -38433,7 +37971,7 @@ var store = {
 
 exports.default = store;
 
-},{}],78:[function(require,module,exports){
+},{}],77:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -38463,7 +38001,7 @@ exports.default = {
   }
 };
 
-},{"./admin-logs.template.html":86}],79:[function(require,module,exports){
+},{"./admin-logs.template.html":85}],78:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -38507,7 +38045,7 @@ exports.default = {
   }
 };
 
-},{"./newuser.template.html":87}],80:[function(require,module,exports){
+},{"./newuser.template.html":86}],79:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -38556,7 +38094,7 @@ exports.default = {
   }
 };
 
-},{"../../components/admin/NewPropertyModal.js":63,"./settingproperties.template.html":88}],81:[function(require,module,exports){
+},{"../../components/admin/NewPropertyModal.js":62,"./settingproperties.template.html":87}],80:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -38640,7 +38178,7 @@ exports.default = {
     }
 };
 
-},{"./settings.template.html":89}],82:[function(require,module,exports){
+},{"./settings.template.html":88}],81:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -38719,14 +38257,12 @@ exports.default = {
                     Messenger().post({
                         message: 'E-Mail gespeichert',
                         type: 'success'
-                        // showCloseButton: true
                     });
                 }, function (response) {
                     // console.log(response.data);
                     Messenger().post({
                         message: 'E-Mail nicht gespeichert',
                         type: 'error'
-                        // showCloseButton: true
                     });
                 });
             }
@@ -38760,7 +38296,7 @@ exports.default = {
     }
 };
 
-},{"./settingsemail.template.html":90}],83:[function(require,module,exports){
+},{"./settingsemail.template.html":89}],82:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -38864,7 +38400,7 @@ exports.default = {
   }
 };
 
-},{"./settingsuseredit.template.html":91}],84:[function(require,module,exports){
+},{"./settingsuseredit.template.html":90}],83:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -38897,7 +38433,7 @@ exports.default = {
 
 };
 
-},{"./settingsusers.template.html":92}],85:[function(require,module,exports){
+},{"./settingsusers.template.html":91}],84:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -38940,23 +38476,23 @@ exports.default = {
   }
 };
 
-},{"./single-settingproperty.template.html":93}],86:[function(require,module,exports){
+},{"./single-settingproperty.template.html":92}],85:[function(require,module,exports){
 module.exports = '<div class="content" >\n  <div class="row filter-row">\n    <div class="col-md-8">\n\n    </div>\n    <div class="col-md-4">\n      <div class="input-group">\n        <input class="form-control" placeholder="Suchen..." v-model="filter">\n        <span class="input-group-btn">\n          <button class="btn btn-default" type="button"><i class="fa fa-search" aria-hidden="true"></i></button>\n        </span>\n      </div>\n    </div>\n  </div>\n\n  <div class="box">\n    <table class="table table-striped table-condensed">\n      <thead>\n        <tr>\n          <th>Nutzer</th>\n          <th>IP-Adresse</th>\n          <th>Aktion</th>\n          <th>Datum</th>\n        </tr>\n        <tbody>\n          <tr v-for="log in logs | filterBy filter in \'text\'">\n            <td>{{ log.user.name }}</td>\n            <td>{{ log.ip_address }}</td>\n            <td>{{ log.text }}</td>\n            <td>{{ log.created_at }}</td>\n          </tr>\n        </tbody>\n      </thead>\n\n    </table>\n  </div>\n</div>\n';
-},{}],87:[function(require,module,exports){
+},{}],86:[function(require,module,exports){
 module.exports = '<div>\n  <div class="content">\n   <div class="box">\n     <!--h2>Kontaktdaten / Ansprechpartner</h2>\n      <hr>\n      <div class="row">\n        <form class="form-horizontal col-md-8">\n          <div class="form-group">\n            <label for="labname" class="col-md-4 control-label">Name des Labors</label>\n            <div class="col-md-8">\n              <input type="text" class="form-control" id="labname" v-model="lab.name">\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="contactname" class="col-md-4 control-label">Ansprechpartner</label>\n            <div class="col-md-8">\n              <input type="text" class="form-control" id="contactname" v-model="labmeta.contact_person">\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="contactname" class="col-md-4 control-label">Webseite</label>\n            <div class="col-md-8">\n              <input type="text" class="form-control" id="contactname" v-model="labmeta.url">\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="street" class="col-md-4 control-label">Straße, Hausnummer</label>\n            <div class="col-md-8">\n              <input type="text" class="form-control" id="street" v-model="labmeta.street">\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="plz" class="col-md-4 control-label">PLZ, Ort</label>\n            <div class="col-md-4">\n              <input type="text" class="form-control" id="plz" v-model="labmeta.zip">\n            </div>\n            <div class="col-md-4">\n              <input type="text" class="form-control" id="city" v-model="labmeta.city">\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="tel" class="col-md-4 control-label">Telefonnummer</label>\n            <div class="col-md-8">\n              <input type="text" class="form-control" id="tel" v-model="labmeta.tel">\n            </div>\n          </div>\n\n          <div class="form-group">\n            <label for="street" class="col-md-4 control-label">E-Mail-Adresse</label>\n            <div class="col-md-8">\n              <input type="email" class="form-control" id="street" v-model="labmeta.contact_email">\n            </div>\n          </div>\n          <div class="row">\n            <div class="col-md-8 col-md-offset-4">\n              <button type="submit" class="btn btn-primary">Speichern</button>\n            </div>\n          </div>\n        </form>\n        <div class="col-md-4">\n          <h4>Portraitfoto Ansprechpartner</h4>\n          <p>Jpg-Datei, min. 300 px in Breite und Höhe, Hochformat, Seitenverhältnis 2:3 oder 3:4, im Optimalfall mit hellem Hintergrund\n          <p><input type="file">\n          <p><img src="http://padento.de/img/foto74_200small.jpg" alt="">\n        </div>\n      </div>\n    </div-->\n  <h2>Zugangsdaten</h2>\n  <hr>\n  <div class="row">\n    <form class="form-horizontal col-md-8">\n      <div class="form-group">\n        <label for="name" class="col-md-4 control-label">Name</label>\n        <div class="col-md-8">\n          <input type="text" class="form-control" id="name" v-model="user.name">\n        </div>\n      </div>\n      <div class="form-group">\n        <label for="email" class="col-md-4 control-label">E-Mail-Adresse</label>\n        <div class="col-md-8">\n          <input type="email" class="form-control" id="email" v-model="user.email">\n        </div>\n      </div>\n      <div class="form-group">\n        <label for="email-again" class="col-md-4 control-label">E-Mail-Adresse wiederholen</label>\n        <div class="col-md-8">\n          <input type="email" class="form-control" id="email-again" >\n        </div>\n      </div>\n    </form>\n  </div>\n  <h4>Passwort ändern</h4>\n  <hr>\n  <div class="row">\n    <form class="form-horizontal col-md-8">\n      <div class="form-group">\n        <label for="password" class="col-md-4 control-label">Passwort</label>\n        <div class="col-md-8">\n          <input type="password" class="form-control" id="password" v-model="user.password">\n        </div>\n      </div>\n      <div class="form-group">\n        <label for="password_confrimation" class="col-md-4 control-label">Passwort wiederholen</label>\n        <div class="col-md-8">\n          <input type="password" class="form-control" id="password_confirmation" name="password_confirmation" v-model="user.password_confirmation" >\n        </div>\n      </div>\n      <div class="row">\n        <div class="col-md-8 col-md-offset-4">\n          <button type="submit" class="btn btn-primary" @click="saveUser">Neuen Nutzer anlegen</button>\n        </div>\n      </div>\n    </form>\n  </div>\n</div>\n</div>\n</div>';
-},{}],88:[function(require,module,exports){
+},{}],87:[function(require,module,exports){
 module.exports = '  <div>\n    <div class="content">\n      <p><button class="btn btn-primary" data-toggle="modal" data-target="#newproperty">Neue Eigenschaft</button>\n      <div class="box">\n        <table class="table">\n          <thead>\n            <th>Name</th>\n            <th>Typ</th>\n            <th>Angelegt von</th>\n            <th>Status</th>\n            <th>Aktion</th>\n          </thead>\n          <tbody v-for="prop in properties">\n            <tr>\n              <td>\n                {{ prop.name }}\n              </td>\n              <td>\n                {{ prop.type }}\n              </td>\n              <td>\n                {{ prop.user.name }}\n              </td>\n              <td>\n                <div class="btn-group">\n                  <button type="button" class="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">\n                    {{ prop.status }} <span class="caret"></span>\n                  </button>\n                  <ul class="dropdown-menu">\n                    <li><a href="/api/settings/change-property-status/{{ prop.id }}">{{ prop.status == \'Aktiv\' ? \'Deaktivieren\' : \'Aktivieren\' }}</a></li>\n                  </ul>\n                </div>\n              </td>\n              <td><div class="btn-group">\n                  <span class=" dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">\n                    <i class="fa fa-cog"></i> <span class="caret"></span>\n                  </span>\n                  <ul class="dropdown-menu">\n                    <li><a v-link="{ name: \'admin.settings.single-property\', params: { id: prop.id } }" >Bearbeiten</a></li>\n                    <li role="separator" class="divider"></li>\n                    <li><a v-link="{ name: \'admin.settings.single-property\', params: { id: prop.id } }">Löschen</a></li>\n                  </ul>\n                </div></td>\n            </tr>\n\n          </tbody>\n        </table>\n      </div>\n    </div>\n  </div>\n<new-property-modal title="Neue Eigenschaft anlegen"></new-property-modal>\n';
-},{}],89:[function(require,module,exports){
+},{}],88:[function(require,module,exports){
 module.exports = '<div>\n    <div class="content">\n        <div class="box">\n            <div class="row">\n                <form class="form-horizontal col-md-8">\n                    <div class="form-group" v-for="setting in settings">\n                        <label for="" class="col-md-4 control-label">{{ setting.name }}</label>\n                        <div class="col-md-8">\n                            <textarea id="summernote1" v-if="setting.name == \'Textbereich 1\'" v-model="setting.value"\n                                      @blur="saveSettings"></textarea>\n                            <textarea id="summernote2" v-if="setting.name == \'Textbereich 2\'" v-model="setting.value"\n                                      @blur="saveSettings"></textarea>\n                            <textarea id="summernote3" v-if="setting.name == \'Textbereich 1 AT\'" v-model="setting.value"\n                                      @blur="saveSettings"></textarea>\n                            <textarea id="summernote4" v-if="setting.name == \'Textbereich 2 AT\'" v-model="setting.value"\n                                      @blur="saveSettings"></textarea>\n                            <textarea id="summernote5" v-if="setting.name == \'No Labs Found Body\'" v-model="setting.value"\n                                      @blur="saveSettings"></textarea>\n                            <button id="submit-summernote" type="button" class="btn btn-primary hidden"\n                                    @click="saveSettings">Speichern\n                            </button>\n                            <input type="text"\n                                   v-if="setting.name != \'Textbereich 1\' && setting.name != \'Textbereich 2\' && setting.name != \'Textbereich 1 AT\' && setting.name != \'Textbereich 2 AT\' && setting.name != \'No Labs Found Body\'"\n                                   class="form-control" placeholder="{{ setting.value }}" @blur="saveSettings"\n                                   v-model="setting.value">\n                            <p class="help-block">{{ setting.description }}</p>\n                        </div>\n                    </div>\n                    <!--div class="row">\n                      <div class="col-md-8 col-md-offset-4">\n                        <button type="submit" class="btn btn-primary" @click="saveSettings">Speichern</button>\n                      </div>\n                    </div-->\n                </form>\n            </div>\n        </div>\n    </div>\n</div>\n';
-},{}],90:[function(require,module,exports){
+},{}],89:[function(require,module,exports){
 module.exports = '<div>\n    <div class="content">\n        <div class="container-fluid">\n            <div class="row">\n                <div class="col-md-3">\n                    <div class="">\n                        <div class="box">\n                            <h4>Mails</h4>\n                            <ul>\n                                <li v-for="email in settings">\n                                    <a href="#mail-{{ email.id }}">{{ email.short_description }}</a>\n                                </li>\n                            </ul>\n                        </div>\n                    </div>\n                </div>\n                <div class="col-md-9">\n                    <div id="mail-{{ email.id }}" class="box" v-for="email in settings">\n                        <div class="row">\n                            <div class="col-md-12">\n                                <form class="form-horizontal">\n                                    <div class="form-group">\n                                        <label for="short_description" class="col-sm-2 control-label">Name</label>\n                                        <div class="col-sm-10">\n                                            <input type="text" name="short_description" id="short_description"\n                                                   class="form-control" @blur="saveMail"\n                                                   v-model="email.short_description">\n                                            <div>System Name: {{email.name}}</div>\n                                        </div>\n                                    </div>\n                                    <div class="form-group">\n                                        <label for="short_description"\n                                               class="col-sm-2 control-label">Beschreibung</label>\n                                        <div class="col-sm-10">\n                                            <input type="text" name="description" id="short_description"\n                                                   class="form-control" @blur="saveMail" v-model="email.description">\n                                        </div>\n                                    </div>\n                                    <div class="form-group">\n                                        <label for="subject" class="col-sm-2 control-label">Betreff</label>\n                                        <div class="col-sm-10">\n                                            <input type="text" name="subject" id="subject" class="form-control"\n                                                   @blur="saveMail" v-model="email.subject">\n                                        </div>\n                                    </div>\n                                    <div class="form-group">\n                                        <label v-bind:for="\'body\'+email.id" class="col-sm-2 control-label">Primärer Mailtext</label>\n                                        <div class="col-sm-10">\n                        <textarea cols="20" name="body" v-bind:id="\'body\'+email.id" style="resize:vertical;" rows="10"\n                                  class="noteditable form-control" @blur="saveMail" v-model="email.body">\n                        </textarea>\n                                        </div>\n                                    </div>\n                                    <div class="form-group">\n                                        <label v-bind:for="\'footer\'+email.id" class="col-sm-2 control-label">Sekundärer Mailtext</label>\n                                        <div class="col-sm-10">\n                        <textarea cols="20" v-bind:id="\'footer\'+email.id " name="footer" style="resize:vertical;" rows="10"\n                                  class="noteditable form-control" @blur="saveMail" v-model="email.footer">\n                        </textarea>\n                                        </div>\n                                    </div>\n                                    <div class="row">\n                                        <div class="col-sm-2"></div>\n                                        <div class="col-sm-10">\n                                            <button type="submit" class="btn btn-primary" v-on:click="saveMail"\n                                                    mailid="{{ email.id }}">Speichern\n                                            </button>\n                                        </div>\n                                    </div>\n                                </form>\n                                <hr>\n                                <!--a class="btn btn-default" href="/admin/mailpreview/{{ email.id }}" target="_blank">Vorschau</a-->\n                                <!--div class="form-group">\n                                  <label>\n                                    Eine Testmail versenden an:\n                                    <input class="form-control" v-model="testmail">\n                                  </label>\n                                  <a class="btn btn-default" @click="sendTestMail( email.id )">abschicken</a>\n                                </div-->\n                            </div>\n                            <div class="col-md-12">\n                                <h4 class="text-center">Legende</h4>\n                                <div class="row">\n                                    <div class="col-xs-6">\n                                        <dl>\n                                            <div class="property-row row">\n                                                <dt class="col-xs-6">Anrede</dt>\n                                                <dd class="col-xs-6"><span class="no-input"><span\n                                                    data-clipboard-text="[anrede]" class="clip">[anrede]</span></span>\n                                                </dd>\n                                            </div>\n                                            <div class="property-row row">\n                                                <dt class="col-xs-6">Begrüßung (Seehr geehrter Herr oder geehrte Frau)\n                                                </dt>\n                                                <dd class="col-xs-6"><span class="no-input"><span\n                                                    data-clipboard-text="[begrüßung]"\n                                                    class="clip">[begrüßung]</span></span></dd>\n                                            </div>\n                                            <div class="property-row row">\n                                                <dt class="col-xs-6">Patientenname</dt>\n                                                <dd class="col-xs-6"><span class="no-input"><span\n                                                    data-clipboard-text="[name]" class="clip">[name]</span></span></dd>\n                                            </div>\n                                            <div class="property-row row">\n                                                <dt class="col-xs-6">Telefonnummer Patient</dt>\n                                                <dd class="col-xs-6"><span class="no-input"><span\n                                                    data-clipboard-text="[kontakttel]" class="clip">[kontakttel]</span></span>\n                                                </dd>\n                                            </div>\n                                            <div class="property-row row">\n                                                <dt class="col-xs-6">Handynummer Patient</dt>\n                                                <dd class="col-xs-6"><span class="no-input"><span\n                                                    data-clipboard-text="[kontaktmobil]"\n                                                    class="clip">[kontaktmobil]</span></span></dd>\n                                            </div>\n                                            <div class="property-row row">\n                                                <dt class="col-xs-6">Bestätigungslink (Button)</dt>\n                                                <dd class="col-xs-6"><span class="no-input"><span\n                                                    data-clipboard-text="[bestätigungslink]" class="clip">[bestätigungslink]</span></span>\n                                                </dd>\n                                            </div>\n                                            <div class="property-row row">\n                                                <dt class="col-xs-6">Patientenname</dt>\n                                                <dd class="col-xs-6"><span class="no-input"><span\n                                                    data-clipboard-text="[name]" class="clip">[name]</span></span></dd>\n                                            </div>\n                                            <div class="property-row row">\n                                                <dt class="col-xs-6">Phasen-Termin</dt>\n                                                <dd class="col-xs-6"><span class="no-input"><span\n                                                    data-clipboard-text="[termin]" class="clip">[termin]</span></span>\n                                                </dd>\n                                            </div>\n                                            <div class="property-row row">\n                                                <dt class="col-xs-6">Upload Link für Dokumentet</dt>\n                                                <dd class="col-xs-6"><span class="no-input"><span\n                                                    data-clipboard-text="[uploadlink]" class="clip">[uploadlink]</span></span>\n                                                </dd>\n                                            </div>\n                                        </dl>\n                                    </div>\n                                    <div class="col-xs-6">\n                                        <dl>\n                                            <div class="property-row row">\n                                                <dt class="col-xs-6">Ansprechpartner</dt>\n                                                <dd class="col-xs-6"><span class="no-input"><span\n                                                    data-clipboard-text="[ansprechpartner]" class="clip">[ansprechpartner]</span></span>\n                                                </dd>\n                                            </div>\n                                            <div class="property-row row">\n                                                <dt class="col-xs-6">Laborkontaktdaten</dt>\n                                                <dd class="col-xs-6"><span class="no-input"><span\n                                                    data-clipboard-text="[kontaktdaten]"\n                                                    class="clip">[kontaktdaten]</span></span></dd>\n                                            </div>\n                                            <div class="property-row row">\n                                                <dt class="col-xs-6">Padento Backend Link</dt>\n                                                <dd class="col-xs-6"><span class="no-input"><span\n                                                    data-clipboard-text="[padentobackendlink]" class="clip">[padentobackendlink]</span></span>\n                                                </dd>\n                                            </div>\n                                            <div class="property-row row">\n                                                <dt class="col-xs-6">Link zum Kontakt</dt>\n                                                <dd class="col-xs-6"><span class="no-input"><span\n                                                    data-clipboard-text="[kontaktlink]"\n                                                    class="clip">[kontaktlink]</span></span></dd>\n                                            </div>\n                                            <div class="property-row row">\n                                                <dt class="col-xs-6">Link zum Labor</dt>\n                                                <dd class="col-xs-6"><span class="no-input"><span\n                                                    data-clipboard-text="[laborlink]"\n                                                    class="clip">[laborlink]</span></span></dd>\n                                            </div>\n                                            <div class="property-row row">\n                                                <dt class="col-xs-6">Laborname</dt>\n                                                <dd class="col-xs-6"><span class="no-input"><span\n                                                    data-clipboard-text="[laborname]"\n                                                    class="clip">[laborname]</span></span></dd>\n                                            </div>\n                                            <div class="property-row row">\n                                                <dt class="col-xs-6">Labor-Ort</dt>\n                                                <dd class="col-xs-6"><span class="no-input"><span\n                                                    data-clipboard-text="[laborort]"\n                                                    class="clip">[laborort]</span></span></dd>\n                                            </div>\n                                            <div class="property-row row">\n                                                <dt class="col-xs-6">Padento Telefonnummer</dt>\n                                                <dd class="col-xs-6"><span class="no-input"><span\n                                                    data-clipboard-text="[padentotel]" class="clip">[padentotel]</span></span>\n                                                </dd>\n                                            </div>\n                                            <div class="property-row row">\n                                                <dt class="col-xs-6">Padento Mobilnummer</dt>\n                                                <dd class="col-xs-6"><span class="no-input"><span\n                                                    data-clipboard-text="[padentomobil]"\n                                                    class="clip">[padentomobil]</span></span></dd>\n                                            </div>\n                                            <div class="property-row row">\n                                                <dt class="col-xs-6">Padento Blog</dt>\n                                                <dd class="col-xs-6"><span class="no-input"><span\n                                                    data-clipboard-text="[padentoblog]"\n                                                    class="clip">[padentoblog]</span></span></dd>\n                                            </div>\n                                        </dl>\n                                    </div>\n                                </div>\n                            </div>\n                        </div>\n                    </div>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n';
-},{}],91:[function(require,module,exports){
+},{}],90:[function(require,module,exports){
 module.exports = '<div>\n  <div class="content">\n    <!--div class="box" v-if="user.roles[0].id == \'2\'">\n      <h2>Labore zuordnen</h2>\n      <hr>\n      <div class="row">\n        <form class="form-horizontal col-md-8">\n          <div class="form-group">\n            <label for="" class="col-md-4 control-label">Labore zuteilen</label>\n\n            <div class="col-md-8">\n              <select name="" id="" class="form-control" v-model="allocatedlabs">\n                <option value="{{ lab.id }}" v-for="lab in labs" v-bind="lab.id">{{ lab.name }}</option>\n              </select>\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="" class="col-md-4 control-label">Zuständig für folgende Labore</label>\n            <div class="col-md-8">\n              <ul>\n                <li v-for="lab in user.labs">{{ lab.name }} <i class="fa fa-times"></i></li>\n              </ul>\n            </div>\n          </div>\n          <div class="row">\n            <div class="col-md-8 col-md-offset-4">\n              <button type="submit" class="btn btn-primary" @click="saveAllocatedLab">Speichern</button>\n            </div>\n          </div>\n        </form>\n      </div>\n    </div-->\n    <div class="box">\n      <h2>Nutzer ändern</h2>\n      <hr>\n      <div class="row">\n        <form class="form-horizontal col-md-8">\n          <div class="form-group">\n            <label for="" class="col-md-4 control-label">Nutzername</label>\n            <div class="col-md-8">\n              <input type="text" class="form-control" v-model="user.name">\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="" class="col-md-4 control-label">E-Mail-Adresse</label>\n            <div class="col-md-8">\n              <input type="email" class="form-control" v-model="user.email">\n            </div>\n          </div>\n          <div class="row">\n            <div class="col-md-8 col-md-offset-4">\n              <a class="btn btn-primary" @click="saveUser">Speichern</a>\n            </div>\n          </div>\n        </form>\n      </div>\n      <h4>Rolle Ändern</h4>\n      <hr>\n      <div class="row">\n        <form class="form-horizontal col-md-8">\n          <div class="form-group">\n            <label for="" class="col-md-4 control-label">Rolle</label>\n            <div class="col-md-8">\n              <select class="form-control" v-model="selectedRole" @change="saveRole">\n                <option value="{{ role.id }}" v-for="role in all_roles" v-bind="role.id" v-if="role.id < 3" selected="user.roles">{{ role.display_name }}</option>\n              </select>\n            </div>\n          </div>\n        </form>\n      </div>\n      <h4>Passwort ändern</h4>\n      <hr>\n      <div class="row">\n        <form class="form-horizontal col-md-8">\n          <div class="form-group">\n            <label for="password" class="col-md-4 control-label">Passwort</label>\n            <div class="col-md-8">\n              <input type="password" class="form-control" id="password" v-model="user.pw_one">\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="password_confirmation" class="col-md-4 control-label">Passwort wiederholen</label>\n            <div class="col-md-8">\n              <input type="password" class="form-control" id="password_confirmation" v-model="user.pw_two">\n            </div>\n          </div>\n          <div class="row">\n            <div class="col-md-8 col-md-offset-4">\n              <a class="btn btn-primary" @click="savePassword">Passwort speichern</a>\n            </div>\n          </div>\n        </form>\n      </div>\n    </div>\n  </div>\n';
-},{}],92:[function(require,module,exports){
+},{}],91:[function(require,module,exports){
 module.exports = '<div>\n  <div class="content">\n\n    <div class="row filter-row">\n      <div class="col-md-8">\n        <a class="btn btn-primary" v-link="{ name: \'admin.newuser\' }">Neuer Nutzer</a>\n      </div>\n      <div class="col-md-4">\n        <div class="input-group">\n          <input class="form-control" placeholder="Suchen..." v-model="filter">\n          <span class="input-group-btn">\n            <button class="btn btn-default" type="button"><i class="fa fa-search" aria-hidden="true"></i></button>\n          </span>\n        </div>\n      </div>\n    </div>\n\n    <div class="box">\n      <table class="table table-striped table-condensed">\n        <thead>\n          <tr>\n            <th>Name\n            <th>Rollen\n            <th>E-Mail-Adresse\n            <th>Aktion\n          </tr>\n        </thead>\n        <tbody>\n          <tr v-for="user in users | filterBy filter in \'roles[0].display_name\' \'name\' \'email\' \'status\' " v-if="user.roles[0].id < 3">\n            <td><a v-link="{ name: \'admin.settings.users.edit\', params: { id: user.id } }">{{ user.name }}</a>\n            <td>{{ user.roles[0].display_name }}\n            <td>{{ user.email }}\n            <td>\n              <div class="btn-group">\n                <button type="button" class="btn btn-default btn-xs dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">\n                  {{ user.status }} <span class="caret"></span>\n                </button>\n                <ul class="dropdown-menu">\n                  <li><a v-link="{ name: \'admin.settings.users.edit\', params: { id: user.id} }">Bearbeiten</a></li>\n                  <li role="separator" class="divider"></li>\n                  <li><a href="/admin/change-user-status/{{ user.id }}" @click="changeUserStatus">{{ user.status == \'Aktiv\' ? \'Deaktivieren\' : \'Aktivieren\' }}</a></li>\n                  <li><a href="#">Löschen</a></li>\n                </ul>\n              </div>\n          </tr>\n        </tbody>\n      </table>\n    </div>\n  </div>\n</div>\n';
-},{}],93:[function(require,module,exports){
+},{}],92:[function(require,module,exports){
 module.exports = '  <div>\n    <div class="content">\n      <p>\n      <div class="box">\n        <table class="table">\n          <thead>\n            <th>Name</th>\n            <th>Standardwert</th>\n            <th>Typ</th>\n            <th>Angelegt von</th>\n            <th>Status</th>\n            <th>Aktion</th>\n          </thead>\n          <tbody>\n            <tr>\n              <td>\n                <input class="form-control" v-model="property.name" @blur="saveProperty">\n              </td>\n              <td>\n                <input class="form-control" v-model="property.default" @blur="saveProperty">\n              </td>\n              <td>\n                <div class="form-group">\n                  <select class="form-control" v-model="property.type" @change="savePrpoerty">\n                    <option selected>text</option>\n                    <option>Zahl</option>\n                  </select>\n                </div>\n              <td>\n                {{ property.user.name }}\n              </td>\n              <td>\n                <div class="form-group">\n                  <select class="form-control" v-model="property.status" @change="saveProperty">\n                    <option selected>Aktiv</option>\n                    <option>Deaktivieren</option>\n                  </select>\n                </div>\n              </td>\n              <td>\n                <button class="btn btn-default" @click="saveProperty">Speichern</button>\n              </td>\n            </tr>\n\n          </tbody>\n        </table>\n      </div>\n    </div>\n  </div>\n';
-},{}],94:[function(require,module,exports){
+},{}],93:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -38998,7 +38534,6 @@ exports.default = {
         PatientReferModal: _NewPatientReferModal2.default,
         DateModal: _DateModal2.default,
         CalendarModal: _CalendarModal2.default
-        // 'vue-datetime-picker': require("../../../../../node_modules/vue-datetime-picker/src/vue-datetime-picker.js")
     },
     data: function data() {
         return {
@@ -39274,7 +38809,6 @@ exports.default = {
                 Messenger().post({
                     message: 'Patient zurückgeleitet',
                     type: 'success'
-                    // showCloseButton: true
                 });
                 this.$router.go({ name: 'admin.contacts', params: {} });
             }, function (response) {
@@ -39282,7 +38816,6 @@ exports.default = {
                 Messenger().post({
                     message: 'Patient nicht zurückgeleitet',
                     type: 'success'
-                    // showCloseButton: true
                 });
             });
 
@@ -39387,14 +38920,12 @@ exports.default = {
                         Messenger().post({
                             message: 'Termin gelöscht',
                             type: 'success'
-                            // showCloseButton: true
                         });
                     }, function (response) {
                         // $('#debug').addClass('active').find('.debugged-content').html(response.data);
                         Messenger().post({
                             message: 'Termin nicht gelöscht zurückgeleitet',
                             type: 'success'
-                            // showCloseButton: true
                         });
                     });
                 }
@@ -39476,13 +39007,11 @@ exports.default = {
                 Messenger().post({
                     message: 'Fehler beim Speichern',
                     type: 'error'
-                    // showCloseButton: true
                 });
                 if (key.data('input') == 'tel' || key.data('input') == 'mobile') {
                     Messenger().post({
                         message: 'Keine gültige Telefonnummer',
                         type: 'error'
-                        // showCloseButton: true
                     });
                 }
             });
@@ -39550,7 +39079,6 @@ exports.default = {
                         Messenger().post({
                             message: 'Kontakt bestätigt',
                             type: 'success'
-                            // showCloseButton: true
                         });
                         this.patientUsed();
                         //this.getTimeline();
@@ -39559,7 +39087,6 @@ exports.default = {
                         Messenger().post({
                             message: 'Kontakt nicht bestätigt',
                             type: 'error'
-                            // showCloseButton: true
                         });
                     });
                 }
@@ -39709,16 +39236,23 @@ exports.default = {
             });
         },
         handleTaskMove: function handleTaskMove( /**Event*/evt, /**Event*/originalEvent) {
+            var _this10 = this;
+
             if (evt.relatedRect.top < 100) {
-                var self = this;
-                if (!this.scrolling) {
-                    var container = $(".content");
-                    $(".content").animate({ scrollTop: $(".content").scrollTop() - 200 }, 1000, function () {
-                        self.scrolling = true;
-                    }).promise().done(function () {
-                        self.scrolling = false;
-                    });
-                }
+                var container;
+
+                (function () {
+                    var self = _this10;
+                    if (!_this10.scrolling) {
+                        container = $(".content");
+
+                        $(".content").animate({ scrollTop: $(".content").scrollTop() - 200 }, 1000, function () {
+                            self.scrolling = true;
+                        }).promise().done(function () {
+                            self.scrolling = false;
+                        });
+                    }
+                })();
             }
         },
 
@@ -39746,7 +39280,7 @@ exports.default = {
     }
 };
 
-},{"../../components/user/CalendarModal.js":67,"../../components/user/DateModal.js":69,"../../components/user/NewPatientReferModal.js":70,"./contactsingle.template.html":97}],95:[function(require,module,exports){
+},{"../../components/user/CalendarModal.js":66,"../../components/user/DateModal.js":68,"../../components/user/NewPatientReferModal.js":69,"./contactsingle.template.html":96}],94:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -40172,11 +39706,11 @@ exports.default = {
     }
 };
 
-},{"../../components/contacts/ContactsTable.js":65,"../../stores/ContactsStore.js":76,"./contacts.template.html":96}],96:[function(require,module,exports){
+},{"../../components/contacts/ContactsTable.js":64,"../../stores/ContactsStore.js":75,"./contacts.template.html":95}],95:[function(require,module,exports){
 module.exports = '<div>\n    <style>\n        .font-gray {\n            color: #e2e2e2;\n        }\n    </style>\n    <div class="content" id="main-content">\n        <!--pre>{{ shared | json }}</pre-->\n        <div class="box stats-box">\n            <div class="container-fluid">\n                <div class="row">\n                    <div class="col-md-4">\n                        <div class="stat">\n                            <div class="text">Kontakte</div>\n                            <div class="number">{{ stats.all }}</div>\n                        </div>\n                    </div>\n                    <div class="col-md-4">\n                        <div class="stat">\n                            <div class="text">bestätigte Kontakte</div>\n                            <div class="number">{{ stats.confirmed }}</div>\n                        </div>\n                    </div>\n                    <div class="col-md-4">\n                        <div class="stat">\n                            <div class="text">unbestätigte Kontakte</div>\n                            <div class="number">{{ unconfirmed }}</div>\n                        </div>\n                    </div>\n                </div>\n            </div>\n        </div>\n        <div class="new-contact" v-if="!isLab || isCrmUser">\n            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#newcontact">\n                <i class="fa fa-plus"></i> Neuer Kontakt\n            </button>\n        </div>\n        <div class="row filter-row">\n            <div class="col-md-10">\n                <form class="filter-form">\n                    <div class="form-group">\n                        <label>Status:</label>\n                        <select id="status" v-model="filter.status.selected"\n                                v-selectpicker="[filter.status.selected, filterOptions.status.options]">\n                            <option v-for="status in filterOptions.status.options" v-bind:value="status.value">{{\n                                status.text }}\n                            </option>\n                        </select>\n                    </div>\n                    <div class="form-group" v-if="isAdmin">\n                        <label>Labor:</label>\n                        <select v-model="filter.lab.selected"\n                                v-selectpicker="[filter.lab.selected, filterOptions.lab.options]"\n                                data-live-search="true">\n                            <option value="reset">Alle</option>\n                            <option value="ohne">Ohne Labor</option>\n                            <option data-divider="true"></option>\n                            <option v-for="l in filterOptions.lab.options" v-bind:value="l.id">\n                                {{ labName(l) }}\n                            </option>\n                        </select>\n                    </div>\n                    <div class="form-group" v-if="isCrmUser">\n                        <label>Kontakte:</label>\n                        <select v-model="filter.lab.selected"\n                                v-selectpicker="[filter.lab.selected]">\n                            <option value="reset">Alle</option>\n                            <option value="current">Dieses Labor</option>\n                        </select>\n                    </div>\n\n                    <div class="form-group">\n                        <label for="">Phase:</label>\n                        <select v-model="filter.phase.selected"\n                                v-selectpicker="[filter.phase.selected, filterOptions.phase.options]">\n                            <option v-for="phase in filterOptions.phase.options" v-bind:value="phase.value">{{\n                                phase.text }}\n                            </option>\n                        </select>\n                    </div>\n                    <div class="form-group" v-if="isAdmin">\n                        <label>Schleife:</label>\n                        <select v-model="filter.queued.selected"\n                                v-selectpicker="[filter.queued.selected, filterOptions.queued.options]">\n                            <option v-for="q in filterOptions.queued.options" v-bind:value="q.value">{{ q.text }}\n                            </option>\n                        </select>\n                    </div>\n                    <div class="form-group" v-if="isAdmin">\n                        <label>Dokumente:</label>\n                        <select v-model="filter.documents.selected"\n                                v-selectpicker="[filter.documents.selected, filterOptions.documents.options]">\n                            <option v-for="q in filterOptions.documents.options" v-bind:value="q.value">{{ q.text }}\n                            </option>\n                        </select>\n                    </div>\n                    <div class="form-group">\n                        <label></label>\n                        <button data-toggle="tooltip" data-placement="top" title="Suche zurücksetzen" type="button"\n                                @click="clearfilter" class="btn btn-default "><i class="fa fa-times"\n                                                                                 aria-hidden="true"></i></button>\n                    </div>\n                </form>\n            </div>\n            <div class="col-md-2 ">\n                <div class="filter-form ">\n                    <div class="form-group ">\n                        <label>Suche:</label>\n                        <div class="input-group ">\n                            <input type="text " class="form-control " placeholder="Suchen... " v-model="search "\n                                   id="search ">\n                            <span class="input-group-btn ">\n                                <button class="btn btn-default " type="button "><i class="fa fa-search "\n                                                                                   aria-hidden="true "></i></button>\n                            </span>\n                        </div>\n                    </div>\n                </div>\n            </div>\n        </div>\n        <div class="box table-box ">\n            <div class="table-meta-data ">Kontakte: {{ pagination.total }} | Seite: {{ pagination.current_page }} / {{\n                pagination.last_page }}\n            </div>\n            <div class="table-wrap">\n                <table class="table table-striped table-condensed">\n                    <thead>\n                    <tr>\n                        <th class="sortable " @click="sortBy( \'patients.id\') " v-if="isAdmin">#</th>\n                        <th class="sortable " @click="sortBy( \'patientmeta.name\') ">Name</th>\n                        <th class="sortable " @click="sortBy( \'created_at\') ">Anfragedatum</th>\n                        <th class="sortable " @click="sortBy( \'patientmeta.email\') ">E-Mail</th>\n                        <th class="sortable " @click="sortBy( \'patientmeta.tel\') ">Telefon</th>\n                        <th class="sortable " @click="sortBy( \'patientmeta.zip\') ">PLZ</th>\n                        <th class="sortable " @click="sortBy( \'labs.name\') " v-if="!isLab">Labor</th>\n                        <th class="sortable " @click="sortBy( \'phase\') ">Phase</th>\n                        <th class="sortable " @click="sortBy( \'queued\') " v-if="isAdmin"><i\n                            class="fa fa-refresh " aria-hidden="true " data-toggle="tooltip " data-placement="top "\n                            title="Schleife "></i></th>\n                        <th class="ref " v-if="isAdmin" @click="sortBy( \'patientmeta.orig_ref\') ">Kam\n                            rein über\n                        </th>\n                        <th v-if="isAdmin" class="sortable " @click="sortBy( \'direct\') ">Direkt</th>\n                        <th class="sortable " @click="sortBy( \'labDate\') ">Phasen-Termin</th>\n                        <th class="sortable " @click="sortBy( \'empDate\') "\n                            v-if="isAdmin || isUser">Mitarbeitertermin\n                        </th>\n                        <th v-if="isAdmin || isUser" class="sortable " @click="sortBy( \'movedback\') "><i\n                            class="fa fa-exchange " aria-hidden="true " data-toggle="tooltip " data-placement="top "\n                            title="Zurückgeschoben "></i></th>\n                        <!--th class="text-right ">Aktion</th-->\n                        <th v-if="isAdmin">Dokumente</th>\n                        <th v-if="isAdmin"><i class="fa fa-trash " aria-hidden="true "></i></th>\n                    </tr>\n                    </thead>\n                    <tbody>\n                    <tr v-for="contact in contacts " id="contact-{{ contact.id }} ">\n                        <td v-if="isAdmin">{{ contact.id }}</td>\n                        <td><a v-link="{ name: \'admin.contactSingle\', params: { id: contact.id } } ">{{\n                            contact.patientmeta.name }}</a></td>\n                        <td>{{ contact.created_at | niceDate }}</td>\n                        <td v-if="contact.confirmed==\'1\' "><a href="mailto:{{ contact.patientmeta.email }} "><i\n                            class="fa fa-envelope-o " aria-hidden="true "></i></a> {{ contact.patientmeta.email }}\n                        </td>\n                        <td v-else><span class="label label-danger ">noch unbestätigt</span></td>\n                        <td>{{ contact.patientmeta.tel }}</td>\n                        <td>{{ contact.patientmeta.zip }}</td>\n                        <td v-if="!isLab">\n                            <a v-link="{ name: \'admin.labSingle\', params: { id: contact.lab.id } } "\n                               v-if="isAdmin">{{ contact.lab.name }}</a>\n                            <span v-if="!isAdmin">{{ contact.lab.name }}</span></td>\n                        <td>\n                            <span class="label label-default phase phase-{{ contact.phase }} "><a\n                                v-link="{ name: \'admin.contactSingle\', params: { id: contact.id } } ">{{ contact.phase_label }}</a></span>\n                        </td>\n                        <td class="text-center " v-if="isAdmin">\n                            <i class="fa fa-refresh " aria-hidden="true " v-if="contact.queued==1 "></i>\n                            <!-- <i class="fa fa-stop " aria-hidden="true " v-if="contact.queue==0 "></i> -->\n                        </td>\n                        <td class="ref " v-if="isAdmin">{{ contact.patientmeta.orig_ref | shorten }}\n                        </td>\n                        <td class="text-center " v-if="isAdmin"><i class="fa fa-check "\n                                                                   aria-hidden="true "\n                                                                   v-if="contact.direct==1 "></i></td>\n                        <td>\n                          <span :class="{\'font-gray\':isPastDate(contact.labDate)}" v-if="contact.next_date">\n                              {{ contact.next_date.date | niceDate }}\n                          </span>\n                            <span v-if="contact.next_date.phase != contact.phase"\n                                  :class="contact.next_date.phase_class">{{ contact.next_date.phase_label }}</span>\n                        </td>\n                        <td v-if="isAdmin || isUser ">\n                            <span :class="{\'font-gray\':isPastDate(contact.empDate)}" v-if="contact.next_employee_date">\n                                {{ contact.next_employee_date.date | niceDate }}\n                            </span>\n                        </td>\n                        <td class="text-center " v-if="isAdmin || isUser">{{ contact.movedback }}</td>\n                        <td class="text-center " v-if="isAdmin">\n                            <div v-if="contact.attachments.length">\n                                <a :href="\'/attachments/\'+attachment.id" :title="attachment.path"\n                                   v-for="attachment in contact.attachments">\n                                    <i class="fa fa-file" :title="attachment.path"></i>\n                                </a>\n                            </div>\n                        </td>\n                        <td class="text-center " v-if="isAdmin">\n                            <a href="# " class="del" @click="confirmDeleteContact(contact) ">\n                                <i class="fa fa-trash " aria-hidden="true "></i>\n                            </a>\n                        </td>\n                    </tr>\n                    </tbody>\n                </table>\n            </div>\n            <div class="contacts-pagination ">\n                <nav>\n                    <ul class="pagination">\n                        <li v-if="pagination.current_page > 1">\n                            <a href="#" aria-label="Previous" @click.prevent="changePage(pagination.current_page - 1)">\n                                <span aria-hidden="true">&laquo;</span>\n                            </a>\n                        </li>\n                        <li v-for="page in pagesNumber" v-bind:class="[ page == isActived ? \'active\' : \'\']">\n                            <a href="#" @click.prevent="changePage(page)">{{ page }}</a>\n                        </li>\n                        <li v-if="pagination.current_page < pagination.last_page">\n                            <a href="#" aria-label="Next" @click.prevent="changePage(pagination.current_page + 1)">\n                                <span aria-hidden="true">&raquo;</span>\n                            </a>\n                        </li>\n                    </ul>\n                    <ul class="pagination">\n                        <li>\n                            <select v-model="pagination.per_page" v-selectpicker="pagination.per_page"\n                                    @change="perpageChange(pagination.per_page)">\n                                <option v-for="opt in items_per_page" :value="opt.value">{{ opt.value }}</option>\n                            </select>\n                        </li>\n                    </ul>\n                </nav>\n            </div>\n        </div>\n    </div>\n</div>\n<div class="modal fade" id="newcontact" tabindex="-1" role="dialog" aria-labelledby="newcontact">\n    <div class="modal-dialog" role="document">\n        <div class="modal-content">\n            <div class="modal-header">\n                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span\n                    aria-hidden="true">&times;</span></button>\n                <h4 class="modal-title" id="myModalLabel">Neuen Kontakt anlegen</h4>\n            </div>\n            <validator name="newContactValidator">\n                <div class="modal-body">\n                    <form class="form-horizontal" novalidate>\n                        <div class="form-group">\n                            <label for="salutation" class="col-sm-4 control-label">Anrede</label>\n                            <div class="col-sm-8">\n                                <select name="salutation" id="salutation" class="form-control"\n                                        v-model="newcontact.salutation">\n                                    <option value="Frau">Frau</option>\n                                    <option value="Herr">Herr</option>\n                                </select>\n                            </div>\n                        </div>\n                        <div class="form-group">\n                            <label for="name" class="col-sm-4 control-label">Name</label>\n                            <div class="col-sm-8">\n                                <input type="text" class="form-control" id="name" placeholder="Vorname Nachname"\n                                       v-model="newcontact.name">\n                            </div>\n                        </div>\n                        <div class="form-group">\n                            <label for="zip" class="col-sm-4 control-label">Postleitzahl</label>\n                            <div class="col-sm-8">\n                                <input type="text" class="form-control" id="zip" placeholder="Postleitzahl"\n                                       v-model="newcontact.zip">\n                            </div>\n                        </div>\n                        <div class="form-group">\n                            <label for="email" class="col-sm-4 control-label">E-Mail-Adresse</label>\n                            <div class="col-sm-8">\n                                <input type="email" class="form-control" id="email" placeholder="name.nachname@mail.de"\n                                       v-model="newcontact.email">\n                            </div>\n                        </div>\n                        <div class="form-group">\n                            <label for="phone" class="col-sm-4 control-label">Telefonnummer</label>\n                            <div class="col-sm-8">\n                                <input type="text" class="form-control" id="phone" placeholder="0202 45678"\n                                       v-model="newcontact.phone">\n                            </div>\n                        </div>\n                        <div v-if="!isCrmUser">\n                            <div class="form-group">\n                                <div class="col-sm-12">\n                                    <div class="input-group">\n                                        <input type="text" class="form-control" placeholder="Labor Suchen..."\n                                               v-model="searchlab">\n                                        <span class="input-group-btn"><button class="btn btn-default" type="button"><i\n                                            class="fa fa-search" aria-hidden="true"></i></button></span>\n                                    </div>\n                                </div>\n                            </div>\n                            <div class="form-group">\n                                <div class="col-sm-12">\n                                    <label for="lab">Weiterleiten an Labor:</label>\n                                    <select class="form-control" v-model="newcontact.labid" name="labid" size="3">\n                                        <option\n                                            v-for="lab in labs | orderBy \'name\' | filterBy searchlab in \'name\' \'labmeta.city\'"\n                                            v-if="lab.status == \'aktiv\'" v-bind:value="lab.id">\n                                            {{ lab.name }} [{{ lab.labmeta.city }}]\n                                        </option>\n                                    </select>\n                                </div>\n                            </div>\n                        </div>\n                        <div v-else>\n                            <input type="hidden" v-model="newcontact.labid" :value="whoami.lab[0].id">\n                        </div>\n                    </form>\n                </div>\n                <div class="modal-footer">\n                    <button type="button" class="btn btn-default" data-dismiss="modal">Abbrechen</button>\n                    <button class="btn btn-primary" @click="savecontact" v-if="formReady">Kontakt anlegen</button>\n                </div>\n            </validator>\n        </div>\n    </div>\n</div>\n\n<div class="modal fade" id="deletecontact" tabindex="-1" role="dialog" aria-labelledby="deletecontact">\n    <div class="modal-dialog" role="document">\n        <div class="modal-content">\n            <div class="modal-header">\n                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span\n                        aria-hidden="true">&times;</span></button>\n                <h4 class="modal-title" id="deleteContactLabel">Kontakt löschen</h4>\n            </div>\n            <div class="modal-body">\n                <h4>Sicher?</h4>\n\n                <div class="form-group">\n                    <label>\n                        <input type="checkbox" value="1" v-model="deleteContactForm.send_mail"> Patient über die Löschung informieren?\n                    </label>\n                </div>\n\n                <div class="form-group">\n                    <label>\n                        <input type="checkbox" value="1" v-model="deleteContactForm.delete_all"> Alle Accounts mit gleicher E-Mail Adresse ebenfalls löschen?\n                    </label>\n                </div>\n            </div>\n            <div class="modal-footer">\n                <button type="button" class="btn btn-danger" data-dismiss="modal">Abbrechen</button>\n                <button type="button" class="btn btn-default" @click="deletecontact">Löschen</button>\n            </div>\n        </div>\n    </div>\n</div>\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n';
-},{}],97:[function(require,module,exports){
+},{}],96:[function(require,module,exports){
 module.exports = '<div>\n    <div class="content">\n        <!--div class="">\n      {{ debug }}\n    </div>\n    <pre>\n      {{ debug | json }}\n    </pre-->\n        <div class="container-fluid">\n            <div id="contact-error"></div>\n            <div id="contact">\n                <div class="print-logo"><img src="/images/logo.png" alt=""></div>\n                <div class="row">\n                    <div class="col-xs-5 col-md-4 contact-data">\n                        <div class="box contact-box">\n                            <div class="row">\n                                <div class="col-xs-11">\n                                    <h4>{{ contact.patientmeta.name }}</h4>\n                                </div>\n                                <a href="javascript:window.print()" class="col-xs-1 action"><i class="fa fa-print"\n                                                                                               aria-hidden="true"\n                                                                                               class="printer"></i></a>\n                            </div>\n                            <dl class="property-fields">\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Anrede</dt>\n                                    <dd class="col-xs-7">\n                                        <input data-input="salutation" v-model="contact.patientmeta.salutation"\n                                               @blur="saveContact" @keyup.enter="saveContact">\n                                    </dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Name</dt>\n                                    <dd class="col-xs-7">\n                                        <input data-input="name" v-model="contact.patientmeta.name" @blur="saveContact"\n                                               @keyup.enter="saveContact">\n                                    </dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">E-Mail</dt>\n                                    <dd class="col-xs-7">\n                                        <input v-if="contact.confirmed == 1 || isAdmin || isUser" type="email"\n                                               v-model="contact.patientmeta.email" @blur="saveContact"\n                                               @keyup.enter="saveContact" {{ isLab ? \'disabled\' : \'\' }}>\n                                        <div v-else>\n                                            <span class="no-input">\n                            <span class="label label-danger">Unbestätigt</span>\n                                            </span>\n                                        </div>\n                                    </dd>\n                                    <a class="action col-xs-1" v-on:click="approveContact"\n                                       v-if="contact.confirmed != \'1\'">\n                                        <i class="fa fa-check" aria-hidden="true" data-toggle="tooltip"\n                                           data-placement="right" title="Kontakt bestätigen"></i>\n                                    </a>\n                                    <a v-else href="mailto:{{ contact.patientmeta.email }}" class="action col-xs-1"><i\n                                        class="fa fa-mail"></i></a>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Status</dt>\n                                    <dd class="col-xs-7">\n                                        <span class="no-input">\n                                            <span v-if="contact.confirmed == 1">\n                                                <span class="label label-success">Bestätigt</span>\n                                                <span v-if="isAdmin"> {{ contact.confirmer.name }}</span>\n                                            </span>\n                                            <span v-else class="label label-warning">Unbestätigt</span>\n                                        </span>\n                                    </dd>\n                                    <a class="action col-xs-1" v-on:click="approveContact"\n                                       v-if="contact.confirmed != \'1\'"><i class="fa fa-check" aria-hidden="true"\n                                                                          data-toggle="tooltip" data-placement="right"\n                                                                          title="Kontakt bestätigen"></i></a>\n                                </div>\n                                <div v-if="isAdmin || isUser" class="property-row row">\n                                    <dt class="col-xs-4">Labor</dt>\n                                    <dd class="col-xs-7">\n                                        <span class="no-input">{{ contact.lab.name }}</span>\n                                    </dd>\n                                    <a class="action col-xs-1" v-if="isAdmin || isUser" data-toggle="modal"\n                                       data-target="#assigncontact">\n                                        <i class="fa fa-share" aria-hidden="true" data-toggle="tooltip"\n                                           data-placement="right" title="Labor auswählen/wechseln"></i>\n                                    </a>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Angefragt am</dt>\n                                    <dd class="col-xs-7"><span class="no-input">{{ contact.created_at.split(/[- :]/)[2].split(\' \')[0] }}.{{ contact.created_at.split(/[- :]/)[1] }}.{{ contact.created_at.split(/[- :]/)[0] }} {{ contact.created_at.split(/[- :]/)[2].split(\' \')[1] }}:{{ contact.created_at.split(/[- :]/)[3] }} Uhr</span>\n                                    </dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Telefon</dt>\n                                    <dd class="col-xs-7">\n                                        <input data-input="tel" v-model="contact.patientmeta.tel" @blur="saveContact"\n                                               @keyup.enter="saveContact">\n                                    </dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Mobil</dt>\n                                    <dd class="col-xs-7">\n                                        <input data-input="mobile" v-model="contact.patientmeta.mobile"\n                                               @blur="saveContact" @keyup.enter="saveContact">\n                                    </dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Straße</dt>\n                                    <dd class="col-xs-7">\n                                        <input data-input="street" v-model="contact.patientmeta.street"\n                                               @blur="saveContact" @keyup.enter="saveContact">\n                                    </dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Ort</dt>\n                                    <dd class="col-xs-7">\n                                        <input data-input="city" v-model="contact.patientmeta.city" @blur="saveContact"\n                                               @keyup.enter="saveContact">\n                                    </dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Postleitzahl</dt>\n                                    <dd class="col-xs-7">\n                                        <input data-input="zip" v-model="contact.patientmeta.zip" @blur="saveContact"\n                                               @keyup.enter="saveContact">\n                                    </dd>\n                                </div>\n                                <!-- Custom Probs-->\n                                <!--div class="property-row row" v-for="prop in contact.props">\n                      <dt class="col-xs-4">{{ prop.name }}</dt>\n                      <dd class="col-xs-7"><input @blur="saveProps" @keyup.enter="saveProps" v-model="prop.pivot.value"></dd>\n                    </div-->\n                                <!-- Dates-->\n                                <div class="property-row row" v-if="contact.workday_from || contact.weekend_from">\n                                    <dt class="col-xs-4">Wunschzeit</dt>\n                                    <dd class="col-xs-7">\n                                        <span v-if="contact.workday_from && contact.workday_till">Werktags: {{ contact.workday_from }} - {{ contact.workday_till }}</span>\n                                        <div class="clearfix"></div>\n                                        <span v-if="contact.weekend_from && contact.weekend_till">Samstags: {{ contact.weekend_from }} - {{ contact.weekend_till }}</span>\n                                    </dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4"><strong>Sonstiges</strong></dt>\n                                    <dd class="col-xs-7"></dd>\n                                </div>\n                                <div class="property-row row" v-if="isAdmin || isUser">\n                                    <dt class="col-xs-4">Verwaltungsschleife</dt>\n                                    <dd class="col-xs-7">\n                                        <span class="no-input">\n                                            <span class="label label-default" v-if="contact.queued == 1">Ja</span>\n                                        <span class="label label-default" v-if="contact.queued == 0">nein</span>\n                                        </span>\n                                    </dd>\n                                </div>\n                                <div class="property-row row" v-if="isAdmin || isUser">\n                                    <dt class="col-xs-4">Zurückgeleitet</dt>\n                                    <dd class="col-xs-7"><span class="no-input">{{ contact.movedback }}</span></dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Archiviert</dt>\n                                    <dd class="col-xs-7">\n                                        <span class="no-input">\n                                            <span class="label label-default" v-if="contact.archived == 1">Ja</span>\n                                        <span class="label label-default" v-if="contact.archived == 0">nein</span>\n                                        </span>\n                                    </dd>\n                                    <a class="action col-xs-1" @click="saveContact" v-if="contact.archived == 1">\n                                        <i class="fa fa-toggle-on" data-todo="togglearchived" data-archived="0"\n                                           aria-hidden="true" data-toggle="tooltip" data-placement="right"\n                                           title="Kontakt archivieren"></i>\n                                    </a>\n                                    <a class="action col-xs-1" @click="saveContact" v-if="contact.archived == 0">\n                                        <i class="fa fa-toggle-off" @click="saveContact" data-todo="togglearchived"\n                                           data-archived="1" aria-hidden="true" data-toggle="tooltip"\n                                           data-placement="right" title="Kontakt archivieren"></i>\n                                    </a>\n                                </div>\n                            </dl>\n                        </div>\n\n                        <div v-if="!contact.lab">\n                            <div class="box contact-box">\n                                <h4>Termine</h4>\n                                <dl>\n                                    <div class="property-row row">\n                                        <dt class="col-xs-4">Mitarbeitertermin</dt>\n                                        <dd class="col-xs-7">\n                                            <input v-datetimepicker="userDate" v-model="userDate"\n                                                   @keyup.enter="saveEmployeeDate" @blur="saveEmployeeDate">\n                                        </dd>\n                                        <a v-if="userDate" class="action col-xs-1" @click="deleteEmployeeDate">\n                                            <i class="fa fa-trash" data-todo="delete" aria-hidden="true"\n                                               data-toggle="tooltip" data-placement="right"\n                                               title="Mitarbeitertermin löschen"></i>\n                                        </a>\n                                    </div>\n                                </dl>\n                            </div>\n                        </div>\n                        <div v-else>\n                            <div class="box contact-box" v-if="contact.lab">\n                                <h4>Termine</h4>\n                                <dl v-if="isAdmin || isUser">\n                                    <!--<div v-if="contact.lab.membership == 1 || contact.lab.membership == 4">-->\n                                    <div class="property-row row">\n                                        <dt class="col-xs-4">Phasen-Termine</dt>\n                                        <dd class="col-xs-7">\n\n                                        </dd>\n                                        <a class="action col-xs-1" data-toggle="modal" data-target="#myModal"\n                                           ref="/calendar/{{ contact.id }}" @click="calendarClick()">\n                                            <i class="fa fa-calendar-plus-o" aria-hidden="true"\n                                               data-toggle="tooltip" data-placement="right"\n                                               title="Phasen-Termin anlegen"></i>\n                                        </a>\n                                    </div>\n\n                                    <div class="property-row row" v-for="(index, date) in contact.dates">\n                                        <dt class="col-xs-4" v-if="index == 0"></dt>\n                                        <dt class="col-xs-4" v-else="index == 0"></dt>\n                                        <dd class="col-xs-7"><span\n                                            class="no-input">{{ date.date | niceDate }}</span>\n                                            <span :class="date.phase_class">{{ date.phase_label }}</span>\n                                        </dd>\n                                        <a class="action col-xs-1" @click="deleteDate">\n                                            <i class="fa fa-trash" data-todo="delete" data-id="{{ date.id }}"\n                                               aria-hidden="true" data-toggle="tooltip" data-placement="right"\n                                               title="Termin löschen"></i>\n                                        </a>\n                                    </div>\n                                    <!--  </div>-->\n\n                                    <!--<div class="property-row row" v-else>\n                                        <dt class="col-xs-4">Nächster Phasen-Termin</dt>\n                                        <dd class="col-xs-7">\n                                            <input data-input="labdate" v-datetimepicker="labdate" v-model="labdate"\n                                                   @blur="saveContact" @keyup.enter="saveContact">\n                                        </dd>\n                                        <a v-if="labdate" class="action col-xs-1" @click="saveContact">\n                                            <i class="fa fa-trash" data-todo="deletelabdate" aria-hidden="true"\n                                               data-toggle="tooltip" data-placement="right"\n                                               title="Phasen-Termin löschen"></i>\n                                        </a>\n                                    </div>-->\n                                    <div class="property-row row"\n                                         v-if="contact.lab.membership == 1 || contact.lab.membership == 4">\n                                        <dt class="col-xs-4">Mitarbeitertermin</dt>\n                                        <dd class="col-xs-7">\n                                            <input v-datetimepicker="userDate" v-model="userDate"\n                                                   @keyup.enter="saveEmployeeDate" @blur="saveEmployeeDate">\n                                        </dd>\n                                        <a v-if="userDate" class="action col-xs-1" @click="deleteEmployeeDate">\n                                            <i class="fa fa-trash" data-todo="delete" aria-hidden="true"\n                                               data-toggle="tooltip" data-placement="right"\n                                               title="Mitarbeitertermin löschen"></i>\n                                        </a>\n                                    </div>\n                                </dl>\n                                <dl v-if="isLab">\n                                    <!--<div v-if="contact.lab.membership == 1 || contact.lab.membership == 4">-->\n                                    <div class="property-row row">\n                                        <dt class="col-xs-4">Phasen-Termine</dt>\n                                        <dd class="col-xs-7">\n\n                                        </dd>\n                                        <a class="action col-xs-1" data-toggle="modal" data-target="#myModal"\n                                           ref="/calendar/{{ contact.id }}" @click="calendarClick()">\n                                            <i class="fa fa-calendar-plus-o" aria-hidden="true"\n                                               data-toggle="tooltip" data-placement="right"\n                                               title="Phasen-Termin anlegen"></i>\n                                        </a>\n                                    </div>\n\n                                    <div class="property-row row" v-for="(index, date) in contact.dates">\n                                        <dt class="col-xs-4" v-if="index == 0"></dt>\n                                        <dt class="col-xs-4" v-else="index == 0"></dt>\n                                        <dd class="col-xs-7"><span\n                                            class="no-input">{{ date.date | niceDate }}</span>\n                                            <span :class="date.phase_class">{{ date.phase_label }}</span>\n                                        </dd>\n                                        <a class="action col-xs-1" @click="deleteDate">\n                                            <i class="fa fa-trash" data-todo="delete" data-id="{{ date.id }}"\n                                               aria-hidden="true" data-toggle="tooltip" data-placement="right"\n                                               title="Termin löschen"></i>\n                                        </a>\n                                    </div>\n                                    <!-- </div>-->\n                                    <!--<div class="property-row row" v-else>\n                                        <dt class="col-xs-4">Phasen-Termin</dt>\n                                        <dd class="col-xs-7">\n                                            <input data-input="labdate" v-datetimepicker="labdate" v-model="labdate"\n                                                   @blur="saveContact" @keyup.enter="saveContact">\n                                        </dd>\n                                        <a v-if="labdate" class="action col-xs-1" @click="saveContact">\n                                            <i class="fa fa-trash" data-todo="deletelabdate" aria-hidden="true"\n                                               data-toggle="tooltip" data-placement="right"\n                                               title="Phasen-Termin löschen"></i>\n                                        </a>\n                                    </div>-->\n                                </dl>\n                            </div>\n                        </div>\n\n                        <div v-if="!contact.lab">\n                            <div class="box contact-box">\n                                <h4>Labor</h4>\n                                <dl>\n                                    <div class="property-row row">\n                                        <dt class="col-xs-4">Kein Labor</dt>\n                                        <dd class="col-xs-7">\n                                        </dd>\n                                        <a class="action col-xs-1" v-if="isAdmin || isUser"\n                                           data-toggle="modal"\n                                           data-target="#assigncontact">\n                                            <i class="fa fa-share" aria-hidden="true" data-toggle="tooltip"\n                                               data-placement="right" title="Labor auswählen/wechseln"></i>\n                                        </a>\n                                    </div>\n                                </dl>\n                            </div>\n                        </div>\n                        <div v-else>\n                            <div class="box contact-box" v-if="isAdmin || isUser">\n                                <h4>{{ contact.lab.name }}</h4>\n                                <dl>\n                                    <div class="property-row row">\n                                        <dt class="col-xs-4">Labor</dt>\n                                        <dd class="col-xs-7">\n                                            <span class="no-input">{{ contact.lab.name }}</span>\n                                        </dd>\n                                        <a class="action col-xs-1" v-if="isAdmin || isUser"\n                                           data-toggle="modal"\n                                           data-target="#assigncontact">\n                                            <i class="fa fa-share" aria-hidden="true" data-toggle="tooltip"\n                                               data-placement="right" title="Labor auswählen/wechseln"></i>\n                                        </a>\n                                    </div>\n                                    <div class="property-row row">\n                                        <dt class="col-xs-4">Ansprechpartner</dt>\n                                        <dd class="col-xs-7"><span class="no-input">{{ contact.lab.labmeta.contact_person }}</span>\n                                        </dd>\n                                    </div>\n                                    <div class="property-row row">\n                                        <dt class="col-xs-4">E-Mail-Adresse</dt>\n                                        <dd class="col-xs-7"><span\n                                            class="no-input">{{ contact.lab.user.email }}</span>\n                                        </dd>\n                                    </div>\n                                    <div class="property-row row">\n                                        <dt class="col-xs-4">Telefon</dt>\n                                        <dd class="col-xs-7"><span\n                                            class="no-input">{{ contact.lab.labmeta.tel }}</span>\n                                        </dd>\n                                    </div>\n                                    <div class="property-row row">\n                                        <dt class="col-xs-4">Straße</dt>\n                                        <dd class="col-xs-7"><span\n                                            class="no-input">{{ contact.lab.labmeta.street }}</span></dd>\n                                    </div>\n                                    <div class="property-row row">\n                                        <dt class="col-xs-4">Ort</dt>\n                                        <dd class="col-xs-7"><span class="no-input">{{ contact.lab.labmeta.zip }} {{ contact.lab.labmeta.city }}</span>\n                                        </dd>\n                                    </div>\n                                </dl>\n                            </div>\n                        </div>\n\n                        <!--div class="box contact-box" v-if="isAdmin || isUser || isLab" id="attachements">\n                            <div class="row">\n                                <div class="col-xs-11">\n                                    <h4>Dokumente</h4>\n                                </div>\n                            </div>\n                            <form action="/attachments/upload/{{ contact.token }}"\n                                  style="border: 1px solid #eee; padding: 5px; margin-bottom:20px;" method="post"\n                                  enctype="multipart/form-data">\n                                <div class="row">\n                                    <input type="hidden" name="_token" v-model="csrf">\n                                    <div class="col-xs-6 columns">\n                                        <input type="file" name="attachment">\n                                    </div>\n                                    <div class="col-xs-6 columns">\n                                        <button class="btn btn-primary btn-xs" type="submit">\n                                            <i class="fa fa-upload"></i> Upload file\n                                        </button>\n                                    </div>\n                                </div>\n                            </form>\n                            <dl v-if="contact.attachments.length">\n                                <div v-for="attachment in contact.attachments" class="property-row row">\n                                    <dt class="col-xs-2" style="padding: 3px 0">\n                                        <i class="fa fa-download"></i>\n                                    </dt>\n                                    <dd class="col-xs-10">\n                                            <span class="no-input">\n                                                <a href="/attachments/{{ attachment.id }}">\n                                                    <small>{{ attachment.path }}</small>\n                                                </a>\n                                            </span>\n                                    </dd>\n                                </div>\n                            </dl>\n                            <p v-else>\n                                <small><i>Dieser Kontakt hat noch keine Dokumente. Laden Sie Dokumente hoch oder\n                                    bitten\n                                    Sie\n                                    den Kontakt darum.</i></small>\n                            </p>\n                            <div class="row" style="margin-top:20px;">\n                                <div class="col-xs-11">\n                                    <h4>Dokumente anfordern</h4>\n                                    <p>\n                                        Kontakt erhält eine Mail mit der Bitte Dokumente hochzuladen.\n                                    </p>\n                                    <p>\n                                        <small><strong>Achtung:</strong> Mit dem Klick auf den Button wird sofort\n                                            eine\n                                            Mail\n                                            versendet.\n                                        </small>\n                                    </p>\n                                    <a href="#" @click.prevent="sendAttachmentReminder"\n                                       class="btn btn-xs btn-primary">\n                                        <i class="fa fa-bell"></i> Dokumente anfragen\n                                    </a>\n                                </div>\n                            </div>\n                        </div-->\n\n                        <div class="box contact-box">\n                            <h4>Todo Liste:</h4>\n                            <hr>\n                            <form>\n                                <div class="input-group" v-if="editTaskForm">\n                                    <input v-model="editTaskForm.title" v-focus="true" type="text" class="form-control"\n                                           autofocus>\n                                    <span class="input-group-btn">\n                                        <button type="submit" class="btn btn-primary" @click.prevent="updateTask()">\n                                            Todo bearbeiten\n                                        </button>\n                                    </span>\n                                </div>\n                                <div class="input-group" v-else>\n                                    <input v-model="taskForm.title" type="text" class="form-control">\n                                    <span class="input-group-btn">\n                                        <button type="submit" class="btn btn-primary" @click.prevent="createTask()">\n                                            Todo hinzufügen\n                                        </button>\n                                    </span>\n                                </div>\n                            </form>\n                            <hr>\n                            <ul class="list-group" v-if="sortedTasks.length"\n                                v-sortable="{handle: \'.handle\', onUpdate: sortTasks, onMove: handleTaskMove}">\n                                <li class="list-group-item" v-for="task in sortedTasks" :key="task.id">\n                                    <input type="checkbox" :checked="task.completed_at" @change="toggleComplete(task)"\n                                           style="width: 5% !important">\n                                    {{ task.title }}\n                                    <div class="pull-right">\n                                        <i @click="editTask(task)" style="cursor:pointer;" class="fa fa-edit"></i>\n                                        <i v-if="isAdmin || isLab" @click="deleteTask(task)"\n                                           style="color:red; cursor:pointer;" class="fa fa-trash"></i>\n                                        <i class="fa fa-arrows handle"></i>\n                                    </div>\n\n                                    <div class="clearfix"></div>\n                                </li>\n                            </ul>\n                        </div>\n\n\n                        <div class="box contact-box" v-if="isAdmin || isUser">\n                            <h4>Akquise</h4>\n                            <dl>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Seite vor dem Ausfüllen</dt>\n                                    <dd class="col-xs-7"><span class="no-input">{{ contact.patientmeta.ref }}</span>\n                                    </dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Quelle</dt>\n                                    <dd class="col-xs-7"><span\n                                        class="no-input">{{ contact.patientmeta.orig_ref }}</span></dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Seite vor dem Einstieg</dt>\n                                    <dd class="col-xs-7"><span\n                                        class="no-input">{{ contact.patientmeta.orig_page }}</span></dd>\n                                </div>\n                            </dl>\n                        </div>\n\n                        <!-- <ul class="actions-list"> -->\n                        <div\n                            v-if="contact.queued == 0 && contact.movedback < 2 && hasRoles([\'admin\', \'user\', \'lab\']) && ( contact.lab.membership == 1 || contact.lab.membership == 4)">\n                            <div v-if="contact.dates.length">\n                                <h4>Kontakt zur erneuten Bearbeitung an Padento zurückleiten</h4>\n                                <div>\n                                    <a @click="confirmMakequeued()"\n                                       class="btn btn-primary btn-tiny btn-block btn-moveback"\n                                       style="white-space: normal;">Kontakt hat den Termin abgesagt und benötigt einen\n                                        neuen.</a><br>\n                                </div>\n                                <div>\n                                    <a @click="makequeued(contact.id)"\n                                       class="btn btn-primary btn-tiny btn-block btn-moveback"\n                                       style="white-space: normal;">Kontakt ist unentschuldigt nicht zum Termin\n                                        erschienen</a>\n                                </div>\n                            </div>\n                            <div v-if="contact.movedback < 2">\n                                <h4>Kontakt das erste Mal an Padento leiten</h4>\n                                <p>\n                                    <small>Dieser Kontakt wurde noch nie von Padento bearbeitet. Daher können Sie\n                                        diesen\n                                        Kontakt an uns zur Bearbeitung weiterleiten.\n                                    </small>\n                                </p>\n                                <div>\n                                    <a @click="makequeued(contact.id, \'nodate\')"\n                                       class="btn btn-primary btn-tiny btn-block btn-moveback"\n                                       style="white-space: normal;">Kontakt von Padento bearbeiten lassen</a>\n                                </div>\n                            </div>\n                        </div>\n\n                        <div v-if="isAdmin || isUser" v-show="showMap && showresults">\n                            <hr/>\n                            <div id="map" style="height: 450px"></div>\n                        </div>\n                        <!-- </ul> -->\n                    </div>\n                    <div class="col-xs-7 col-md-8" class="contact-info">\n                        <h5 class="stage-heading">Padento Phasen</h5>\n                        <div id="stages">\n                            <ul class="stages">\n                                <li class="stage" data-phase="1"\n                                    v-bind:class="{ \'phase-1\' : (contact.phase > 0), \'active\' : (contact.phase == 1) }"\n                                    v-on:click="activatePhase">Neu\n                                </li>\n                                <li class="stage" data-phase="2"\n                                    v-bind:class="{ \'phase-2\' : (contact.phase > 1), \'active\' : (contact.phase == 2) }"\n                                    v-on:click="activatePhase">Kontaktaufnahme\n                                </li>\n                                <li class="stage" data-phase="3"\n                                    v-bind:class="{ \'phase-3\' : (contact.phase > 2), \'active\' : (contact.phase == 3) }"\n                                    v-on:click="activatePhase">Labor-Termin\n                                    <br>vereinbart\n                                </li>\n                                <li class="stage" data-phase="4"\n                                    v-bind:class="{ \'phase-4\' : (contact.phase > 3), \'active\' : (contact.phase == 4) }"\n                                    v-on:click="activatePhase">In Betreuung\n                                </li>\n                                <li class="stage" data-phase="5"\n                                    v-bind:class="{ \'phase-5\' : (contact.phase > 4), \'active\' : (contact.phase == 5) }"\n                                    v-on:click="activatePhase">Auftrag erhalten\n                                </li>\n                                <li class="stage" data-phase="6"\n                                    v-bind:class="{ \'phase-6\' : (contact.phase > 5), \'active\' : (contact.phase == 6) }"\n                                    v-on:click="activatePhase">Kein Interesse\n                                </li>\n                            </ul>\n                        </div>\n                        <div class="box">\n                            <div class="padento-questions">\n                                <div class="row">\n                                    <div class="col-sm-12">\n                                        <h4 class="padento-questions-heading">Fragen</h4>\n                                    </div>\n                                </div>\n                                <div class="row">\n                                    <div class="col-md-6">\n                                        <div class="contact-question">\n                                            <dl>\n                                                <div class="property-row row">\n                                                    <dt class="col-xs-7">Patient hat bereits einen\n                                                        <strong>Zahnarzt</strong></dt>\n                                                    <dd class="col-xs-5">\n                                                        <span class="no-input">\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_dentist" id="dentist1" value="yes"\n                                             v-model="contact.patientmeta.has_dentist" @change="saveContact"> Ja\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_dentist" id="dentist2" value="no"\n                                             v-model="contact.patientmeta.has_dentist" @change="saveContact"> Nein\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_dentist" id="dentist3" value="ns"\n                                             v-model="contact.patientmeta.has_dentist" @change="saveContact"> k.A.\n                                    </label>\n                                  </span>\n                                                    </dd>\n                                                </div>\n                                                <div class="property-row row">\n                                                    <dt class="col-xs-7">Patient hat <strong>Angst</strong> vor der\n                                                        Behandlung\n                                                    </dt>\n                                                    <dd class="col-xs-5">\n                                                        <span class="no-input">\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_fear" id="fear1" value="yes"\n                                             v-model="contact.patientmeta.has_fear" @change="saveContact"> Ja\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_fear" id="fear2" value="no"\n                                             v-model="contact.patientmeta.has_fear" @change="saveContact"> Nein\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_fear" id="fear3" value="ns"\n                                             v-model="contact.patientmeta.has_fear" @change="saveContact"> k.A.\n                                    </label>\n                                  </span>\n                                                    </dd>\n                                                </div>\n                                                <div class="property-row row">\n                                                    <dt class="col-xs-7">Patient besitzt\n                                                        <strong>Zahnzusatzversicherung</strong></dt>\n                                                    <dd class="col-xs-5">\n                                                        <span class="no-input">\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_sdi" id="inlineRadio1" value="yes"\n                                             v-model="contact.patientmeta.has_sdi" @change="saveContact"> Ja\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_sdi" id="inlineRadio2" value="no"\n                                             v-model="contact.patientmeta.has_sdi" @change="saveContact"> Nein\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_sdi" id="inlineRadio3" value="ns"\n                                             v-model="contact.patientmeta.has_sdi" @change="saveContact"> k.A.\n                                    </label>\n                                  </span>\n                                                    </dd>\n                                                </div>\n                                            </dl>\n                                        </div>\n                                    </div>\n                                    <div class="col-md-6">\n                                        <div class="contact-question">\n                                            <dl>\n                                                <div class="property-row row">\n                                                    <dt class="col-xs-7">Patient ist <strong>zufrieden</strong> mit\n                                                        seinem <strong>Zahnarzt</strong></dt>\n                                                    <dd class="col-xs-5">\n                                                        <span class="no-input">\n                                    <label class="radio-inline">\n                                      <input type="radio" name="is_satisfied" id="satisfied1" value="yes"\n                                             v-model="contact.patientmeta.is_satisfied" @change="saveContact"> Ja\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="is_satisfied" id="satisfied2" value="no"\n                                             v-model="contact.patientmeta.is_satisfied" @change="saveContact"> Nein\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="is_satisfied" id="satisfied3" value="ns"\n                                             v-model="contact.patientmeta.is_satisfied" @change="saveContact"> k.A.\n                                    </label>\n                                  </span>\n                                                    </dd>\n                                                </div>\n                                                <div class="property-row row">\n                                                    <dt class="col-xs-7">Patient ist an einer\n                                                        <strong>Finanzierung</strong> interessiert\n                                                    </dt>\n                                                    <dd class="col-xs-5">\n                                                        <span class="no-input">\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_financing" id="financing1" value="yes"\n                                             v-model="contact.patientmeta.has_financing" @change="saveContact"> Ja\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_financing" id="financing2" value="no"\n                                             v-model="contact.patientmeta.has_financing" @change="saveContact"> Nein\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_financing" id="financing3" value="ns"\n                                             v-model="contact.patientmeta.has_financing" @change="saveContact"> k.A.\n                                    </label>\n                                  </span>\n                                                    </dd>\n                                                </div>\n                                                <div class="property-row row">\n                                                    <dt class="col-xs-7">Patient besitzt einen <strong>Heil- und\n                                                        Kostenplan</strong></dt>\n                                                    <dd class="col-xs-5">\n                                                        <span class="no-input">\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_tacs" id="tacs1" value="yes"\n                                             v-model="contact.patientmeta.has_tacs" @change="saveContact"> Ja\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_tacs" id="tacs2" value="no"\n                                             v-model="contact.patientmeta.has_tacs" @change="saveContact"> Nein\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_tacs" id="tacs3" value="ns"\n                                             v-model="contact.patientmeta.has_tacs" @change="saveContact"> k.A.\n                                    </label>\n                                  </span>\n                                                    </dd>\n                                                </div>\n                                            </dl>\n                                        </div>\n                                    </div>\n                                </div>\n                                <div class="contact-question">\n                                    <dl>\n                                        <div class="property-row row">\n                                            <dt class="col-xs-3"><strong>Warum ZE gewünscht?:</strong></dt>\n                                            <dd class="col-xs-9">\n                                                <input type="text" name="insurance"\n                                                       v-model="contact.patientmeta.insurance" @blur="saveContact"\n                                                       @keyup.enter="saveContact" style="width: 100%">\n                                            </dd>\n                                        </div>\n                                    </dl>\n                                </div>\n                            </div>\n                        </div>\n                        <div class="box create-note-box">\n                            <h4 class="add-note-heading">Notiz hinzufügen</h4>\n                            <textarea name="" id="note" cols="30" rows="10" class="form-control"\n                                      v-model="note"></textarea>\n                            <br>\n                            <button class="btn btn-primary" @click="saveNote(note)">Notiz hinzufügen</button>\n                        </div>\n\n                        <section id="notes">\n                            <article class="note" v-for="note in contact.notes | orderBy \'created_at\' -1">\n                                <i class="icon"><i class="fa fa-comment" aria-hidden="true"></i></i>\n                                <div class="container-fluid">\n                                    <div class="row">\n                                        <div class="col-md-3">\n                                            <p>\n                                                <strong v-if="note.user.lab[0].labmeta.contact_person">\n                                                    {{ note.user.lab[0].labmeta.contact_person }}\n                                                </strong>\n                                                <strong v-else>{{ note.user.name}}</strong>\n                                                <br>\n                                                <small>{{ note.created_at | niceDate }}</small>\n                                            <hr>\n                                            <ul class="note-actions">\n                                                <!--li><small><a href="">Bearbeiten</a></small></li-->\n                                                <li v-if="isAdmin">\n                                                    <small><a href="/api/note/{{ note.id }}/delete">Löschen</a></small>\n                                                </li>\n                                            </ul>\n                                        </div>\n                                        <div class="col-md-9 note-content">\n                                            <p>{{{ note.msg }}}\n                                        </div>\n                                    </div>\n                                </div>\n                            </article>\n                        </section>\n                        <!--<div v-if="note_timeline" v-html="note_timeline"></div>-->\n\n                        <div v-if="timeline">\n                            <br>\n                            <div class="box create-note-box">\n                                <h4 class="add-note-heading">Timeline</h4>\n                            </div>\n                            <div v-html="timeline"></div>\n                        </div>\n\n                    </div>\n\n\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n<date-modal title="Einen Termin vereinbaren"></date-modal>\n<patient-refer-modal title="Patienten weiterleiten an" v-bind:selected="contact.lab"></patient-refer-modal>\n<calendar-modal title="Kalender"></calendar-modal>\n\n<div id="confirmMakequeued" class="modal fade" role="dialog">\n    <div class="modal-dialog">\n        <div class="modal-content">\n            <div class="modal-header">\n                <button type="button" class="close" data-dismiss="modal">&times;</button>\n                <h4 class="modal-title">Kontakt an Padento zurückleiten</h4>\n            </div>\n            <form role="form">\n                <div class="modal-body">\n                    <p>Wenn Sie diesen Kontakt an das Padento-Team zurückschicken, werden wir versuchen mit diesem\n                        Kontakt aufzunehmen.</p>\n                </div>\n                <div class="modal-footer">\n                    <button type="submit" class="btn btn-primary" @click="makequeued(contact.id, \'canceled\')">\n                        Jetzt zurückleiten\n                    </button>\n                    <button type="button" class="btn btn-danger" data-dismiss="modal">Abbrechen</button>\n                </div>\n            </form>\n        </div>\n    </div>\n</div>\n';
-},{}],98:[function(require,module,exports){
+},{}],97:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -40314,9 +39848,9 @@ exports.default = {
     }
 };
 
-},{"./Countries.template.html":99}],99:[function(require,module,exports){
+},{"./Countries.template.html":98}],98:[function(require,module,exports){
 module.exports = '<div>\n    <div class="content">\n        <div class="container-fluid">\n\n            <div class="row">\n                <div class="col-md-4">\n                    <div class="box">\n                        <countries>\n                            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#newcountry">\n                                <i class="fa fa-plus"></i> Land hinzufügen\n                            </button>\n                            <hr>\n\n                            <div class="modal fade" id="newcountry" tabindex="-1" role="dialog"\n                                 aria-labelledby="newcountry">\n                                <div class="modal-dialog" role="document">\n                                    <div class="modal-content">\n                                        <div class="modal-header">\n                                            <button @click="resetForm" type="button" class="close" data-dismiss="modal"\n                                                    aria-label="Close"><span\n                                                    aria-hidden="true">&times;</span></button>\n                                            <h4 class="modal-title" id="myModalLabel">Land hinzufügen</h4>\n                                        </div>\n                                        <div class="modal-body">\n                                            <form action="#" @submit.prevent="create()">\n                                                <div class="input-group">\n                                                    <label class="col-sm-4 control-label">Name</label>\n                                                    <div class="col-sm-8">\n                                                        <input v-model="form.country_name" v-el:countriesinput\n                                                               type="text" name="country_name" class="form-control"\n                                                               autofocus>\n                                                    </div>\n\n\n                                                    <label class="col-sm-4 control-label">Kürzel (Country Code)</label>\n                                                    <div class="col-sm-8">\n                                                        <input v-model="form.country_code" v-el:countriesinput\n                                                               type="text" name="country_code" class="form-control"\n                                                               autofocus>\n                                                    </div>\n\n                                                    <button type="submit"\n                                                            class="btn btn-primary">Hinzufügen\n                                                    </button>\n\n                                                </div>\n                                            </form>\n                                        </div>\n                                    </div>\n                                </div>\n                            </div>\n\n                            <h4>Alle Länder</h4>\n\n                            <ul class="list-group">\n                                <li class="list-group-item list-item-hover" v-for="country in list"\n                                    @click="selectCountry(country)">\n                                    {{ country.country_name }}\n                                    <strong>{{ country.country_code}}</strong>\n\n                                    <div class="pull-right">\n                                        <button @click="show(country.id)" class="btn btn-primary btn-xs"\n                                                data-toggle="modal"\n                                                data-target="#editcountry">\n                                            Bearbeiten\n                                        </button>\n                                        <button @click="delete(country.id)" class="btn btn-danger btn-xs">\n                                            Löschen\n                                        </button>\n                                    </div>\n                                </li>\n                            </ul>\n\n\n                            <div class="modal fade" id="editcountry" tabindex="-1" role="dialog"\n                                 aria-labelledby="editcountry">\n                                <div class="modal-dialog" role="document">\n                                    <div class="modal-content">\n                                        <div class="modal-header">\n                                            <button @click="resetForm" type="button" class="close" data-dismiss="modal"\n                                                    aria-label="Close"><span\n                                                    aria-hidden="true">&times;</span></button>\n                                            <h4 class="modal-title" id="myModalLabel2">Land bearbeiten</h4>\n                                        </div>\n                                        <div class="modal-body">\n                                            <form action="#" @submit.prevent="edit ? update(form.id) : create()">\n                                                <div class="input-group">\n\n                                                    <label class="col-sm-4 control-label">\n                                                        Name\n                                                    </label>\n\n                                                    <div class="col-sm-8">\n                                                        <input v-model="form.country_name" v-el:countriesinput\n                                                               type="text"\n                                                               name="country_name" class="form-control" autofocus>\n                                                    </div>\n\n\n                                                    <label class="col-sm-4 control-label">\n                                                        Kürzel (Country Code)\n                                                    </label>\n\n                                                    <div class="col-sm-8">\n                                                        <input v-model="form.country_code" v-el:countriesinput\n                                                               type="text"\n                                                               name="country_code" class="form-control" autofocus>\n                                                    </div>\n\n                                                    <button v-show="edit" type="submit"\n                                                            class="btn btn-primary">Bestätigen\n                                                    </button>\n                                                </div>\n                                            </form>\n                                        </div>\n                                    </div>\n                                </div>\n                            </div>\n\n                        </countries>\n                    </div>\n\n                    <div class="box">\n                        <span>Ausgewählt: {{ selectedCountry.country_name }}</span>\n                        <hr>\n                        <form action="#" @submit.prevent="createZipCode()">\n                            <div class="input-group">\n                                <div class="col-sm-2">\n                                    <strong>PLZ</strong>\n                                </div>\n                                <div class="col-sm-8">\n                                    <input v-model="zipForm.zip_code" v-el:zipcodeinput\n                                           type="text" name="zip_code" class="form-control"\n                                           autofocus>\n                                </div>\n                                <div class="col-sm-2">\n                                    <button type="submit" class="btn btn-primary">Hinzufügen</button>\n                                </div>\n                            </div>\n                        </form>\n                    </div>\n                </div>\n\n                <div class="col-md-8">\n                    <div class="form-group">\n                        <input @keyup.enter="searchZipCodes" v-model="search" type="text" placeholder="Suchen..." class="form-control">\n                    </div>\n\n                    <ul class="list-group" v-if="zipCodes.length">\n                        <li class="list-group-item" v-for="zipcode in zipCodes">\n                            <strong>{{ zipcode.zip_code}}</strong>\n\n                            <div class="pull-right">\n                                <button @click="deleteZipCode(zipcode.id)" class="btn btn-danger btn-xs">\n                                    <i class="fa fa-remove"></i>\n                                </button>\n                            </div>\n                        </li>\n                    </ul>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n\n\n\n';
-},{}],100:[function(require,module,exports){
+},{}],99:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -40437,7 +39971,7 @@ exports.default = {
     }
 };
 
-},{"./dashboard.template.html":103}],101:[function(require,module,exports){
+},{"./dashboard.template.html":102}],100:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -40716,7 +40250,7 @@ exports.default = {
     }
 };
 
-},{"./dentiststats.template.html":104,"chart.js":1}],102:[function(require,module,exports){
+},{"./dentiststats.template.html":103,"chart.js":1}],101:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -40976,13 +40510,13 @@ exports.default = {
     }
 };
 
-},{"./stats.template.html":105,"chart.js":1}],103:[function(require,module,exports){
+},{"./stats.template.html":104,"chart.js":1}],102:[function(require,module,exports){
 module.exports = '<div>\n    <div class="content">\n        <div class="row">\n            <div class="col-md-6">\n                <div class="box">\n                    <h3>Neueste Kontakte</h3>\n                    <table class="table table-striped table-condensed">\n                        <thead>\n                        <tr>\n                            <th>Name</th>\n                            <th>Anfragedatum</th>\n                        <tbody>\n                        <tr v-for="contact in contacts">\n                            <td><a v-link="{ name: \'admin.contactSingle\', params: { id: contact.id } }">{{\n                                contact.patientmeta.name }}</a></td>\n                            <td>{{ contact.created_at.split(/[- :]/)[2].split(\' \')[0] }}.{{ contact.created_at.split(/[-\n                                :]/)[1] }}.{{ contact.created_at.split(/[- :]/)[0] }} – {{ contact.created_at.split(/[-\n                                :]/)[2].split(\' \')[1] }}:{{ contact.created_at.split(/[- :]/)[3] }}\n                        </tr>\n                    </table>\n                    <a v-link="{ name: \'admin.contacts\' }"><i class="fa fa-user"></i> Kontakte anzeigen</a>\n                </div>\n                <div class="box">\n                    <h3>Termine</h3>\n                    <h4>Termine heute\n                        <small>(bevorstehend)</small>\n                    </h4>\n                    <table class="table table-striped table-condensed">\n                        <thead>\n                        <tr>\n                            <th>Name</th>\n                            </th>\n                            <th>Angelegt von</th>\n                            <th>Datum</th>\n                            <th>Phase</th>\n                        </tr>\n                        </thead>\n                        <tbody>\n                        <tr v-for="date in dates.today_new.data | orderBy \'date\' 1">\n                            <td>\n                                <a v-link="{ name: date.patient ? \'admin.contactSingle\':\'admin.dentistContactSingle\', params: { id: date.patient ? date.patient.id :date.dentist_contact.id } }">\n                                    {{ date.patient ? date.patient.patientmeta.name :\n                                    date.dentist_contact.dentistmeta.name }}\n                                </a>\n                                <span v-if="date.patient"><small>(Kontakt)</small></span>\n                                <span v-if="date.dentist_contact"><small>(Zahnarzt)</small></span>\n                            </td>\n                            <td>{{ date.user }}</td>\n                            <td>{{ date.date | niceDate }} Uhr</td>\n                            <td><span :class="date.phase_class">{{ date.phase_label }}</span></td>\n                        </tr>\n                        </tbody>\n                    </table>\n                    <h4>Termine heute\n                        <small>(vergangen)</small>\n                    </h4>\n                    <table class="table table-striped table-condensed">\n                        <thead>\n                        <tr>\n                            <th>Name</th>\n                            <th>Angelegt von</th>\n                            <th>Datum</th>\n                            <th>Phase</th>\n                        </tr>\n                        </thead>\n                        <tbody>\n                        <tr v-for="date in dates.today_old.data | orderBy \'date\' 1">\n                            <td>\n                                <a v-link="{ name: date.patient ? \'admin.contactSingle\':\'admin.dentistContactSingle\', params: { id: date.patient ? date.patient.id :date.dentist_contact.id } }">\n                                    {{ date.patient ? date.patient.patientmeta.name :\n                                    date.dentist_contact.dentistmeta.name }}\n                                </a>\n                                <span v-if="date.patient"><small>(Kontakt)</small></span>\n                                <span v-if="date.dentist_contact"><small>(Zahnarzt)</small></span>\n                            </td>\n                            <td>{{ date.user }}</td>\n                            <td>{{ date.date | niceDate }} Uhr</td>\n                            <td><span :class="date.phase_class">{{ date.phase_label }}</span></td>\n                        </tr>\n                        </tbody>\n                    </table>\n                    <hr>\n                    <p class="clearfix">\n                        <a v-link="{ name: \'my.calendar\' }">\n                            <i class="fa fa-calendar" aria-hidden="true"></i>\n                            Alle Termine anzeigen\n                        </a>\n                        <a v-link="{ name: \'my.dentistsCalendar\' }" style="float:right">\n                            <i class="fa fa-calendar" aria-hidden="true"></i>\n                            Alle Zahnarzt-Termine anzeigen\n                        </a>\n                </div>\n            </div>\n            <div class="col-md-6">\n                <div class="box cta">\n                    <h3>Padento Upgrades</h3>\n                    <div class="row">\n                        <div class="col-md-6">\n                            <h4>Sie wollen mehr Zeit für Ihren eigentlichen Job haben?</h4>\n                            <a v-link="{ name: \'upgrades\' }" class="btn btn-primary">Upgrade: Terminmanagement</a>\n                        </div>\n                        <div class="col-md-6">\n                            <h4>Padento funktioniert für Sie? Sie wollen noch mehr Kontakte?</h4>\n                            <a v-link="{ name: \'upgrades\' }" class="btn btn-primary">Upgrade: Mehr Kontakte</a>\n                        </div>\n                    </div>\n                </div>\n                <div class="box">\n                    <h3>Padento erklärt\n                        <small>Trainingscamp</small>\n                    </h3>\n                    <div class="row">\n\n                        <a href="http://www.rainerehrich.de/padento-trainingscamp" target="_blank">\n                            <center><img\n                                src="http://www.rainerehrich.de/hs-fs/hubfs/Trainingscamp.jpg?t=1505124667973&width=640&name=Trainingscamp.jpg"/>\n                            </center>\n                        </a>\n                        <!--\n                          <div class="col-xs-6">\n                              <h4>Telefonservice</h4>\n                              <span class="wistia_embed wistia_async_ytk7o9ea4e popover=true popoverAnimateThumbnail=true"\n                                    style="display:inline-block;height:150px;width:100%">&nbsp;</span>\n                          </div>\n                          <div class="col-xs-6">\n                              <h4>Patientenblatt optimal nutzen</h4>\n                              <span class="wistia_embed wistia_async_gnhg7649yk popover=true popoverAnimateThumbnail=true"\n                                    style="display:inline-block;height:150px;width:100%">&nbsp;</span>\n                          </div>\n                          -->\n                    </div>\n\n                </div>\n\n\n                <!--\n                                    <div class="row">\n                                        <div class="col-xs-6">\n                                            <h4>Kontakte bearbeiten</h4>\n                                            <span class="wistia_embed wistia_async_cnw8ehmsx3 popover=true popoverAnimateThumbnail=true"\n                                                  style="display:inline-block;height:150px;width:100%">&nbsp;</span>\n                                        </div>\n\n                                        <div class="col-xs-6">\n                                            <h4>Einstellungen und Profil</h4>\n                                            <span class="wistia_embed wistia_async_lez2d5v6h1 popover=true popoverAnimateThumbnail=true"\n                                                  style="display:inline-block;height:150px;width:100%">&nbsp;</span>\n                                        </div>\n                                    </div>\n                                    <div class="row">\n                                        <div class="col-xs-6">\n                                            <h4>Gespräch mit Patienten</h4>\n                                            <span class="wistia_embed wistia_async_h0q70rbgg3 popover=true popoverAnimateThumbnail=true"\n                                                  style="display:inline-block;height:150px;width:100%">&nbsp;</span>\n                                        </div>\n                                    </div>\n                                </div>\n\n                                -->\n\n\n                <!--div class="box">\n                    <h3>Webinare</h3>\n                    <table class="table table-striped table-condensed">\n                        <thead>\n                            <th>Name</th>\n                            <th>Datum</th>\n                            <th>Preis</th>\n                        </thead>\n                        <tbody>\n                            <tr>\n                                <td><a href="https://padento.edudip.com/w/194140" target="_blank">Wie Du mehr Termine mit Patienten bekommst</td><td><small>02.06.2016, 18:00 - 18:45 Uhr</small></td><td>Kostenlos</td>\n                              </tr>\n                              <tr>\n                                <td><a href="https://padento.edudip.com/w/194142" target="_blank">Wie ist der beste Ablauf nachdem der Patient im Labor war?</a></td>\n                                <td><small>09.06.2016, 18:00 - 18:30 Uhr</small></td>\n                                <td>Kostenlos</td>\n                            </tr>\n                            <tr>\n                                <td><a href="https://padento.edudip.com/w/194146" target="_blank">Neue Zahnärzte gewinnen mit Padento</a></td>\n                                <td><small>16.06.2016, 18:00 - 18:45 Uhr</small></td>\n                                <td>Kostenlos</td>\n                            </tr>\n                        </tbody>\n                    </table>\n                </div-->\n                <div class="box">\n                    <h3>Blog von Padento</h3>\n                    <table class="table table-striped table-condensed">\n                        <thead>\n                        <tr>\n                            <th>Beitrag</th>\n                            <th>Teilen</th>\n                        <tbody>\n                        <tr v-for="feed in feeds.padento.items">\n                            <td><a href="{{ feed.permalink }}" target="_blank">{{ feed.title }}</a></td>\n                            <td><a href="https://www.facebook.com/sharer/sharer.php?u={{ feed.permalink }}"><i\n                                class="fa fa-facebook" aria-hidden="true"></i></a></td>\n                        </tr>\n                        <tr>\n                            <td colspan="2"><a href="http://padento.de/wissen">Alle Beiträge von Padento</a></td>\n                        </tr>\n                    </table>\n                    <h3>Blog von Rainer Ehrich</h3>\n                    <table class="table table-striped table-condensed">\n                        <thead>\n                        <tr>\n                            <th>Beitrag</th>\n                            <th>Teilen</th>\n                        <tbody>\n                        <tr v-for="feed in feeds.rainerehrich.items">\n                            <td><a href="{{ feed.permalink }}" target="_blank">{{ feed.title }}</a></td>\n                            <td><a href="https://www.facebook.com/sharer/sharer.php?u={{ feed.permalink }}"><i\n                                class="fa fa-facebook" aria-hidden="true"></i></a></td>\n                        </tr>\n                        <tr>\n                            <td colspan="2"><a href="http://www.rainerehrich.de/blog">Alle Beiträge von Rainer\n                                Ehrich</a></td>\n                        </tr>\n                    </table>\n                </div>\n            </div>\n        </div>\n        <div class="row">\n            <div class="col-md-6">\n            </div>\n            <div class="col-md-6"></div>\n        </div>\n    </div>\n</div>\n';
-},{}],104:[function(require,module,exports){
+},{}],103:[function(require,module,exports){
 module.exports = '<div class="content">\n\n\n\n\n\n\n    <div class="row">\n        <div class="form-group col-md-4">\n            <input type="text" id="daterange" value="" class="form-control" placeholder="Select Date Range"/>\n        </div>\n\n    </div>\n\n\n\n    <div class="row">\n        <div class="col-md-6">\n            <div class="panel panel-default">\n                <div class="panel-heading">\n                    Ausgewählte Zeitspanne\n                    <span class="pull-right">Zahnärzte: {{ totalDentists(current_range) }}</span>\n                </div>\n                <div class="panel-body">\n                    <canvas id="current_range_chart"></canvas>\n                    <br>\n                    <p v-if="form.start_date && form.end_date" style="text-align: center">{{ date(form.start_date) }} - {{ date(form.end_date) }}</p>\n                </div>\n            </div>\n        </div>\n\n        <div class="col-md-6">\n            <div class="panel panel-default">\n                <div class="panel-heading">\n                    Vergleichs-Zeitspanne\n                    <span class="pull-right">Zahnärzte: {{ totalDentists(previous_range) }}</span>\n                </div>\n                <div class="panel-body">\n                    <canvas id="previous_range_chart"></canvas>\n                    <br>\n                    <!--\n                    <p v-if="form.start_date && form.end_date" style="text-align: center">{{ date(form.start_date) }} - {{ date(form.end_date) }}</p>\n                    -->\n                </div>\n            </div>\n        </div>\n    </div>\n\n    <div class="row">\n        <div class="col-md-12">\n            <div class="panel panel-default">\n                <div class="panel-body">\n                    <table class="table table-striped table-hover">\n                        <thead>\n                        <tr>\n                            <th>Monat</th>\n                            <th class="text-right">Zahnärzte</th>\n                            <th class="text-right">{{ labels[0] }}</th>\n                            <th class="text-right">{{ labels[1] }}</th>\n                            <th class="text-right">{{ labels[2] }}</th>\n                            <th class="text-right">{{ labels[3] }}</th>\n                            <th class="text-right">{{ labels[4] }}</th>\n                            <th class="text-right">{{ labels[5] }}</th>\n                        </tr>\n                        </thead>\n                        <tbody>\n                        <tr v-for="(month, data) in all">\n                            <td>{{ month }}</td>\n                            <td class="text-right">{{ totalDentists(data) }}</td>\n                            <td class="text-right">{{ data[0] }} ({{ percentage(data[0], data) }}%)</td>\n                            <td class="text-right">{{ data[1] }} ({{ percentage(data[1], data) }}%)</td>\n                            <td class="text-right">{{ data[2] }} ({{ percentage(data[2], data) }}%)</td>\n                            <td class="text-right">{{ data[3] }} ({{ percentage(data[3], data) }}%)</td>\n                            <td class="text-right">{{ data[4] }} ({{ percentage(data[4], data) }}%)</td>\n                            <td class="text-right">{{ data[5] }} ({{ percentage(data[5], data) }}%)</td>\n                        </tr>\n                        <tr>\n                            <td><strong>Gesamt</strong></td>\n                            <td class="text-right">{{ total[0] }}</td>\n                            <td class="text-right">{{ total[1] }}</td>\n                            <td class="text-right">{{ total[2] }}</td>\n                            <td class="text-right">{{ total[3] }}</td>\n                            <td class="text-right">{{ total[4] }}</td>\n                            <td class="text-right">{{ total[5] }}</td>\n                            <td class="text-right">{{ total[6] }}</td>\n                        </tr>\n                        </tbody>\n                    </table>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n\n\n</div>\n';
-},{}],105:[function(require,module,exports){
+},{}],104:[function(require,module,exports){
 module.exports = '<div class="content">\n    <div class="row">\n        <div class="form-group col-md-4">\n            <input type="text" id="daterange" value="" class="form-control" placeholder="Select Date Range"/>\n        </div>\n\n        <div class="form-group col-md-4" v-if="isAdmin">\n            <label>Labor:</label>\n            <select v-model="form.lab_ids" v-selectpicker="[form.lab_ids, labs]" data-live-search="true"\n                    data-title="Alle" multiple>\n                <option v-for="lab in labs" v-bind:value="lab.id">{{ lab.name }}</option>\n            </select>\n        </div>\n    </div>\n\n    <div class="row" v-if="isAdmin">\n        <div class="col-md-12">\n            <span v-if="form.queued == null || form.queued !== 1">\n                <a href="javascript:void(0)" @click="withQueuedService">Mit Kontaktverwaltung</a>\n            </span>\n            <span v-else>Mit Kontaktverwaltung</span>\n            |\n            <span v-if="form.queued == null || form.queued !== 0">\n                <a href="javascript:void(0)" @click="withoutQueuedService">Ohne Kontaktverwaltung</a>\n            </span>\n            <span v-else>Ohne Kontaktverwaltung</span>\n            |\n            <span v-if="form.active_lab == null || form.active_lab !== true">\n                <a href="javascript:void(0)" @click="withActiveLab">Aktive Labore</a>\n            </span>\n            <span v-else>Aktive Labore</span>\n            |\n            <span v-if="form.active_lab == null || form.active_lab !== false">\n                <a href="javascript:void(0)" @click="withInactiveLab">Inaktive Labore</a>\n            </span>\n            <span v-else>Inaktive Labore</span>\n            |\n            <a href="javascript:void(0)" @click="clearFilters">Zurücksetzen</a>\n        </div>\n    </div>\n\n    <div class="row" v-if="isAdmin">\n        <div class="col-md-12">\n            <p><strong>Ausgewählte Labore:</strong> {{ labNames }}</p>\n        </div>\n    </div>\n\n    <div class="row">\n        <div class="col-md-6">\n            <div class="panel panel-default">\n                <div class="panel-heading">\n                    Ausgewählte Zeitspanne\n                    <span class="pull-right">Kontakte: {{ totalContacts(current_range) }}</span>\n                </div>\n                <div class="panel-body">\n                    <canvas id="current_range_chart"></canvas>\n                    <br>\n                    <p v-if="form.start_date && form.end_date" style="text-align: center">{{ date(form.start_date) }} - {{ date(form.end_date) }}</p>\n                </div>\n            </div>\n        </div>\n\n        <div class="col-md-6">\n            <div class="panel panel-default">\n                <div class="panel-heading">\n                    Vergleichs-Zeitspanne\n                    <span class="pull-right">Kontakte: {{ totalContacts(previous_range) }}</span>\n                </div>\n                <div class="panel-body">\n                    <canvas id="previous_range_chart"></canvas>\n                    <br>\n                    <!--\n                    <p v-if="form.start_date && form.end_date" style="text-align: center">{{ date(form.start_date) }} - {{ date(form.end_date) }}</p>\n                    -->\n                </div>\n            </div>\n        </div>\n    </div>\n\n    <div class="row">\n        <div class="col-md-12">\n            <div class="panel panel-default">\n                <div class="panel-body">\n                    <table class="table table-striped table-hover">\n                        <thead>\n                        <tr>\n                            <th>Monat</th>\n                            <th class="text-right">Kontakte</th>\n                            <th class="text-right" v-if="isAdmin">Ohne Labore</th>\n                            <th class="text-right">{{ labels[0] }}</th>\n                            <th class="text-right">{{ labels[1] }}</th>\n                            <th class="text-right">{{ labels[2] }}</th>\n                            <th class="text-right">{{ labels[3] }}</th>\n                            <th class="text-right">{{ labels[4] }}</th>\n                            <th class="text-right">{{ labels[5] }}</th>\n                        </tr>\n                        </thead>\n                        <tbody>\n                        <tr v-for="(month, data) in all">\n                            <td>{{ month }}</td>\n                            <td class="text-right">{{ totalContacts(data) }}</td>\n                            <td class="text-right" v-if="isAdmin">{{ data[6] }} ({{ percentage(data[6], data) }}%)</td>\n                            <td class="text-right">{{ data[0] }} ({{ percentage(data[0], data) }}%)</td>\n                            <td class="text-right">{{ data[1] }} ({{ percentage(data[1], data) }}%)</td>\n                            <td class="text-right">{{ data[2] }} ({{ percentage(data[2], data) }}%)</td>\n                            <td class="text-right">{{ data[3] }} ({{ percentage(data[3], data) }}%)</td>\n                            <td class="text-right">{{ data[4] }} ({{ percentage(data[4], data) }}%)</td>\n                            <td class="text-right">{{ data[5] }} ({{ percentage(data[5], data) }}%)</td>\n                        </tr>\n                        <tr>\n                            <td><strong>Gesamt</strong></td>\n                            <td class="text-right">{{ total[0] }}</td>\n                            <td class="text-right" v-if="isAdmin">{{ total[7] }}</td>\n                            <td class="text-right">{{ total[1] }}</td>\n                            <td class="text-right">{{ total[2] }}</td>\n                            <td class="text-right">{{ total[3] }}</td>\n                            <td class="text-right">{{ total[4] }}</td>\n                            <td class="text-right">{{ total[5] }}</td>\n                            <td class="text-right">{{ total[6] }}</td>\n                        </tr>\n                        </tbody>\n                    </table>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n';
-},{}],106:[function(require,module,exports){
+},{}],105:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -41085,7 +40619,7 @@ exports.default = {
   }
 };
 
-},{"./dentistsingle.template.html":110}],107:[function(require,module,exports){
+},{"./dentistsingle.template.html":109}],106:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -41207,7 +40741,7 @@ exports.default = {
   }
 };
 
-},{"./dentists.template.html":109}],108:[function(require,module,exports){
+},{"./dentists.template.html":108}],107:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -41309,13 +40843,13 @@ exports.default = {
   }
 };
 
-},{"./newdent.template.html":111}],109:[function(require,module,exports){
+},{"./newdent.template.html":110}],108:[function(require,module,exports){
 module.exports = '<div>\n  <div class="content">\n    <div class="box stats-box">\n      <div class="container-fluid">\n        <div class="row">\n          <div class="col-md-4">\n            <div class="stat">\n              <!-- <div class="text">aktive Zahnärzte</div>\n              <div class="number">60</div> -->\n            </div>\n          </div>\n          <div class="col-md-4">\n\n          </div>\n          <div class="col-md-4">\n\n          </div>\n        </div>\n      </div>\n    </div>\n    <div class="row filter-row">\n      <div class="col-md-8">\n        <a v-link="{ name: \'admin.newdent\' }" class="btn btn-primary">Neue Praxis</a>\n      </div>\n      <div class="col-md-4">\n        <div class="input-group">\n          <input type="text" class="form-control" placeholder="Suchen..." v-model="search">\n          <span class="input-group-btn">\n            <button class="btn btn-default" type="button"><i class="fa fa-search" aria-hidden="true"></i></button>\n          </span>\n        </div>\n      </div>\n    </div>\n    <div class="box">\n      <table class="table">\n        <thead>\n          <tr>\n            <th>#\n            <th>Name\n            <th>Stadt\n            <th>PLZ\n            <th>Status\n            <th>Aufrufe\n            <th>Labor\n              <tbody>\n                <tr v-for="lab in dentists">\n                  <td>{{ lab.id }}\n                  <td><a v-link="{ name: \'admin.dentistSingle\', params: { id: lab.id } }">{{ lab.name }}</a>\n                  <td>{{ lab.dentmeta.city }}\n                  <td>{{ lab.dentmeta.zip }}\n                  <td>{{ lab.status }}\n                  <td>{{ lab.dentmeta.count}}\n                  <td><span v-for="l in lab.lab">\n                      <a v-link="{ name: \'admin.labSingle\', params: { id: l.id } }">{{ l.name }}</a> </span>\n      </table>\n      <div class="contacts-pagination">\n        <nav>\n          <ul class="pagination">\n              <li v-if="pagination.current_page > 1">\n                  <a href="#" aria-label="Previous"\n                     @click.prevent="changePage(pagination.current_page - 1)">\n                      <span aria-hidden="true">&laquo;</span>\n                  </a>\n              </li>\n              <li v-for="page in pagesNumber"\n                  v-bind:class="[ page == isActived ? \'active\' : \'\']">\n                  <a href="#"\n                     @click.prevent="changePage(page)">{{ page }}</a>\n              </li>\n              <li v-if="pagination.current_page < pagination.last_page">\n                  <a href="#" aria-label="Next"\n                     @click.prevent="changePage(pagination.current_page + 1)">\n                      <span aria-hidden="true">&raquo;</span>\n                  </a>\n              </li>\n            </ul>\n            <ul class="pagination">\n              <li>\n                <select name="" id="" class="form-control" v-model="pagination.per_page">\n                  <option :value="25">25</option>\n                  <option :value="50">50</option>\n                  <option :value="100">100</option>\n                  <option :value="200">200</option>\n                </select>\n              </li>\n            </ul>\n        </nav>\n      </div>\n    </div>\n  </div>\n</div>\n';
-},{}],110:[function(require,module,exports){
+},{}],109:[function(require,module,exports){
 module.exports = '<div>\n  <div class="content">\n    <div class="box">\n      <h2>Labore zuweisen</h2>\n      <hr/>\n      <div class="row">\n        <form class="form-horizontal col-md-7">\n          <div class="form-group">\n            <div class="col-md-4 control-label">\n              <label for="">zugehöriges Labor</label>\n            </div>\n            <div class="col-md-8">\n              <select class="form-control" v-model="selectedLab">\n                <option v-for="lab in labs" v-bind:value="lab.id">\n                  {{ lab.name }}\n                </option>\n              </select>\n            </div>\n          </div>\n        </form>\n        <ul class="list list-default">\n          <li v-for="lab in lab.labs">{{ lab.name }}</li>\n        </ul>\n      </div>\n      <div class="row">\n        <div class="col-md-7">\n          <div class="col-md-4 col-md-offset-4">\n            <hr/>\n            <a class="btn btn-default" @click="referDent">Labor zuweisen</a>\n          </div>\n        </div>\n      </div>\n    </div>\n    <div class="box">\n      <h2>Profil</h2>\n      <hr>\n      <div class="row">\n        <form class="form-horizontal col-md-7">\n          <div class="form-group">\n            <div class="col-md-4 control-label">\n              <label for="welcometext">Begrüßungstext</label>\n              <span class="help-block">Maximal 25 Wörter.</span>\n            </div>\n            <div class="col-md-8">\n              <textarea name="" id="" cols="30" rows="10" class="form-control" v-model="lab.dentmeta.hello" @blur="saveLab" >{{ lab.dentmeta.hello }}</textarea>\n            </div>\n          </div>\n          <hr>\n          <div class="form-group">\n            <div class="col-md-4 control-label">\n              <label for="moretext">Weiterer Text</label>\n              <span class="help-block">Maximal 150 Wörter.</span>\n            </div>\n            <div class="col-md-8">\n              <textarea name="" id="" cols="30" rows="10" class="form-control" v-model="lab.dentmeta.text" @blur="saveLab" >{{ lab.dentmeta.text }}</textarea>\n            </div>\n          </div>\n          <div class="row">\n            <div class="col-md-8 col-md-offset-4">\n              <button type="submit" class="btn btn-primary" @click="saveLab" >Speichern</button>\n            </div>\n          </div>\n        </form>\n        <div class="col-md-5">\n          <h4>Logo</h4>\n          <p>Jpg-Datei, min. 300 px in Breite und Höhe, Hoch-/Querformat/quadratische Form möglich, im Optimalfall mit weißem Hintergrund</p>\n          <p><input name="logo" type="file" id="logo">\n          <p><img src="http://padento.de/img/logo74_175small.jpg" alt="">\n        </div>\n      </div>\n    </div>\n    <div class="box">\n      <h2>Kontaktdaten / Ansprechpartner</h2>\n      <hr>\n      <div class="row">\n        <form class="form-horizontal col-md-8">\n          <div class="form-group">\n            <label for="labname" class="col-md-4 control-label">Name der Praxis</label>\n            <div class="col-md-8">\n              <input type="text" class="form-control" id="labname" v-model="lab.name" @blur="saveLab" >\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="contactname" class="col-md-4 control-label">Ansprechpartner</label>\n            <div class="col-md-8">\n              <input type="text" class="form-control" id="contactname" v-model="lab.dentmeta.contact_person" @blur="saveLab" >\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="contactname" class="col-md-4 control-label">Webseite</label>\n            <div class="col-md-8">\n              <input type="text" class="form-control" id="contactname" v-model="lab.web" @blur="saveLab" >\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="street" class="col-md-4 control-label">Straße, Hausnummer</label>\n            <div class="col-md-8">\n              <input type="text" class="form-control" id="street" v-model="lab.dentmeta.street" @blur="saveLab" >\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="plz" class="col-md-4 control-label">PLZ, Ort</label>\n            <div class="col-md-4">\n              <input type="text" class="form-control" id="plz" v-model="lab.dentmeta.zip" @blur="saveLab" >\n            </div>\n            <div class="col-md-4">\n              <input type="text" class="form-control" id="city" v-model="lab.dentmeta.city" @blur="saveLab" >\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="tel" class="col-md-4 control-label">Telefonnummer</label>\n            <div class="col-md-8">\n              <input type="text" class="form-control" id="tel" v-model="lab.dentmeta.tel" @blur="saveLab" >\n            </div>\n          </div>\n          <div class="row">\n            <div class="col-md-8 col-md-offset-4">\n              <button type="submit" class="btn btn-primary" @click="saveLab">Speichern</button>\n            </div>\n          </div>\n        </form>\n        <div class="col-md-4">\n          <h4>Portraitfoto Ansprechpartner</h4>\n          <p>Jpg-Datei, min. 300 px in Breite und Höhe, Hochformat, Seitenverhältnis 2:3 oder 3:4, im Optimalfall mit hellem Hintergrund\n          <p><input type="file">\n          <p><img src="http://padento.de/img/foto74_200small.jpg" alt="">\n        </div>\n      </div>\n    </div>\n\n\n    <div class="box">\n      <h2>Zugangsdaten</h2>\n      <hr>\n\n      <div class="row">\n        <form class="form-horizontal col-md-8">\n          <div class="form-group">\n            <label for="email" class="col-md-4 control-label">E-Mail-Adresse</label>\n            <div class="col-md-8">\n              <input type="email" class="form-control" id="email" v-model="lab.user.email">\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="email-again" class="col-md-4 control-label">E-Mail-Adresse wiederholen</label>\n            <div class="col-md-8">\n              <input type="email" class="form-control" id="email-again" >\n            </div>\n          </div>\n          <div class="row">\n            <div class="col-md-8 col-md-offset-4">\n              <button type="submit" class="btn btn-primary" @click="saveEmail" >E-Mail-Adresse Speichern</button>\n            </div>\n          </div>\n        </form>\n      </div>\n      <h4>Passwort ändern</h4>\n      <hr>\n      <div class="row">\n        <form class="form-horizontal col-md-8">\n          <div class="form-group">\n            <label for="password" class="col-md-4 control-label">Passwort</label>\n            <div class="col-md-8">\n              <input type="password" class="form-control" id="password" >\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="password-again" class="col-md-4 control-label">Passwort wiederholen</label>\n            <div class="col-md-8">\n              <input type="password" class="form-control" id="password-again">\n            </div>\n          </div>\n          <div class="row">\n            <div class="col-md-8 col-md-offset-4">\n              <button type="submit" class="btn btn-primary" @click="savePassword" >Passwort speichern</button>\n            </div>\n          </div>\n        </form>\n      </div>\n    </div>\n  </div>\n</div>\n';
-},{}],111:[function(require,module,exports){
+},{}],110:[function(require,module,exports){
 module.exports = '<div class="content">\n<div class="box">\n      <h2>Profil</h2>\n      <hr>\n      <div class="row">\n        <form class="form-horizontal col-md-7">\n          <div class="form-group">\n            <div class="col-md-4 control-label">\n              <label for="welcometext">Begrüßungstext</label>\n              <span class="help-block">Maximal 25 Wörter.</span>\n            </div>\n            <div class="col-md-8">\n    <textarea name="" id="" cols="30" rows="10" class="form-control" v-model="labmeta.hello">{{ labmeta.hello }}</textarea>\n            </div>\n          </div>\n          <hr>\n          <div class="form-group">\n            <div class="col-md-4 control-label">\n              <label for="moretext">Weiterer Text</label>\n              <span class="help-block">Maximal 150 Wörter.</span>\n            </div>\n            <div class="col-md-8">\n    <textarea name="" id="" cols="30" rows="10" class="form-control" v-model="labmeta.text">{{ labmeta.text }}</textarea>\n            </div>\n          </div>\n          <div class="row">\n            <div class="col-md-8 col-md-offset-4">\n              <button type="submit" class="btn btn-primary" @click="tmpSave">Speichern</button>\n            </div>\n          </div>\n        </form>\n        <div class="col-md-5">\n          <h4>Logo</h4>\n          <p>Jpg-Datei, min. 300 px in Breite und Höhe, Hoch-/Querformat/quadratische Form möglich, im Optimalfall mit weißem Hintergrund</p>\n          <p><input name="logo" type="file" id="logo">\n          <p><img src="http://padento.de/img/logo74_175small.jpg" alt="">\n        </div>\n      </div>\n    </div>\n    <div class="box">\n      <h2>Kontaktdaten / Ansprechpartner</h2>\n      <hr>\n      <div class="row">\n        <form class="form-horizontal col-md-8">\n          <div class="form-group">\n            <label for="labname" class="col-md-4 control-label">Name des Labors</label>\n            <div class="col-md-8">\n              <input type="text" class="form-control" id="labname" v-model="lab.name">\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="contactname" class="col-md-4 control-label">Ansprechpartner</label>\n            <div class="col-md-8">\n              <input type="text" class="form-control" id="contactname" v-model="labmeta.contact_person">\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="contactname" class="col-md-4 control-label">Webseite</label>\n            <div class="col-md-8">\n              <input type="text" class="form-control" id="contactname" v-model="labmeta.url">\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="street" class="col-md-4 control-label">Straße, Hausnummer</label>\n            <div class="col-md-8">\n              <input type="text" class="form-control" id="street" v-model="labmeta.street">\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="plz" class="col-md-4 control-label">PLZ, Ort</label>\n            <div class="col-md-4">\n              <input type="text" class="form-control" id="plz" v-model="labmeta.zip">\n            </div>\n            <div class="col-md-4">\n              <input type="text" class="form-control" id="city" v-model="labmeta.city">\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="tel" class="col-md-4 control-label">Telefonnummer</label>\n            <div class="col-md-8">\n              <input type="text" class="form-control" id="tel" v-model="labmeta.tel">\n            </div>\n          </div>\n\n          <div class="form-group">\n            <label for="street" class="col-md-4 control-label">E-Mail-Adresse</label>\n            <div class="col-md-8">\n              <input type="email" class="form-control" id="street" v-model="labmeta.contact_email">\n            </div>\n          </div>\n          <div class="row">\n            <div class="col-md-8 col-md-offset-4">\n              <button type="submit" class="btn btn-primary" @click="tmpSave" >Speichern</button>\n            </div>\n          </div>\n        </form>\n        <div class="col-md-4">\n          <h4>Portraitfoto Ansprechpartner</h4>\n          <p>Jpg-Datei, min. 300 px in Breite und Höhe, Hochformat, Seitenverhältnis 2:3 oder 3:4, im Optimalfall mit hellem Hintergrund\n          <p><input type="file">\n          <p><img src="http://padento.de/img/foto74_200small.jpg" alt="">\n        </div>\n      </div>\n    </div>\n\n\n    <div class="box">\n      <h2>Zugangsdaten</h2>\n      <hr>\n\n      <div class="row">\n        <form class="form-horizontal col-md-8">\n          <div class="form-group">\n            <label for="name" class="col-md-4 control-label">Name</label>\n            <div class="col-md-8">\n              <input type="text" class="form-control" id="name" v-model="user.name">\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="email" class="col-md-4 control-label">E-Mail-Adresse</label>\n            <div class="col-md-8">\n              <input type="email" class="form-control" id="email" v-model="user.email">\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="email-again" class="col-md-4 control-label">E-Mail-Adresse wiederholen</label>\n            <div class="col-md-8">\n              <input type="email" class="form-control" id="email-again" >\n            </div>\n          </div>\n          <div class="row">\n            <div class="col-md-8 col-md-offset-4">\n              <button type="submit" class="btn btn-primary" @click="tmpSave" >E-Mail-Adresse Speichern</button>\n            </div>\n          </div>\n        </form>\n      </div>\n      <h4>Passwort ändern</h4>\n      <hr>\n      <div class="row">\n        <form class="form-horizontal col-md-8">\n          <div class="form-group">\n            <label for="password" class="col-md-4 control-label">Passwort</label>\n            <div class="col-md-8">\n              <input type="password" class="form-control" id="password" v-model="user.password">\n            </div>\n          </div>\n          <div class="form-group">\n            <label for="password_confrimation" class="col-md-4 control-label">Passwort wiederholen</label>\n            <div class="col-md-8">\n              <input type="password" class="form-control" id="password_confirmation" >\n            </div>\n          </div>\n          <div class="row">\n            <div class="col-md-8 col-md-offset-4">\n              <button type="submit" class="btn btn-primary" @click="tmpSave">Passwort speichern</button>\n            </div>\n          </div>\n        </form>\n      </div>\n    </div>\n  </div>\n</div>\n</div>\n';
-},{}],112:[function(require,module,exports){
+},{}],111:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -41573,14 +41107,12 @@ exports.default = {
                         Messenger().post({
                             message: 'Termin gelöscht',
                             type: 'success'
-                            // showCloseButton: true
                         });
                     }, function (response) {
                         // $('#debug').addClass('active').find('.debugged-content').html(response.data);
                         Messenger().post({
                             message: 'Termin nicht gelöscht zurückgeleitet',
                             type: 'success'
-                            // showCloseButton: true
                         });
                     });
                 }
@@ -41663,13 +41195,11 @@ exports.default = {
                 Messenger().post({
                     message: 'Fehler beim Speichern',
                     type: 'error'
-                    // showCloseButton: true
                 });
                 if (key.data('input') == 'tel' || key.data('input') == 'mobile') {
                     Messenger().post({
                         message: 'Keine gültige Telefonnummer',
                         type: 'error'
-                        // showCloseButton: true
                     });
                 }
             });
@@ -41738,7 +41268,6 @@ exports.default = {
                         Messenger().post({
                             message: 'Kontakt bestätigt',
                             type: 'success'
-                            // showCloseButton: true
                         });
                         this.dentistUsed();
                         this.getTimeline();
@@ -41747,7 +41276,6 @@ exports.default = {
                         Messenger().post({
                             message: 'Kontakt nicht bestätigt',
                             type: 'error'
-                            // showCloseButton: true
                         });
                     });
                 }
@@ -41892,16 +41420,23 @@ exports.default = {
             });
         },
         handleTaskMove: function handleTaskMove( /**Event*/evt, /**Event*/originalEvent) {
+            var _this10 = this;
+
             if (evt.relatedRect.top < 100) {
-                var self = this;
-                if (!this.scrolling) {
-                    var container = $(".content");
-                    $(".content").animate({ scrollTop: $(".content").scrollTop() - 200 }, 1000, function () {
-                        self.scrolling = true;
-                    }).promise().done(function () {
-                        self.scrolling = false;
-                    });
-                }
+                var container;
+
+                (function () {
+                    var self = _this10;
+                    if (!_this10.scrolling) {
+                        container = $(".content");
+
+                        $(".content").animate({ scrollTop: $(".content").scrollTop() - 200 }, 1000, function () {
+                            self.scrolling = true;
+                        }).promise().done(function () {
+                            self.scrolling = false;
+                        });
+                    }
+                })();
             }
         },
 
@@ -41930,7 +41465,7 @@ exports.default = {
     }
 };
 
-},{"../../components/user/CalendarModalDentist.js":68,"../../components/user/DateModal.js":69,"./dentistcontactsingle.template.html":114}],113:[function(require,module,exports){
+},{"../../components/user/CalendarModalDentist.js":67,"../../components/user/DateModal.js":68,"./dentistcontactsingle.template.html":113}],112:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -42324,11 +41859,11 @@ exports.default = {
 
 };
 
-},{"../../stores/DentistsStore":77,"./dentistscontacts.template.html":115}],114:[function(require,module,exports){
+},{"../../stores/DentistsStore":76,"./dentistscontacts.template.html":114}],113:[function(require,module,exports){
 module.exports = '<div>\n    <div class="content">\n        <!--div class="">\n      {{ debug }}\n    </div>\n    <pre>\n      {{ debug | json }}\n    </pre-->\n        <div class="container-fluid">\n            <div id="dentistcontact-error"></div>\n            <div id="dentistcontact">\n                <div class="print-logo"><img src="/images/logo.png" alt=""></div>\n                <div class="row">\n                    <div class="col-xs-12 col-md-4 dentistcontact-data">\n                        <div class="box contact-box">\n                            <div class="row">\n                                <div class="col-xs-11">\n                                    <h4>{{ dentist.dentistmeta.name }}</h4>\n\n                                </div>\n                                <a href="javascript:window.print()" class="col-xs-1 action"><i class="fa fa-print"\n                                                                                               aria-hidden="true"\n                                                                                               class="printer"></i></a>\n                            </div>\n                            <dl class="property-fields">\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Anrede</dt>\n                                    <dd class="col-xs-7">\n                                        <input data-input="salutation" v-model="dentist.dentistmeta.salutation"\n                                               @blur="saveDentist" @keyup.enter="saveDentist">\n                                    </dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Name</dt>\n                                    <dd class="col-xs-7">\n                                        <input data-input="name" v-model="dentist.dentistmeta.name" @blur="saveDentist"\n                                               @keyup.enter="saveDentist">\n                                    </dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">E-Mail</dt>\n                                    <dd class="col-xs-7">\n                                        <input v-if="dentist.confirmed == 1 || isAdmin || isUser" type="email"\n                                               v-model="dentist.dentistmeta.email" @blur="saveDentist"\n                                               @keyup.enter="saveDentist" {{ isLab ? \'disabled\' : \'\' }}>\n                                        <div v-else>\n                                            <span class="no-input">\n                            <span class="label label-danger">Unbestätigt</span>\n                                            </span>\n                                        </div>\n                                    </dd>\n                                    <a class="action col-xs-1" v-on:click="approveDentist"\n                                       v-if="dentist.confirmed != \'1\'">\n                                        <i class="fa fa-check" aria-hidden="true" data-toggle="tooltip"\n                                           data-placement="right" title="Kontakt bestätigen"></i>\n                                    </a>\n                                    <a v-else href="mailto:{{ dentist.dentistmeta.email }}" class="action col-xs-1"><i\n                                        class="fa fa-mail"></i></a>\n                                </div>\n\n\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Angefragt am</dt>\n                                    <dd class="col-xs-7"><span class="no-input">{{ dentist.created_at.split(/[- :]/)[2].split(\' \')[0] }}.{{ dentist.created_at.split(/[- :]/)[1] }}.{{ dentist.created_at.split(/[- :]/)[0] }} {{ dentist.created_at.split(/[- :]/)[2].split(\' \')[1] }}:{{ dentist.created_at.split(/[- :]/)[3] }} Uhr</span>\n                                    </dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Telefon</dt>\n                                    <dd class="col-xs-7">\n                                        <input data-input="tel" v-model="dentist.dentistmeta.tel" @blur="saveDentist"\n                                               @keyup.enter="saveDentist">\n                                    </dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Mobil</dt>\n                                    <dd class="col-xs-7">\n                                        <input data-input="mobile" v-model="dentist.dentistmeta.mobile"\n                                               @blur="saveDentist" @keyup.enter="saveDentist">\n                                    </dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Straße</dt>\n                                    <dd class="col-xs-7">\n                                        <input data-input="street" v-model="dentist.dentistmeta.street"\n                                               @blur="saveDentist" @keyup.enter="saveDentist">\n                                    </dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Ort</dt>\n                                    <dd class="col-xs-7">\n                                        <input data-input="city" v-model="dentist.dentistmeta.city" @blur="saveDentist"\n                                               @keyup.enter="saveDentist">\n                                    </dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Postleitzahl</dt>\n                                    <dd class="col-xs-7">\n                                        <input data-input="zip" v-model="dentist.dentistmeta.zip" @blur="saveDentist"\n                                               @keyup.enter="saveDentist">\n                                    </dd>\n                                </div>\n\n                                <!-- Dates-->\n                                <!--\n                                <div class="property-row row">\n                                    <dt class="col-xs-4"><strong>Sonstiges</strong></dt>\n                                    <dd class="col-xs-7"></dd>\n                                </div>\n\n                                <div class="property-row row" v-if="isAdmin || isUser">\n                                    <dt class="col-xs-4">Verwaltungsschleife</dt>\n                                    <dd class="col-xs-7">\n                                        <span class="no-input">\n                                            <span class="label label-default" v-if="dentist.queued == 1">Ja</span>\n                                        <span class="label label-default" v-if="dentist.queued == 0">nein</span>\n                                        </span>\n                                    </dd>\n                                </div>\n                                -->\n\n\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Archiviert</dt>\n                                    <dd class="col-xs-7">\n                                        <span class="no-input">\n                                            <span class="label label-default" v-if="dentist.archived == 1">Ja</span>\n                                        <span class="label label-default" v-if="dentist.archived == 0">nein</span>\n                                        </span>\n                                    </dd>\n                                    <a class="action col-xs-1" @click="saveDentist" v-if="dentist.archived == 1">\n                                        <i class="fa fa-toggle-on" data-todo="togglearchived" data-archived="0"\n                                           aria-hidden="true" data-toggle="tooltip" data-placement="right"\n                                           title="Kontakt archivieren"></i>\n                                    </a>\n                                    <a class="action col-xs-1" @click="saveDentist" v-if="dentist.archived == 0">\n                                        <i class="fa fa-toggle-off" @click="saveDentist" data-todo="togglearchived"\n                                           data-archived="1" aria-hidden="true" data-toggle="tooltip"\n                                           data-placement="right" title="Kontakt archivieren"></i>\n                                    </a>\n                                </div>\n\n\n                                <div v-if="isAdmin || isUser" class="property-row row">\n                                    <dt class="col-xs-4">Labor</dt>\n                                    <dd class="col-xs-7">\n                                        <span class="no-input">{{ dentist.lab.name }}</span>\n                                    </dd>\n                                    <a class="action col-xs-1" v-if="isAdmin || isUser" data-toggle="modal"\n                                       data-target="#assigncontact">\n                                        <i class="fa fa-share" aria-hidden="true" data-toggle="tooltip"\n                                           data-placement="right" title="Labor auswählen/wechseln"></i>\n                                    </a>\n                                </div>\n                            </dl>\n                        </div>\n\n\n                        <!--\n\n                        <div>\n                            <div class="box contact-box">\n                                <h4>Termine</h4>\n                                <dl>\n                                    <div class="property-row row">\n                                        <dt class="col-xs-4">Mitarbeitertermin</dt>\n                                        <dd class="col-xs-7">\n                                            <input v-datetimepicker="userDate" v-model="userDate"\n                                                   @keyup.enter="saveEmployeeDate" @blur="saveEmployeeDate">\n                                        </dd>\n                                        <a v-if="userDate" class="action col-xs-1" @click="deleteEmployeeDate">\n                                            <i class="fa fa-trash" data-todo="delete" aria-hidden="true"\n                                               data-toggle="tooltip" data-placement="right"\n                                               title="Mitarbeitertermin löschen"></i>\n                                        </a>\n                                    </div>\n                                </dl>\n                            </div>\n                        </div>\n                        <div v-else>\n                        -->\n\n                        <div>\n                            <div class="box contact-box">\n                                <h4>Termine</h4>\n                                <dl v-if="isAdmin || isUser">\n                                    <!-- <div v-if="dentist.lab.membership == 1 || dentist.lab.membership == 4">-->\n                                    <div class="property-row row">\n                                        <dt class="col-xs-4">Phasen-Termine</dt>\n                                        <dd class="col-xs-7">\n                                            <!--<span class="no-input" v-if="dentist.next_date[0]">\n                              {{ dentist.next_date[0].date.split(/[- :]/)[2].split(\' \')[0] }}.{{ dentist.next_date[0].date.split(/[- :]/)[1] }}.{{ dentist.next_date[0].date.split(/[- :]/)[0] }} {{ dentist.next_date[0].date.split(/[- :]/)[2].split(\' \')[1] }}:{{ dentist.next_date[0].date.split(/[- :]/)[3] }} Uhr\n                            </span>-->\n                                        </dd>\n                                        <a class="action col-xs-1" data-toggle="modal" data-target="#myModal"\n                                           ref="/calendar/{{ dentist.id }}" @click="calendarClick()">\n                                            <i class="fa fa-calendar-plus-o" aria-hidden="true"\n                                               data-toggle="tooltip" data-placement="right"\n                                               title="Phasen-Termin anlegen"></i>\n                                        </a>\n                                    </div>\n\n                                    <div class="property-row row" v-for="(index, date) in dentist.dates">\n                                        <dt class="col-xs-4" v-if="index == 0"></dt>\n                                        <dt class="col-xs-4" v-else="index == 0"></dt>\n                                        <dd class="col-xs-7">\n                                            <span class="no-input">{{ date.date | niceDate }}</span>\n                                            <span :class="date.phase_class">{{ date.phase_label }}</span>\n                                        </dd>\n\n                                        <a class="action col-xs-1" @click="deleteDate">\n                                            <i class="fa fa-trash" data-todo="delete" data-id="{{ date.id }}"\n                                               aria-hidden="true" data-toggle="tooltip" data-placement="right"\n                                               title="Termin löschen"></i>\n                                        </a>\n                                    </div>\n                                    <!-- </div>-->\n\n                                    <!-- <div class="property-row row" v-else>\n                                         <dt class="col-xs-4">Nächster Phasen-Termin</dt>\n                                         <dd class="col-xs-7">\n                                             <input data-input="labdate" v-datetimepicker="labdate" v-model="labdate"\n                                                    @blur="saveDentist" @keyup.enter="saveDentist">\n                                         </dd>\n                                         <a v-if="labdate" class="action col-xs-1" @click="saveDentist">\n                                             <i class="fa fa-trash" data-todo="deletelabdate" aria-hidden="true"\n                                                data-toggle="tooltip" data-placement="right"\n                                                title="Phasen-Termin löschen"></i>\n                                         </a>\n                                     </div>-->\n                                    <div class="property-row row"\n                                         v-if="dentist.lab.membership == 1 || dentist.lab.membership == 4">\n                                        <dt class="col-xs-4">Mitarbeitertermin</dt>\n                                        <dd class="col-xs-7">\n                                            <input v-datetimepicker="userDate" v-model="userDate"\n                                                   @keyup.enter="saveEmployeeDate" @blur="saveEmployeeDate">\n                                        </dd>\n                                        <a v-if="userDate" class="action col-xs-1" @click="deleteEmployeeDate">\n                                            <i class="fa fa-trash" data-todo="delete" aria-hidden="true"\n                                               data-toggle="tooltip" data-placement="right"\n                                               title="Mitarbeitertermin löschen"></i>\n                                        </a>\n                                    </div>\n                                </dl>\n                                <dl v-if="isLab">\n                                    <!--<div v-if="dentist.lab.membership == 1 || dentist.lab.membership == 4">-->\n                                    <div class="property-row row">\n                                        <dt class="col-xs-4">Phasen-Termine</dt>\n                                        <dd class="col-xs-7">\n                                            <!--<span class="no-input" v-if="dentist.next_date[0]">\n                              {{ dentist.next_date[0].date.split(/[- :]/)[2].split(\' \')[0] }}.{{ dentist.next_date[0].date.split(/[- :]/)[1] }}.{{ dentist.next_date[0].date.split(/[- :]/)[0] }} {{ dentist.next_date[0].date.split(/[- :]/)[2].split(\' \')[1] }}:{{ dentist.next_date[0].date.split(/[- :]/)[3] }} Uhr\n                            </span>-->\n                                        </dd>\n                                        <a class="action col-xs-1" data-toggle="modal" data-target="#myModal"\n                                           ref="/calendar/{{ dentist.id }}" @click="calendarClick()">\n                                            <i class="fa fa-calendar-plus-o" aria-hidden="true"\n                                               data-toggle="tooltip" data-placement="right"\n                                               title="Phasen-Termin anlegen"></i>\n                                        </a>\n                                    </div>\n\n                                    <div class="property-row row" v-for="(index, date) in dentist.dates">\n                                        <dt class="col-xs-4" v-if="index == 0"></dt>\n                                        <dt class="col-xs-4" v-else="index == 0"></dt>\n                                        <dd class="col-xs-7"><span\n                                            class="no-input">{{ date.date | niceDate }}</span>\n                                            <span :class="date.phase_class">{{ date.phase_label }}</span>\n                                        </dd>\n                                        <a class="action col-xs-1" @click="deleteDate">\n                                            <i class="fa fa-trash" data-todo="delete" data-id="{{ date.id }}"\n                                               aria-hidden="true" data-toggle="tooltip" data-placement="right"\n                                               title="Termin löschen"></i>\n                                        </a>\n                                    </div>\n                                    <!--   </div>\n                                       <div class="property-row row" v-else>\n                                           <dt class="col-xs-4">Phasen-Termin</dt>\n                                           <dd class="col-xs-7">\n                                               <input data-input="labdate" v-datetimepicker="labdate" v-model="labdate"\n                                                      @blur="saveDentist" @keyup.enter="saveDentist">\n                                           </dd>\n                                           <a v-if="labdate" class="action col-xs-1" @click="saveDentist">\n                                               <i class="fa fa-trash" data-todo="deletelabdate" aria-hidden="true"\n                                                  data-toggle="tooltip" data-placement="right"\n                                                  title="Phasen-Termin löschen"></i>\n                                           </a>\n                                       </div>-->\n                                </dl>\n                            </div>\n                        </div>\n\n                        <div class="box contact-box" v-if="isAdmin || isUser || isLab" id="attachements">\n                            <div class="row">\n                                <div class="col-xs-11">\n                                    <h4>Dokumente</h4>\n                                </div>\n                            </div>\n                            <form action="/attachments/uploaddentist/{{ dentist.token }}"\n                                  style="border: 1px solid #eee; padding: 5px; margin-bottom:20px;" method="post"\n                                  enctype="multipart/form-data">\n                                <div class="row">\n                                    <input type="hidden" name="_token" v-model="csrf">\n                                    <div class="col-xs-6 columns">\n                                        <input type="file" name="attachment">\n                                    </div>\n                                    <div class="col-xs-6 columns">\n                                        <button class="btn btn-primary btn-xs" type="submit">\n                                            <i class="fa fa-upload"></i> Upload file\n                                        </button>\n                                    </div>\n                                </div>\n                            </form>\n                            <dl v-if="dentist.attachments.length">\n                                <div v-for="attachment in dentist.attachments" class="property-row row">\n                                    <dt class="col-xs-2" style="padding: 3px 0">\n                                        <i class="fa fa-download"></i>\n                                    </dt>\n                                    <dd class="col-xs-10">\n                                            <span class="no-input">\n                                                <a href="/attachments/{{ attachment.id }}">\n                                                    <small>{{ attachment.path }}</small>\n                                                </a>\n                                            </span>\n                                    </dd>\n                                </div>\n                            </dl>\n                            <p v-else>\n                                <small><i>Dieser Kontakt hat noch keine Dokumente. Laden Sie Dokumente hoch.</i></small>\n                            </p>\n                        </div>\n\n                        <div class="box contact-box">\n                            <h4>Todo Liste:</h4>\n                            <hr>\n                            <form>\n                                <div class="input-group" v-if="editTaskForm">\n                                    <input v-model="editTaskForm.title" v-focus="true" type="text" class="form-control"\n                                           autofocus>\n                                    <span class="input-group-btn">\n                                        <button type="submit" class="btn btn-primary" @click.prevent="updateTask()">\n                                            Todo bearbeiten\n                                        </button>\n                                    </span>\n                                </div>\n                                <div class="input-group" v-else>\n                                    <input v-model="taskForm.title" type="text" class="form-control">\n                                    <span class="input-group-btn">\n                                        <button type="submit" class="btn btn-primary" @click.prevent="createTask()">\n                                            Todo hinzufügen\n                                        </button>\n                                    </span>\n                                </div>\n                            </form>\n                            <hr>\n                            <ul class="list-group" v-if="sortedTasks.length"\n                                v-sortable="{handle: \'.handle\', onUpdate: sortTasks, onMove: handleTaskMove}">\n                                <li class="list-group-item" v-for="task in sortedTasks" :key="task.id">\n                                    <input type="checkbox" :checked="task.completed_at" @change="toggleComplete(task)"\n                                           style="width: 5% !important">\n                                    {{ task.title }}\n                                    <div class="pull-right">\n                                        <i @click="editTask(task)" style="cursor:pointer;" class="fa fa-edit"></i>\n                                        <i v-if="isAdmin || task.creator_id == whoami.id" @click="deleteTask(task)"\n                                           style="color:red; cursor:pointer;" class="fa fa-trash"></i>\n                                        <i class="fa fa-arrows handle"></i>\n                                    </div>\n\n                                    <div class="clearfix"></div>\n                                </li>\n                            </ul>\n                        </div>\n\n\n                        <!--\n                        <div class="box contact-box" v-if="isAdmin || isUser">\n                            <h4>Akquise</h4>\n                            <dl>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Seite vor dem Ausfüllen</dt>\n                                    <dd class="col-xs-7"><span class="no-input">{{ dentist.dentistmeta.ref }}</span>\n                                    </dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Quelle</dt>\n                                    <dd class="col-xs-7"><span\n                                            class="no-input">{{ dentist.dentistmeta.orig_ref }}</span></dd>\n                                </div>\n                                <div class="property-row row">\n                                    <dt class="col-xs-4">Seite vor dem Einstieg</dt>\n                                    <dd class="col-xs-7"><span\n                                            class="no-input">{{ dentist.dentistmeta.orig_page }}</span></dd>\n                                </div>\n                            </dl>\n                        </div>\n                        -->\n\n\n                        <!-- <ul class="actions-list"> -->\n                        <!--<div v-if="dentist.queued == 0 && dentist.movedback < 2 && hasRoles([\'admin\', \'user\', \'lab\']) && ( dentist.lab.membership == 1 || dentist.lab.membership == 4)">-->\n                        <!--<div v-if="dentist.dates.length">-->\n                        <!--<h4>Kontakt zur erneuten Bearbeitung an Padento zurückleiten</h4>-->\n                        <!--<div>-->\n                        <!--<a @click="confirmMakequeued()"-->\n                        <!--class="btn btn-primary btn-tiny btn-block btn-moveback"-->\n                        <!--style="white-space: normal;">Kontakt hat den Termin abgesagt und benötigt einen-->\n                        <!--neuen.</a><br>-->\n                        <!--</div>-->\n                        <!--<div>-->\n                        <!--<a @click="makequeued(contact.id)"-->\n                        <!--class="btn btn-primary btn-tiny btn-block btn-moveback"-->\n                        <!--style="white-space: normal;">Kontakt ist unentschuldigt nicht zum Termin-->\n                        <!--erschienen</a>-->\n                        <!--</div>-->\n                        <!--</div>-->\n                        <!--<div v-if="dentist.movedback < 2">-->\n                        <!--<h4>Kontakt das erste Mal an Padento leiten</h4>-->\n                        <!--<p>-->\n                        <!--<small>Dieser Kontakt wurde noch nie von Padento bearbeitet. Daher können Sie-->\n                        <!--diesen-->\n                        <!--Kontakt an uns zur Bearbeitung weiterleiten.-->\n                        <!--</small>-->\n                        <!--</p>-->\n                        <!--<div>-->\n                        <!--<a @click="makequeued(dentist.id, \'nodate\')"-->\n                        <!--class="btn btn-primary btn-tiny btn-block btn-moveback"-->\n                        <!--style="white-space: normal;">Kontakt von Padento bearbeiten lassen</a>-->\n                        <!--</div>-->\n                        <!--</div>-->\n                        <!--</div>-->\n\n                        <div v-if="isAdmin || isUser" v-show="showMap && showresults">\n                            <hr/>\n                            <div id="map" style="height: 450px"></div>\n                        </div>\n                        <!-- </ul> -->\n                    </div>\n                    <div class="col-xs-12 col-md-8" class="contact-info">\n                        <h5 class="stage-heading">Kunden Phasen</h5>\n                        <div id="stages">\n                            <ul class="stages">\n                                <li class="stage" data-phase="1"\n                                    v-bind:class="{ \'phasedentist-1\' : (dentist.phase > 0), \'active\' : (dentist.phase == 1) }"\n                                    v-on:click="activatePhase">Fremd\n                                </li>\n                                <li class="stage" data-phase="2"\n                                    v-bind:class="{ \'phasedentist-2\' : (dentist.phase > 1), \'active\' : (dentist.phase == 2) }"\n                                    v-on:click="activatePhase">Vertrauen\n                                </li>\n                                <li class="stage" data-phase="3"\n                                    v-bind:class="{ \'phasedentist-3\' : (dentist.phase > 2), \'active\' : (dentist.phase == 3) }"\n                                    v-on:click="activatePhase">Beziehung\n                                </li>\n                                <li class="stage" data-phase="4"\n                                    v-bind:class="{ \'phasedentist-4\' : (dentist.phase > 3), \'active\' : (dentist.phase == 4) }"\n                                    v-on:click="activatePhase">Testkunde\n                                </li>\n                                <li class="stage" data-phase="5"\n                                    v-bind:class="{ \'phasedentist-5\' : (dentist.phase > 4), \'active\' : (dentist.phase == 5) }"\n                                    v-on:click="activatePhase">B-Kunde\n                                </li>\n                                <li class="stage" data-phase="6"\n                                    v-bind:class="{ \'phasedentist-6\' : (dentist.phase > 5), \'active\' : (dentist.phase == 6) }"\n                                    v-on:click="activatePhase">A-Kunde\n                                </li>\n                            </ul>\n                        </div>\n                        <div class="box">\n                            <div class="padento-questions">\n                                <div class="row">\n                                    <div class="col-sm-12">\n                                        <h4 class="padento-questions-heading">Fragen</h4>\n                                    </div>\n                                </div>\n                                <div class="row">\n                                    <div class="col-md-6">\n                                        <div class="contact-question">\n                                            <dl>\n                                                <div class="property-row row">\n                                                    <dt class="col-xs-7">Praxislabor vorhanden\n                                                    </dt>\n                                                    <dd class="col-xs-5">\n                                                        <span class="no-input">\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_dentist" id="dentist1" value="yes"\n                                             v-model="dentist.dentistmeta.has_dentist" @change="saveDentist"> Ja\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_dentist" id="dentist2" value="no"\n                                             v-model="dentist.dentistmeta.has_dentist" @change="saveDentist"> Nein\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_dentist" id="dentist3" value="ns"\n                                             v-model="dentist.dentistmeta.has_dentist" @change="saveDentist"> k.A.\n                                    </label>\n                                  </span>\n                                                    </dd>\n                                                </div>\n                                                <div class="property-row row">\n                                                    <dt class="col-xs-7">Macht Auslandszahnersatz\n                                                    </dt>\n                                                    <dd class="col-xs-5">\n                                                        <span class="no-input">\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_fear" id="fear1" value="yes"\n                                             v-model="dentist.dentistmeta.has_fear" @change="saveDentist"> Ja\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_fear" id="fear2" value="no"\n                                             v-model="dentist.dentistmeta.has_fear" @change="saveDentist"> Nein\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_fear" id="fear3" value="ns"\n                                             v-model="dentist.dentistmeta.has_fear" @change="saveDentist"> k.A.\n                                    </label>\n                                  </span>\n                                                    </dd>\n                                                </div>\n                                                <div class="property-row row">\n                                                    <dt class="col-xs-7">Ist eine Gemeinschaftspraxis</dt>\n                                                    <dd class="col-xs-5">\n                                                        <span class="no-input">\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_sdi" id="inlineRadio1" value="yes"\n                                             v-model="dentist.dentistmeta.has_sdi" @change="saveDentist"> Ja\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_sdi" id="inlineRadio2" value="no"\n                                             v-model="dentist.dentistmeta.has_sdi" @change="saveDentist"> Nein\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_sdi" id="inlineRadio3" value="ns"\n                                             v-model="dentist.dentistmeta.has_sdi" @change="saveDentist"> k.A.\n                                    </label>\n                                  </span>\n                                                    </dd>\n                                                </div>\n                                            </dl>\n                                        </div>\n                                    </div>\n                                    <div class="col-md-6">\n                                        <div class="contact-question">\n                                            <dl>\n                                                <div class="property-row row">\n                                                    <dt class="col-xs-7">Praxis ist im MVZ</dt>\n                                                    <dd class="col-xs-5">\n                                                        <span class="no-input">\n                                    <label class="radio-inline">\n                                      <input type="radio" name="is_satisfied" id="satisfied1" value="yes"\n                                             v-model="dentist.dentistmeta.is_satisfied" @change="saveDentist"> Ja\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="is_satisfied" id="satisfied2" value="no"\n                                             v-model="dentist.dentistmeta.is_satisfied" @change="saveDentist"> Nein\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="is_satisfied" id="satisfied3" value="ns"\n                                             v-model="dentist.dentistmeta.is_satisfied" @change="saveDentist"> k.A.\n                                    </label>\n                                  </span>\n                                                    </dd>\n                                                </div>\n                                                <div class="property-row row">\n                                                    <dt class="col-xs-7">Mehr als 20 Kilometer entfernt\n                                                    </dt>\n                                                    <dd class="col-xs-5">\n                                                        <span class="no-input">\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_financing" id="financing1" value="yes"\n                                             v-model="dentist.dentistmeta.has_financing" @change="saveDentist"> Ja\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_financing" id="financing2" value="no"\n                                             v-model="dentist.dentistmeta.has_financing" @change="saveDentist"> Nein\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_financing" id="financing3" value="ns"\n                                             v-model="dentist.dentistmeta.has_financing" @change="saveDentist"> k.A.\n                                    </label>\n                                  </span>\n                                                    </dd>\n                                                </div>\n                                                <div class="property-row row">\n                                                    <dt class="col-xs-7">Scanner vorhanden</dt>\n                                                    <dd class="col-xs-5">\n                                                        <span class="no-input">\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_tacs" id="tacs1" value="yes"\n                                             v-model="dentist.dentistmeta.has_tacs" @change="saveDentist"> Ja\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_tacs" id="tacs2" value="no"\n                                             v-model="dentist.dentistmeta.has_tacs" @change="saveDentist"> Nein\n                                    </label>\n                                    <label class="radio-inline">\n                                      <input type="radio" name="has_tacs" id="tacs3" value="ns"\n                                             v-model="dentist.dentistmeta.has_tacs" @change="saveDentist"> k.A.\n                                    </label>\n                                  </span>\n                                                    </dd>\n                                                </div>\n                                            </dl>\n                                        </div>\n                                    </div>\n                                </div>\n                                <div class="contact-question">\n                                    <dl>\n                                        <div class="property-row row">\n                                            <dt class="col-xs-3"><strong>Bemerkung:</strong></dt>\n                                            <dd class="col-xs-9">\n                                                <input type="text" name="insurance"\n                                                       v-model="dentist.dentistmeta.insurance" @blur="saveDentist"\n                                                       @keyup.enter="saveDentist" style="width: 100%">\n                                            </dd>\n                                        </div>\n                                    </dl>\n                                </div>\n                            </div>\n                        </div>\n                        <div class="box create-note-box">\n                            <h4 class="add-note-heading">Notiz hinzufügen</h4>\n                            <textarea name="" id="note" cols="30" rows="10" class="form-control"\n                                      v-model="note"></textarea>\n                            <br>\n                            <button class="btn btn-primary" @click="saveNote(note)">Notiz hinzufügen</button>\n                        </div>\n\n                        <section id="notes">\n                            <article class="note" v-for="note in dentist.notes | orderBy \'created_at\' -1">\n                                <i class="icon"><i class="fa fa-comment" aria-hidden="true"></i></i>\n                                <div class="container-fluid">\n                                    <div class="row">\n                                        <div class="col-md-3">\n                                            <p>\n                                                <strong v-if="note.user.contact_person">\n                                                    {{ note.user.contact_person }}\n                                                </strong>\n                                                <strong v-else>{{ note.user.name}}</strong>\n                                                <br>\n                                                <small>{{ note.created_at | niceDate }}</small>\n                                            <hr>\n                                            <ul class="note-actions">\n                                                <!--li><small><a href="">Bearbeiten</a></small></li-->\n                                                <li v-if="isAdmin">\n                                                    <small><a\n                                                        href="/api/note/{{ note.id }}/deletedentistnote">Löschen</a>\n                                                    </small>\n                                                </li>\n                                            </ul>\n                                        </div>\n                                        <div class="col-md-9 note-content">\n                                            <p>{{{ note.msg }}}\n                                        </div>\n                                    </div>\n                                </div>\n                            </article>\n                        </section>\n                        <!--<div v-if="note_timeline" v-html="note_timeline"></div>-->\n\n                        <div v-if="timeline">\n                            <br>\n                            <div class="box create-note-box">\n                                <h4 class="add-note-heading">Timeline</h4>\n                            </div>\n                            <div v-html="timeline"></div>\n                        </div>\n\n                    </div>\n\n\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n<date-modal title="Einen Termin vereinbaren"></date-modal>\n<calendar-modal-dentist title="Kalender"></calendar-modal-dentist>\n\n<div id="confirmMakequeued" class="modal fade" role="dialog">\n    <div class="modal-dialog">\n        <div class="modal-content">\n            <div class="modal-header">\n                <button type="button" class="close" data-dismiss="modal">&times;</button>\n                <h4 class="modal-title">Kontakt an Padento zurückleiten</h4>\n            </div>\n            <form role="form">\n                <div class="modal-body">\n                    <p>Wenn Sie diesen Kontakt an das Padento-Team zurückschicken, werden wir versuchen mit diesem\n                        Kontakt aufzunehmen.</p>\n                </div>\n                <div class="modal-footer">\n                    <button type="submit" class="btn btn-primary" @click="makequeued(contact.id, \'canceled\')">\n                        Jetzt zurückleiten\n                    </button>\n                    <button type="button" class="btn btn-danger" data-dismiss="modal">Abbrechen</button>\n                </div>\n            </form>\n        </div>\n    </div>\n</div>\n';
-},{}],115:[function(require,module,exports){
+},{}],114:[function(require,module,exports){
 module.exports = '<div>\n    <style>\n        .font-gray {\n            color: #e2e2e2;\n        }\n    </style>\n    <div class="content" id="main-content">\n\n        <div class="box stats-box">\n            <div class="container-fluid">\n                <div class="row">\n                    <div class="col-md-12">\n                        <div class="stat">\n                            <div class="text">Zahnärzte</div>\n                            <div class="number">{{ stats.all }}</div>\n                        </div>\n                    </div>\n                </div>\n            </div>\n        </div>\n\n\n        <!-- NEUER ZAHNARZT BUTTON !!! -->\n        <div class="new-dentist">\n            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#newdentistcontact">\n                <i class="fa fa-plus"></i> Neuer Zahnarzt\n            </button>\n        </div>\n        <!-- NEUER ZAHNARZT BUTTON ENDE !!! -->\n\n\n        <!-- FILTERN DER KONTAKTE ANFANG !!! -->\n        <div class="row filter-row" style="padding-top: 10px;">\n            <div class="col-md-10">\n                <form class="filter-form">\n                    <div class="form-group">\n                        <label for="">Phase:</label>\n                        <select v-model="filter.phase.selected"\n                                v-selectpicker="[filter.phase.selected, filterOptions.phase.options]">\n                            <option v-for="phase in filterOptions.phase.options" v-bind:value="phase.value">{{\n                                phase.text }}\n                            </option>\n                        </select>\n                    </div>\n\n\n                    <div class="form-group">\n                        <label>Archiviert:</label>\n                        <select id="status" v-model="filter.status.selected"\n                                v-selectpicker="[filter.status.selected, filterOptions.status.options]">\n                            <option v-for="status in filterOptions.status.options" v-bind:value="status.value">{{\n                                status.text }}\n                            </option>\n                        </select>\n                    </div>\n\n                    <div class="form-group">\n                        <label></label>\n                        <button data-toggle="tooltip" data-placement="top" title="Suche zurücksetzen" type="button"\n                                @click="clearfilter" class="btn btn-default "><i class="fa fa-times"\n                                                                                 aria-hidden="true"></i></button>\n                    </div>\n                </form>\n            </div>\n            <div class="col-md-2 ">\n                <div class="filter-form ">\n                    <div class="form-group ">\n                        <label>Suche:</label>\n                        <div class="input-group ">\n                            <input type="text " class="form-control " placeholder="Suchen... " v-model="search "\n                                   id="search ">\n                            <span class="input-group-btn ">\n                                <button class="btn btn-default " type="button "><i class="fa fa-search "\n                                                                                   aria-hidden="true "></i></button>\n                            </span>\n                        </div>\n                    </div>\n                </div>\n            </div>\n        </div>\n        <!-- FILTERN DER KONTAKTE ENDE !!! -->\n\n\n        <!-- ÜBERSICHT ALLER KONTAKTE ANFANG !!! -->\n        <div class="box table-box ">\n            <div class="table-meta-data ">Kontakte: {{ pagination.total }} | Seite: {{ pagination.current_page }} / {{\n                pagination.last_page }}\n            </div>\n            <div class="table-wrap">\n                <table class="table table-striped table-condensed">\n                    <thead>\n                    <tr>\n                        <th class="sortable " @click="sortBy( \'dentist_contacts.id\') " v-if="isAdmin">#</th>\n                        <th class="sortable " @click="sortBy( \'dentistmeta.name\') ">Name</th>\n                        <th class="sortable " @click="sortBy( \'created_at\') ">Anfragedatum</th>\n                        <th class="sortable " @click="sortBy( \'dentistmeta.email\') ">E-Mail</th>\n                        <th class="sortable " @click="sortBy( \'dentistmeta.tel\') ">Telefon</th>\n                        <th class="sortable " @click="sortBy( \'dentistmeta.zip\') ">PLZ</th>\n                        <th class="sortable " @click="sortBy( \'phase\') ">Phase</th>\n                        <th class="sortable " @click="sortBy( \'labDate\') ">Phasen-Termin</th>\n\n                        <!--\n                        <th class="sortable " @click="sortBy( \'empDate\') "\n                            v-if="isAdmin || isUser">Mitarbeitertermin\n                        </th>\n                        -->\n\n\n                        <!--<th v-if="isAdmin || isUser" class="sortable " @click="sortBy( \'movedback\') "><i\n                                class="fa fa-exchange " aria-hidden="true " data-toggle="tooltip " data-placement="top "\n                                title="Zurückgeschoben "></i></th> -->\n                        <!--th class="text-right ">Aktion</th-->\n                        <th>Dokumente</th>\n                        <th v-if="isAdmin"><i class="fa fa-trash " aria-hidden="true "></i></th>\n                    </tr>\n                    </thead>\n                    <tbody>\n                    <tr v-for="dentist in dentists " id="dentist-{{ dentist.id }} ">\n                        <td v-if="isAdmin">{{ dentist.id }}</td>\n                        <td><a v-link="{ name: \'admin.dentistContactSingle\', params: { id: dentist.id } } ">{{\n                            dentist.dentistmeta.name }}</a></td>\n                        <td>{{ dentist.created_at | niceDate }}</td>\n                        <td v-if="dentist.confirmed==\'1\' "><a href="mailto:{{ dentist.dentistmeta.email }} "><i\n                            class="fa fa-envelope-o " aria-hidden="true "></i></a> {{ dentist.dentistmeta.email }}\n                        </td>\n                        <td v-else><span class="label label-danger ">noch unbestätigt</span></td>\n                        <td>{{ dentist.dentistmeta.tel }}</td>\n                        <td>{{ dentist.dentistmeta.zip }}</td>\n                        <td>\n                            <span class="label label-default phase phasedentist-{{ dentist.phase }} "><a\n                                v-link="{ name: \'admin.dentistContactSingle\', params: { id: dentist.id } } ">{{ dentist.phase | translate }}</a></span>\n                        </td>\n\n\n                        <td>\n                            <span\n                                :class="{\'font-gray\':isPastDate(dentist.labDate)} ">{{ dentist.labDate | niceDate }}</span>\n                        </td>\n\n                        <!--\n                        <td v-if="isAdmin || isUser ">\n                            {{ dentist.empDate | niceDate }}\n                        </td>\n                        -->\n\n\n                        <!-- <td class="text-center " v-if="isAdmin || isUser">{{ dentist.movedback }}</td> -->\n                        <td class="text-center">\n                            <div v-if="dentist.attachments.length">\n                                <a :href="\'/attachments/\'+attachment.id" :title="attachment.path"\n                                   v-for="attachment in dentist.attachments">\n                                    <i class="fa fa-file" :title="attachment.path"></i>\n                                </a>\n                            </div>\n                        </td>\n\n\n                        <td class="text-center " v-if="isAdmin">\n                            <a href="# " class="del" @click="deletedentist(dentist.id) ">\n                                <i class="fa fa-trash " aria-hidden="true "></i>\n                            </a>\n                        </td>\n                    </tr>\n                    </tbody>\n                </table>\n            </div>\n            <div class="contacts-pagination ">\n                <nav>\n                    <ul class="pagination">\n                        <li v-if="pagination.current_page > 1">\n                            <a href="#" aria-label="Previous" @click.prevent="changePage(pagination.current_page - 1)">\n                                <span aria-hidden="true">&laquo;</span>\n                            </a>\n                        </li>\n                        <li v-for="page in pagesNumber" v-bind:class="[ page == isActived ? \'active\' : \'\']">\n                            <a href="#" @click.prevent="changePage(page)">{{ page }}</a>\n                        </li>\n                        <li v-if="pagination.current_page < pagination.last_page">\n                            <a href="#" aria-label="Next" @click.prevent="changePage(pagination.current_page + 1)">\n                                <span aria-hidden="true">&raquo;</span>\n                            </a>\n                        </li>\n                    </ul>\n                    <ul class="pagination">\n                        <li>\n                            <select v-model="pagination.per_page" v-selectpicker="pagination.per_page"\n                                    @change="perpageChange(pagination.per_page)">\n                                <option v-for="opt in items_per_page" :value="opt.value">{{ opt.value }}</option>\n                            </select>\n                        </li>\n                    </ul>\n                </nav>\n            </div>\n        </div>\n    </div>\n</div>\n<!-- ÜBERSICHT ALLER KONTAKTE ENDE !!! -->\n\n\n<!-- MODAL FÜR ZAHNARZT ERSTELLEN!!! -->\n<div class="modal fade" id="newdentistcontact" tabindex="-1" role="dialog" aria-labelledby="newdentistcontact">\n    <div class="modal-dialog" role="document">\n        <div class="modal-content">\n            <div class="modal-header">\n                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span\n                    aria-hidden="true">&times;</span></button>\n                <h4 class="modal-title" id="myModalLabel">Neuen Zahnarzt anlegen</h4>\n            </div>\n            <validator name="newDentistContactValidator">\n                <div class="modal-body">\n                    <form class="form-horizontal" novalidate>\n                        <div class="form-group">\n                            <label for="salutation" class="col-sm-4 control-label">Anrede</label>\n                            <div class="col-sm-8">\n                                <select name="salutation" id="salutation" class="form-control"\n                                        v-model="newdentistcontact.salutation">\n                                    <option value="Frau">Frau</option>\n                                    <option value="Herr">Herr</option>\n                                </select>\n                            </div>\n                        </div>\n                        <div class="form-group">\n                            <label for="name" class="col-sm-4 control-label">Name</label>\n                            <div class="col-sm-8">\n                                <input type="text" class="form-control" id="name" placeholder="Vorname Nachname"\n                                       v-model="newdentistcontact.name">\n                            </div>\n                        </div>\n                        <div class="form-group">\n                            <label for="zip" class="col-sm-4 control-label">Postleitzahl</label>\n                            <div class="col-sm-8">\n                                <input type="text" class="form-control" id="zip" placeholder="Postleitzahl"\n                                       v-model="newdentistcontact.zip">\n                            </div>\n                        </div>\n                        <div class="form-group">\n                            <label for="email" class="col-sm-4 control-label">E-Mail-Adresse</label>\n                            <div class="col-sm-8">\n                                <input type="email" class="form-control" id="email" placeholder="name.nachname@mail.de"\n                                       v-model="newdentistcontact.email">\n                            </div>\n                        </div>\n                        <div class="form-group">\n                            <label for="phone" class="col-sm-4 control-label">Telefonnummer</label>\n                            <div class="col-sm-8">\n                                <input type="text" class="form-control" id="phone" placeholder="0202 45678"\n                                       v-model="newdentistcontact.phone">\n                            </div>\n                        </div>\n                    </form>\n                </div>\n                <div class="modal-footer">\n                    <button type="button" class="btn btn-default" data-dismiss="modal">Abbrechen</button>\n                    <button class="btn btn-primary" @click="savedentist" v-if="formReady">Zahnarzt anlegen</button>\n                </div>\n            </validator>\n        </div>\n        <!-- ENDE MODAL ZAHNARZT ERSTELLEN!!! -->\n\n    </div>\n</div>';
-},{}],116:[function(require,module,exports){
+},{}],115:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -42569,9 +42104,9 @@ exports.default = {
     }
 };
 
-},{"./labusers.template.html":117}],117:[function(require,module,exports){
+},{"./labusers.template.html":116}],116:[function(require,module,exports){
 module.exports = '<div>\n    <style>\n        .font-gray {\n            color: #e2e2e2;\n        }\n    </style>\n    <div class="content" id="main-content">\n        <div class="new-contact" v-if="!hasTwoLabUsers">\n            <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#newLabUserPopUp">\n                <i class="fa fa-plus"></i> Laborbenutzer erstellen\n            </button>\n        </div>\n\n        <div class="box table-box ">\n            <div class="table-meta-data ">Laborbenutzer: {{ pagination.total }} | Seite: {{ pagination.current_page }} /\n                {{ pagination.last_page }}\n            </div>\n            <div class="table-wrap">\n                <table class="table table-striped table-condensed">\n                    <thead>\n                    <tr>\n                        <th class="sortable " @click="sortBy( \'patientmeta.name\') ">Name</th>\n                        <th class="sortable " @click="sortBy( \'patientmeta.email\') ">E-Mail</th>\n                        <th class="sortable " @click="sortBy( \'created_at\') ">Angelegt seit</th>\n                        <th>Status</th>\n                        <th></th>\n                    </tr>\n                    </thead>\n                    <tbody>\n                    <tr v-for="labUser in labUsers " id="labUser-{{ labUser.id }} ">\n                        <td>{{ labUser.name }}</td>\n                        <td>\n                            <a href="mailto:{{ labUser.email }} "><i class="fa fa-envelope-o " aria-hidden="true "></i></a>\n                            {{ labUser.email }}\n                        </td>\n                        <td>{{ labUser.created_at | niceDate }}</td>\n                        <td>\n                            <span v-if="isOwner">\n                                <a v-if="labUser.status === \'Aktiv\'" href="#" @click.prevent="toggleActive(labUser)">Aktiv</a>\n                                <a v-else href="#" @click.prevent="toggleActive(labUser)" :disabled="hasTwoLabUsers">Inaktiv</a>\n                            </span>\n                        </td>\n                        <td class="text-center ">\n                            <a v-if="isOwner && !labUser.activity_count" href="# " class="del" @click="deleteLabUser(labUser.id) ">\n                                <i class="fa fa-trash " aria-hidden="true"></i>\n                            </a>\n                        </td>\n                    </tr>\n                    </tbody>\n                </table>\n            </div>\n            <div class="contacts-pagination ">\n                <nav>\n                    <ul class="pagination">\n                        <li v-if="pagination.current_page > 1">\n                            <a href="#" aria-label="Previous" @click.prevent="changePage(pagination.current_page - 1)">\n                                <span aria-hidden="true">&laquo;</span>\n                            </a>\n                        </li>\n                        <li v-for="page in pagesNumber" v-bind:class="[ page == isActived ? \'active\' : \'\']">\n                            <a href="#" @click.prevent="changePage(page)">{{ page }}</a>\n                        </li>\n                        <li v-if="pagination.current_page < pagination.last_page">\n                            <a href="#" aria-label="Next" @click.prevent="changePage(pagination.current_page + 1)">\n                                <span aria-hidden="true">&raquo;</span>\n                            </a>\n                        </li>\n                    </ul>\n                    <ul class="pagination">\n                        <li>\n                            <select v-model="pagination.per_page" v-selectpicker="pagination.per_page"\n                                    @change="perpageChange(pagination.per_page)">\n                                <option v-for="opt in items_per_page" :value="opt.value">{{ opt.value }}</option>\n                            </select>\n                        </li>\n                    </ul>\n                </nav>\n            </div>\n        </div>\n    </div>\n</div>\n<div class="modal fade" id="newLabUserPopUp" tabindex="-1" role="dialog" aria-labelledby="newLabUserPopUp">\n    <div class="modal-dialog" role="document">\n        <div class="modal-content">\n            <div class="modal-header">\n                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span\n                    aria-hidden="true">&times;</span></button>\n                <h4 class="modal-title" id="myModalLabel">Erstellen Sie einen neuen Laborbenutzer</h4>\n            </div>\n            <validator name="newLabUserValidator">\n                <div class="modal-body">\n                    <form class="form-horizontal" novalidate>\n\n                        <div class="form-group">\n                            <label for="name" class="col-sm-4 control-label">Name</label>\n                            <div class="col-sm-8">\n                                <input type="text" class="form-control" id="name" placeholder="Name"\n                                       v-model="newLabUser.name" v-validate:name="[\'required\'] autocomplete=" off">\n                            </div>\n                        </div>\n\n                        <div class="form-group">\n                            <label for="email" class="col-sm-4 control-label">E-Mail-Addresse</label>\n                            <div class="col-sm-8">\n                                <input type="email" class="form-control" id="email" placeholder="name.nachname@mail.de"\n                                       v-model="newLabUser.email" v-validate:email="[\'required\']" autocomplete="off">\n                            </div>\n                        </div>\n                        <div class="form-group">\n                            <label for="password" class="col-sm-4 control-label">Passwort</label>\n                            <div class="col-sm-8">\n                                <input type="password" class="form-control" id="password" placeholder="Passwort"\n                                       v-model="newLabUser.password" v-validate:password="[\'required\']"\n                                       autocomplete="off">\n                            </div>\n                        </div>\n                    </form>\n                </div>\n                <div class="modal-footer">\n                    <button type="button" class="btn btn-default" data-dismiss="modal">Abbrechen</button>\n                    <button class="btn btn-primary" @click="saveNewLabUser" v-if="formReady">Laborbenutzer erstellen\n                    </button>\n                </div>\n            </validator>\n        </div>\n    </div>\n</div>';
-},{}],118:[function(require,module,exports){
+},{}],117:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -42608,7 +42143,7 @@ exports.default = {
   }
 };
 
-},{"./calendar.template.html":126}],119:[function(require,module,exports){
+},{"./calendar.template.html":125}],118:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -42821,7 +42356,7 @@ exports.default = {
     }
 };
 
-},{"./dentistdates.template.html":127}],120:[function(require,module,exports){
+},{"./dentistdates.template.html":126}],119:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -43078,7 +42613,7 @@ exports.default = {
     }
 };
 
-},{"./lab-image.template.html":128}],121:[function(require,module,exports){
+},{"./lab-image.template.html":127}],120:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -43129,7 +42664,6 @@ exports.default = {
                 locale: 'de',
                 disabledTimeIntervals: false,
                 format: 'DD.MM.YYYY'
-                // format: 'Y-m-d H:i'
             });
         });
     },
@@ -43146,7 +42680,6 @@ exports.default = {
                 locale: 'de',
                 disabledTimeIntervals: false,
                 format: 'DD.MM.YYYY'
-                // format: 'Y-m-d H:i'
             });
         },
 
@@ -43182,7 +42715,6 @@ exports.default = {
                 Messenger().post({
                     message: 'Zeitraum gespeichert',
                     type: 'success'
-                    // showCloseButton: true
                 });
 
                 lab.timeframes.push(response.data);
@@ -43195,7 +42727,6 @@ exports.default = {
                 Messenger().post({
                     message: 'Fehler beim Speichern eines Zeitraums',
                     type: 'error'
-                    // showCloseButton: true
                 });
                 // console.log('### error ###');
                 //console.log(response.data);
@@ -43208,14 +42739,12 @@ exports.default = {
                 Messenger().post({
                     message: 'Einstellung gespeichert',
                     type: 'success'
-                    // showCloseButton: true
                 });
                 //console.log(response.data);
             }, function (response) {
                 Messenger().post({
                     message: 'Fehler beim Speichern von Einstellungen',
                     type: 'error'
-                    // showCloseButton: true
                 });
                 //console.log(response.data);
             });
@@ -43237,7 +42766,6 @@ exports.default = {
                 Messenger().post({
                     message: 'Zeitraum entfernt',
                     type: 'success'
-                    // showCloseButton: true
                 });
                 lab.timeframes.$remove(timeframe);
                 //console.log(response.data);
@@ -43264,7 +42792,6 @@ exports.default = {
                 Messenger().post({
                     message: 'Einstellung entfernt',
                     type: 'success'
-                    // showCloseButton: true
                 });
 
                 lab.settings.$remove(day);
@@ -43285,7 +42812,6 @@ exports.default = {
                 Messenger().post({
                     message: 'Tag ausgeschlossen',
                     type: 'success'
-                    // showCloseButton: true
                 });
                 //console.log(res.data);
             }, function (response) {
@@ -43307,7 +42833,6 @@ exports.default = {
                 Messenger().post({
                     message: 'Datum gespeichert',
                     type: 'success'
-                    // showCloseButton: true
                 });
                 //console.log(res.data);
             }, function (response) {
@@ -43388,7 +42913,7 @@ exports.default = {
     }
 };
 
-},{"./labsettings.template.html":130,"lodash":58}],122:[function(require,module,exports){
+},{"./labsettings.template.html":129,"lodash":57}],121:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -43664,7 +43189,7 @@ exports.default = {
   }
 };
 
-},{"./labsingle.template.html":131}],123:[function(require,module,exports){
+},{"./labsingle.template.html":130}],122:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -43716,8 +43241,6 @@ exports.default = {
                 },
                 isCRM: false,
                 isDentistCRM: false
-                //isMultipleUser:false
-
             }
         }, _defineProperty(_ref, 'sortFilter', 'created_at'), _defineProperty(_ref, 'pagination', {
             total: 0,
@@ -43868,7 +43391,7 @@ exports.default = {
     }
 };
 
-},{"../../stores/ContactsStore.js":76,"./labs.template.html":129}],124:[function(require,module,exports){
+},{"../../stores/ContactsStore.js":75,"./labs.template.html":128}],123:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44077,7 +43600,7 @@ exports.default = {
     }
 };
 
-},{"./mydates.template.html":132}],125:[function(require,module,exports){
+},{"./mydates.template.html":131}],124:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44159,70 +43682,26 @@ exports.default = {
       //   //console.log(response.data);
       // }.bind(this));
     }
-    // saveLab: function(event) {
-    //   event.preventDefault();
-    //   console.log(this.lab);
-    //   var user = this.$resource('/register');
-    //   user.save({}, this.user).then(function(response) {
-    //     console.log('success – new user created');
-    //     //this.lab = response.data;
-    //   }, function(response) {
-    //     console.log('##### error #####');
-    //     //console.log(response.data);
-    //   }.bind(this));
-    //   var lab = this.$resource('/api/newlab');
-    //   lab.save({}, this.lab).then(function(response) {
-    //     console.log('success – new lab created');
-    //     //this.lab = response.data;
-    //   }, function(response) {
-    //     console.log('##### error #####');
-    //     //console.log(response.data);
-    //   }.bind(this));
-    //   var labmeta = this.$resource('/api/newlabmeta');
-    //   lab.save({}, this.labmeta).then(function(response) {
-    //     console.log('success – new lab created');
-    //     //this.lab = response.data;
-    //   }, function(response) {
-    //     console.log('##### error #####');
-    //     //console.log(response.data);
-    //   }.bind(this));
-    // },
-    // savePassword: function() {
-    //   if($('#password').val() != $('#password_confirmation').val()) {
-    //     alert('Die Passwörter stimmen nicht überein.');
-    //     return false;
-    //   } else {
-    //     var id = this.lab.user.id;
-    //     var resource = this.$resource('/api/user{/id}');
-    //     resource.save({id: id}, this.lab.user).then(function (response) {
-    //       console.log('success');
-    //       //console.log(response.data);
-    //     }, function (response) {
-    //       console.log('##### error #####');
-    //       //console.log(response.data);
-    //     });
-    //   };
-    // }
   }
 };
 
-},{"./newlab.template.html":133}],126:[function(require,module,exports){
+},{"./newlab.template.html":132}],125:[function(require,module,exports){
 module.exports = 'test';
-},{}],127:[function(require,module,exports){
+},{}],126:[function(require,module,exports){
 module.exports = '<div>\n    <div class="content">\n\n        <div class="box">\n            <div class="row">\n                <div class="col-md-12">\n                    <h4>Termine heute\n                        <small>(bevorstehend)</small>\n                    </h4>\n                    <table class=" table table-striped table-condensed">\n                        <thead>\n                        <tr>\n                            <th class="col-md-3">Name</th>\n                            <th class="col-md-3">Angelegt von</th>\n                            <th class="col-md-3">Datum</th>\n                            <th class="col-md-3">Phase</th>\n                        </tr>\n                        </thead>\n                        <tbody>\n                        <tr v-for="date in dates.today_new.data | orderBy \'date\' 1">\n                            <td data-user-id="{{ date.patient.id }}">\n                                <a v-link="{ name: \'admin.dentistContactSingle\', params: { id: date.dentist_contact.id } }">\n                                    {{ date.dentist_contact.dentistmeta.name }}\n                                </a></td>\n                            <td>{{ date.user }}</td>\n                            <td>{{ date.date | niceDate}}</td>\n                            <td><span :class="date.phase_class">{{ date.phase_label }}</span></td>\n                        </tr>\n                        </tbody>\n                    </table>\n\n                </div>\n            </div>\n            <!--pagination for today old appointments -->\n            <div class="contacts-pagination ">\n                <nav>\n                    <ul class="pagination">\n                        <li v-if="newNowDatePagination.current_page > 1">\n                            <a href="#" aria-label="Previous"\n                               @click.prevent="changePage(newNowDatePagination.current_page - 1,\'newNowDate\')">\n                                <span aria-hidden="true">&laquo;</span>\n                            </a>\n                        </li>\n                        <li v-for="page in datePagesNumber"\n                            v-bind:class="[ page == isNewNowDatePageActived ? \'active\' : \'\']">\n                            <a href="#" @click.prevent="changePage(page,\'newNowDate\')">{{ page }}</a>\n                        </li>\n                        <li v-if="newNowDatePagination.current_page < newNowDatePagination.last_page">\n                            <a href="#" aria-label="Next"\n                               @click.prevent="changePage(newNowDatePagination.current_page + 1,\'newNowDate\')">\n                                <span aria-hidden="true">&raquo;</span>\n                            </a>\n                        </li>\n                    </ul>\n                    <ul class="pagination">\n                        <li>\n                            <select v-model="newNowDatePagination.per_page"\n                                    v-selectpicker="newNowDatePagination.per_page"\n                                    @change="numPerPageChange(newNowDatePagination.per_page,\'newNowDate\')">\n                                <option v-for="opt in items_per_page" :value="opt.value">{{ opt.value }}</option>\n                            </select>\n                        </li>\n                    </ul>\n                </nav>\n            </div>\n            <!--end pagiantion for today old appointments-->\n            <div class="row">\n                <div class="col-sm-12">\n                    <h4>Termine heute\n                        <small>(vergangen)</small>\n                    </h4>\n                    <table class=" table table-striped table-condensed">\n                        <thead>\n                        <tr>\n                            <th class="col-md-3">Name</th>\n                            <th class="col-md-3">Angelegt von</th>\n                            <th class="col-md-3">Datum</th>\n                            <th class="col-md-3">Phase</th>\n                        </tr>\n                        </thead>\n                        <tbody>\n                        <tr v-for="date in dates.today_old.data | orderBy \'date\' 1">\n                            <td data-user-id="{{ date.patient.id }}">\n                                <a v-link="{ name: \'admin.dentistContactSingle\', params: { id: date.dentist_contact.id } }">\n                                    {{ date.dentist_contact.dentistmeta.name }}\n                                </a></td>\n                            <td>{{ date.user }}</td>\n                            <td>{{ date.date | niceDate}}</td>\n                            <td><span :class="date.phase_class">{{ date.phase_label }}</span></td>\n                        </tr>\n                        </tbody>\n                    </table>\n                </div>\n            </div>\n            <!--pagination for today old appointments -->\n            <div class="contacts-pagination ">\n                <nav>\n                    <ul class="pagination">\n                        <li v-if="newOldDatePagination.current_page > 1">\n                            <a href="#" aria-label="Previous"\n                               @click.prevent="changePage(newOldDatePagination.current_page - 1,\'newOldDate\')">\n                                <span aria-hidden="true">&laquo;</span>\n                            </a>\n                        </li>\n                        <li v-for="page in datePagesNumber"\n                            v-bind:class="[ page == isNewOldDatePageActived ? \'active\' : \'\']">\n                            <a href="#" @click.prevent="changePage(page,\'newOldDate\')">{{ page }}</a>\n                        </li>\n                        <li v-if="newOldDatePagination.current_page < newOldDatePagination.last_page">\n                            <a href="#" aria-label="Next"\n                               @click.prevent="changePage(newOldDatePagination.current_page + 1,\'newOldDate\')">\n                                <span aria-hidden="true">&raquo;</span>\n                            </a>\n                        </li>\n                    </ul>\n                    <ul class="pagination">\n                        <li>\n                            <select v-model="newOldDatePagination.per_page"\n                                    v-selectpicker="newOldDatePagination.per_page"\n                                    @change="numPerPageChange(newOldDatePagination.per_page,\'newOldDate\')">\n                                <option v-for="opt in items_per_page" :value="opt.value">{{ opt.value }}</option>\n                            </select>\n                        </li>\n                    </ul>\n                </nav>\n            </div>\n            <!--end pagiantion for today old appointments-->\n            <div class="row">\n\n\n                <div class="col-md-12">\n                    <h4>Kommende Termine</h4>\n                    <table class="   table table-striped table-condensed">\n                        <thead>\n                        <tr>\n                            <th class="col-md-3">Name</th>\n                            <th class="col-md-3">Angelegt von</th>\n                            <th class="col-md-3">Datum</th>\n                            <th class="col-md-3">Phase</th>\n\n                        </tr>\n                        </thead>\n                        <tbody>\n                        <tr v-for="date in dates.dentist_dates.data | orderBy \'date\' 1">\n                            <td data-user-id="{{ date.patient.id }}">\n                                <a v-link="{ name: \'admin.dentistContactSingle\', params: { id: date.dentist_contact.id } }">\n                                    {{ date.dentist_contact.dentistmeta.name }}\n                                </a></td>\n                            <td>{{ date.user }}</td>\n                            <td>{{ date.date | niceDate}}</td>\n                            <td><span :class="date.phase_class">{{ date.phase_label }}</span></td>\n                        </tr>\n                        </tbody>\n                    </table>\n                </div>\n            </div>\n            <!--pagination for next appointments -->\n            <div class="contacts-pagination ">\n                <nav>\n                    <ul class="pagination">\n                        <li v-if="datePagination.current_page > 1">\n                            <a href="#" aria-label="Previous"\n                               @click.prevent="changePage(datePagination.current_page - 1,\'date\')">\n                                <span aria-hidden="true">&laquo;</span>\n                            </a>\n                        </li>\n                        <li v-for="page in datePagesNumber" v-bind:class="[ page == isDatePageActived ? \'active\' : \'\']">\n                            <a href="#" @click.prevent="changePage(page,\'date\')">{{ page }}</a>\n                        </li>\n                        <li v-if="datePagination.current_page < datePagination.last_page">\n                            <a href="#" aria-label="Next"\n                               @click.prevent="changePage(datePagination.current_page + 1,\'date\')">\n                                <span aria-hidden="true">&raquo;</span>\n                            </a>\n                        </li>\n                    </ul>\n                    <ul class="pagination">\n                        <li>\n                            <select v-model="datePagination.per_page" v-selectpicker="datePagination.per_page"\n                                    @change="numPerPageChange(datePagination.per_page,\'date\')">\n                                <option v-for="opt in items_per_page" :value="opt.value">{{ opt.value }}</option>\n                            </select>\n                        </li>\n                    </ul>\n                </nav>\n            </div>\n            <!--end pagiantion for next appointments-->\n            <div class="row">\n                <div class="col-md-12">\n                    <h4>Vergangene Termine</h4>\n                    <table class="table  table-striped table-condensed">\n                        <thead>\n                        <tr>\n                            <th>Name</th>\n                            <th>Angelegt von</th>\n                            <th>Datum</th>\n                            <th>Phase</th>\n                        </tr>\n                        </thead>\n                        <tbody>\n                        <tr v-for="date in dates.old_dates.data | orderBy \'date\' 1">\n                            <td data-user-id="{{ date.patient.id }}">\n                                <a v-link="{ name: \'admin.dentistContactSingle\', params: { id: date.dentist_contact.id } }">\n                                    {{ date.dentist_contact.dentistmeta.name }}\n                                </a></td>\n                            <td>{{ date.user }}</td>\n                            <td>{{ date.date | niceDate }}</td>\n                            <td><span :class="date.phase_class">{{ date.phase_label }}</span></td>\n                        </tr>\n                        </tbody>\n                    </table>\n                </div>\n            </div>\n            <!--pagination for old appointments -->\n            <div class="contacts-pagination ">\n                <nav>\n                    <ul class="pagination">\n                        <li v-if="oldDatePagination.current_page > 1">\n                            <a href="#" aria-label="Previous"\n                               @click.prevent="changePage(oldDatePagination.current_page - 1,\'oldDate\')">\n                                <span aria-hidden="true">&laquo;</span>\n                            </a>\n                        </li>\n                        <li v-for="page in oldDatePagesNumber"\n                            v-bind:class="[ page == isOldDatePageActived ? \'active\' : \'\']">\n                            <a href="#" @click.prevent="changePage(page,\'oldDate\')">{{ page }}</a>\n                        </li>\n                        <li v-if="oldDatePagination.current_page < oldDatePagination.last_page">\n                            <a href="#" aria-label="Next"\n                               @click.prevent="changePage(oldDatePagination.current_page + 1,\'oldDate)">\n                                <span aria-hidden="true">&raquo;</span>\n                            </a>\n                        </li>\n                    </ul>\n                    <ul class="pagination">\n                        <li>\n                            <select v-model="oldDatePagination.per_page" v-selectpicker="oldDatePagination.per_page"\n                                    @change="numPerPageChange(oldDatePagination.per_page,\'oldDate\')">\n                                <option v-for="opt in items_per_page" :value="opt.value">{{ opt.value }}</option>\n                            </select>\n                        </li>\n                    </ul>\n                </nav>\n            </div>\n            <!--end pagiantion for old appointments-->\n        </div>\n\n\n    </div>\n\n</div>\n</div>\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n';
-},{}],128:[function(require,module,exports){
+},{}],127:[function(require,module,exports){
 module.exports = '<div>\n    <div class="content">\n        <div class="box">\n            <h3>Labor-Bilder</h3>\n            <div class="row">\n                <div class="col-sm-6">\n                    <form action="/api/fileUpload" method="post" enctype="multipart/form-data">\n                        <input name="bilder[]" type="file" v-fileinput class="file" id="bilder" multiple>\n                        <input type="hidden" name="_token" id="csrf-token">\n                        <input type="hidden" name="lab_id" id="lab_id" value="{{ lab.id }}">\n                        <p>Mit dem Hochladen der Bilder bestätige ich, dass ich die Rechte besitze dieses Bild zu\n                            verwenden. Außerdem habe ich die schriftliche Bestätigung der zu sehenden Personen\n                            eingeholt, um das jeweilige Bild zu veröffentlichen.</p>\n                    </form>\n                    <hr/>\n                    <div v-sortable="{handle: \'.handle\', onUpdate: sortBilderImages}">\n                        <div class="col-md-4" v-if="images.bilder" v-for="image in images.bilder" :key="image.id">\n                            <img :src="image.url" alt="" class="img-rounded handle">\n                            <button style="position:absolute;top:0;right:0;" class="btn btn-xs btn-danger"\n                                    @click="delete(image.id)">Bild löschen\n                            </button>\n                        </div>\n                    </div>\n\n                    <div class="clearfix"></div>\n                    <!--<hr>\n                    <p><strong>Diese Bilder werden mittelfristig entfernt.</strong></p>\n                    <div class="col-sm-4" v-if="bild1">\n                        <img src="/img/laborbilder/bild1{{ lab.id }}_neu.jpg" alt="" class="img-rounded">\n                        <button style="position:absolute;top:0;right:0;" class="btn btn-xs btn-danger"\n                                @click="deleteImage(\'bild1\' + lab.id + \'_neu.jpg\', \'bild\')">Bild löschen\n                        </button>\n                    </div>\n                    <div class="col-sm-4" v-if="bild2">\n                        <img src="/img/laborbilder/bild2{{ lab.id }}_neu.jpg" alt="" class="img-rounded">\n                        <button style="position:absolute;top:0;right:0;" class="btn btn-xs btn-danger"\n                                @click="deleteImage(\'bild2\' + lab.id + \'_neu.jpg\', \'bild\')">Bild löschen\n                        </button>\n                    </div>\n                    <div class="col-sm-4" v-if="bild3">\n                        <img src="/img/laborbilder/bild3{{ lab.id }}_neu.jpg" alt="" class="img-rounded">\n                        <button style="position:absolute;top:0;right:0;" class="btn btn-xs btn-danger"\n                                @click="deleteImage(\'bild3\' + lab.id + \'_neu.jpg\', \'bild\')">Bild löschen\n                        </button>\n                    </div>\n                    <div class="col-sm-4" v-if="bild4">\n                        <img src="/img/laborbilder/bild4{{ lab.id }}_neu.jpg" alt="" class="img-rounded">\n                        <button style="position:absolute;top:0;right:0;" class="btn btn-xs btn-danger"\n                                @click="deleteImage(\'bild4\' + lab.id + \'_neu.jpg\', \'bild\')">Bild löschen\n                        </button>\n                    </div>\n                    <div class="col-sm-4" v-if="bild5">\n                        <img src="/img/laborbilder/bild5{{ lab.id }}_neu.jpg" alt="" class="img-rounded">\n                        <button style="position:absolute;top:0;right:0;" class="btn btn-xs btn-danger"\n                                @click="deleteImage(\'bild5\' + lab.id + \'_neu.jpg\', \'bild\')">Bild löschen\n                        </button>\n                    </div>\n                    <div class="col-sm-4" v-if="bild6">\n                        <img src="/img/laborbilder/bild6{{ lab.id }}_neu.jpg" alt="" class="img-rounded">\n                        <button style="position:absolute;top:0;right:0;" class="btn btn-xs btn-danger"\n                                @click="deleteImage(\'bild6\' + lab.id + \'_neu.jpg\', \'bild\')">Bild löschen\n                        </button>\n                    </div>-->\n                </div>\n                <div class="col-sm-6">\n                    <h3><strong>Hinweis:</strong></h3>\n                    <ul>\n                        <li>Mögliche Dateiformate: JPEG, PNG</li>\n                        <li>Maximale Dateigröße: 1 MB (Empfohlen: Unter 300 KB)</li>\n                        <li>Empfohlene Auflösung: Einheitlich bei allen Bildern</li>\n                        <li>Empfohlene Mindestbreite/Mindesthöhe: 300px</li>\n                        <li>Optimaler Hintergrund: Weiß</li>\n                    </ul>\n                </div>\n            </div>\n        </div>\n        <div class="box">\n            <h3>Labor-Zertifikate</h3>\n            <div class="row">\n                <div class="col-sm-6">\n                    <form action="/api/fileUpload" method="post" enctype="multipart/form-data">\n                        <input name="zert[]" type="file" v-fileinput class="file" id="zert" multiple>\n                        <input type="hidden" name="_token" id="csrf-token2">\n                        <input type="hidden" name="lab_id" id="lab_id" value="{{ lab.id }}">\n                        <p>Mit dem Hochladen der Bilder bestätige ich, dass ich die Rechte besitze dieses Bild zu\n                            verwenden. Außerdem habe ich die schriftliche Bestätigung der zu sehenden Personen\n                            eingeholt, um das jeweilige Bild zu veröffentlichen.</p>\n                    </form>\n                    <hr/>\n                    <div v-sortable="{handle: \'.handle\', onUpdate: sortZertImages}">\n                        <div class="col-md-4" v-if="images.zert" v-for="image in images.zert" :key="image.id">\n                            <img :src="image.url" alt="" class="img-rounded">\n                            <button style="position:absolute;top:0;right:0;" class="btn btn-xs btn-danger"\n                                    @click="delete(image.id)">Bild löschen\n                            </button>\n                        </div>\n                    </div>\n\n                    <div class="clearfix"></div>\n                    <hr>\n                    <!--<p><strong>Diese Bilder werden mittelfristig entfernt.</strong></p>\n                    <div class="col-sm-4" v-if="images.zert1">\n                        <img src="/img/zertifikate/zert1{{ lab.id }}_neu.jpg" alt="" class="img-rounded">\n                        <button style="position:absolute;top:0;right:0;" class="btn btn-xs btn-danger"\n                                @click="deleteImage(\'zert1\' + lab.id + \'_neu.jpg\', \'zert\')">Bild löschen\n                        </button>\n                    </div>\n                    <div class="col-sm-4" v-if="images.zert2">\n                        <img src="/img/zertifikate/zert2{{ lab.id }}_neu.jpg" alt="" class="img-rounded">\n                        <button style="position:absolute;top:0;right:0;" class="btn btn-xs btn-danger"\n                                @click="deleteImage(\'zert2\' + lab.id + \'_neu.jpg\', \'zert\')">Bild löschen\n                        </button>\n                    </div>\n                    <div class="col-sm-4" v-if="images.zert3">\n                        <img src="/img/zertifikate/zert3{{ lab.id }}_neu.jpg" alt="" class="img-rounded">\n                        <button style="position:absolute;top:0;right:0;" class="btn btn-xs btn-danger"\n                                @click="deleteImage(\'zert3\' + lab.id + \'_neu.jpg\', \'zert\')">Bild löschen\n                        </button>\n                    </div>\n                    <div class="col-sm-4" v-if="images.zert4">\n                        <img src="/img/zertifikate/zert4{{ lab.id }}_neu.jpg" alt="" class="img-rounded">\n                        <button style="position:absolute;top:0;right:0;" class="btn btn-xs btn-danger"\n                                @click="deleteImage(\'zert4\' + lab.id + \'_neu.jpg\', \'zert\')">Bild löschen\n                        </button>\n                    </div>\n                    <div class="col-sm-4" v-if="images.zert5">\n                        <img src="/img/zertifikate/zert5{{ lab.id }}_neu.jpg" alt="" class="img-rounded">\n                        <button style="position:absolute;top:0;right:0;" class="btn btn-xs btn-danger"\n                                @click="deleteImage(\'zert5\' + lab.id + \'_neu.jpg\', \'zert\')">Bild löschen\n                        </button>\n                    </div>-->\n                </div>\n                <div class="col-sm-6">\n                    <h3><strong>Hinweis:</strong></h3>\n                    <ul>\n                        <li>Mögliche Dateiformate: JPEG, PNG</li>\n                        <li>Maximale Dateigröße: 1 MB (Empfohlen: Unter 300 KB)</li>\n                        <li>Empfohlene Auflösung: Einheitlich bei allen Bildern</li>\n                        <li>Empfohlene Mindestbreite/Mindesthöhe: 300px</li>\n                        <li>Optimaler Hintergrund: Weiß</li>\n                    </ul>\n                </div>\n            </div>\n        </div>\n    </div>\n';
-},{}],129:[function(require,module,exports){
+},{}],128:[function(require,module,exports){
 module.exports = '<div class="content" id="main-content">\n    <div class="box stats-box" v-if="isAdmin">\n        <div class="container-fluid">\n            <div class="row">\n                <div class="col-md-4">\n                    <div class="stat">\n                        <div class="text">aktive Labore</div>\n                        <div class="number">{{ stats.countLabs }}</div>\n                    </div>\n                </div>\n                <div class="col-md-4">\n                    <div class="stat">\n                        <div class="text">Kontakte pro Labor</div>\n                        <div class="number">{{ stats.countContactPastThirtyDays / stats.countLabs | round }}</div>\n                        <div class="sub-text">\n                            <small>in den letzten 30 Tagen</small>\n                        </div>\n                    </div>\n                </div>\n                <div class="col-md-4">\n                </div>\n            </div>\n        </div>\n    </div>\n\n    <div class="row filter-row">\n        <div class="col-md-8">\n            <form class="filter-form">\n                <div class="form-group">\n                    <a href="/neues-labor" class="btn btn-primary" target="_blank">Neues Labor</a>\n                </div>\n            </form>\n        </div>\n    </div>\n    <div class="row filter-row">\n        <div class="col-md-8">\n            <form class="filter-form">\n                <div class="form-group">\n                    <label>Status:</label>\n                    <select id="status" v-model="filter.status.selected"\n                            v-selectpicker="[filter.status.selected, filterOptions.status.options]">\n                        <option v-for="status in filterOptions.status.options" v-bind:value="status.value">{{\n                            status.text }}\n                        </option>\n                    </select>\n                </div>\n                <div class="form-group">\n                    <label>Gruppe:</label>\n                    <select id="membership" v-model="filter.membership.selected"\n                            v-selectpicker="[filter.membership.selected, filterOptions.membership.options]">\n                        <option v-for="membership in filterOptions.membership.options" v-bind:value="membership.value">\n                            {{ membership.text }}\n                        </option>\n                    </select>\n                </div>\n\n\n                <div class="form-group" style="background:white; padding:10px; margin-left: 15px; border-radius:10px;">\n                    Hat Patienten anlegen CRM <input type="checkbox" id="checkbox" name="crm" v-model="filter.isCRM">\n                </div>\n\n\n                <div class="form-group"\n                     style="background:white; padding: 10px; margin-left: 15px; border-radius: 10px;">\n                    Hat Zahnarzt-CRM <input type="checkbox" id="checkbox" name="dentist-crm"\n                                            v-model="filter.isDentistCRM">\n                </div>\n\n                <!--<div class="form-group" style="background:white; padding: 10px; margin-left: 15px; border-radius: 10px;">\n                    Hat multiple user <input type="checkbox" id="checkbox" name="multiple-user" v-model="filter.isMultipleUser">\n                </div>-->\n            </form>\n        </div>\n\n\n        <div class="col-md-4">\n            <div class="filter-form ">\n                <div class="form-group ">\n                    <label>Suche:</label>\n                    <div class="input-group ">\n                        <input type="text " class="form-control " placeholder="Suchen... " v-model="search "\n                               id="search">\n                        <span class="input-group-btn ">\n                            <button class="btn btn-default " type="button "><i class="fa fa-search "\n                                                                               aria-hidden="true "></i></button>\n                        </span>\n                    </div>\n                </div>\n            </div>\n        </div>\n    </div>\n    <div class="box table-box">\n        <div class="table-meta-data ">Labore: {{ pagination.total }} | Seite: {{ pagination.current_page }} / {{\n            pagination.last_page }}\n        </div>\n        <div class="table-wrap">\n            <table class="table">\n                <thead>\n                <tr>\n                    <th class="sortable" @click="sortBy(\'id\')">#\n                    <th class="sortable" @click="sortBy(\'status\')"><i class="fa fa-circle dot"></i>\n                    <th class="sortable" @click="sortBy(\'name\')">Name\n                    <th class="sortable" @click="sortBy(\'labmeta.zip\')">PLZ\n                    <th class="sortable" @click="sortBy(\'labmeta.city\')"><i data-toggle="tooltip" data-placement="top"\n                                                                            title="Google Maps" class="fa fa-map-marker"\n                                                                            aria-hidden="true"></i> Stadt\n                    <th class="sortable text-right" @click="sortBy(\'labmeta.count\')">Aufrufe\n                    <th class="text-right">Kontakte<br>\n                        <small>(gesamt)</small>\n                    <th class="text-right">Kontakte<br>\n                        <small>(30 Tage)</small>\n                    <th class="text-right">Kontakte<br>\n                        <small>(7 Tage)</small>\n                    <th class="sortable" @click="sortBy(\'membership\')">Gruppe\n                    <th><i class="fa fa-globe" aria-hidden="true"></i></th>\n                    <th class="text-center"><i data-toggle="tooltip" data-placement="top" title="Direktlink"\n                                               class="fa fa-link" aria-hidden="true"></i>\n                    <th class="text-center"><i class="fa fa-sign-in" aria-hidden="true"></i></th>\n                <tbody>\n                <tr v-for="lab in labs">\n                    <td id="labid">{{ lab.id }}\n                    <td><i class="fa fa-circle dot" v-bind:class="(lab.status == \'aktiv\') ? \'activ\' : \'not-activ\'"\n                           aria-hidden="true"></i>\n                    <td><a v-link="{ name: \'admin.labSingle\', params: { id: lab.id } }"> {{ lab.name }}</a>\n                    <td>{{ lab.labmeta.zip }}\n                    <td><a\n                        href="http://maps.google.de/?hl=de&q={{ lab.name }}+{{ lab.labmeta.street }}+{{ lab.labmeta.city }}+{{ lab.labmeta.city }}"\n                        target="_blank"><i data-toggle="tooltip" data-placement="top" title="Google Maps"\n                                           class="fa fa-map-marker" aria-hidden="true"></i></a> {{ lab.labmeta.city }}\n                    <td class="text-right">{{ lab.labmeta.count }}\n                    <td class="text-right">{{ lab.all_patient_count[0].aggregate }}\n                    <td class="text-right">{{ lab.thirty_days_patient_count[0].aggregate }}\n                    <td class="text-right">{{ lab.seven_days_patient_count[0].aggregate }}\n                    <td>{{ lab.membership | translateMembership }}\n                    <th><a href="/labor/{{ lab.slug }}" target="_blank"><i class="fa fa-globe"\n                                                                           aria-hidden="true"></i></a></th>\n                    <td class="text-center"><i data-toggle="tooltip" data-placement="left"\n                                               title="Direktlink kopieren von {{ lab.name }}"\n                                               data-clipboard-text="http://{{ hostName }}/l/{{ lab.slug }}"\n                                               @click="clip" class="fa fa-link clip" aria-hidden="true"></i>\n                    <td class="text-center"><a href="/fl/{{ lab.user.id }}"><i data-toggle="tooltip"\n                                                                               data-placement="left"\n                                                                               title="Als {{ lab.name }} anmelden"\n                                                                               class="fa fa-sign-in"\n                                                                               aria-hidden="true"></i></a>\n            </table>\n        </div>\n        <div class="contacts-pagination ">\n            <nav>\n                <ul class="pagination ">\n                    <li v-if="pagination.current_page > 1">\n                        <a href="#" aria-label="Previous" @click.prevent="changePage(pagination.current_page - 1)">\n                            <span aria-hidden="true">&laquo;</span>\n                        </a>\n                    </li>\n                    <li v-for="page in pagesNumber" v-bind:class="[ page == isActived ? \'active\' : \'\']">\n                        <a href="#" @click.prevent="changePage(page)">{{ page }}</a>\n                    </li>\n                    <li v-if="pagination.current_page < pagination.last_page">\n                        <a href="#" aria-label="Next" @click.prevent="changePage(pagination.current_page + 1)">\n                            <span aria-hidden="true">&raquo;</span>\n                        </a>\n                    </li>\n                </ul>\n                <ul class="pagination">\n                    <li>\n                        <select v-model="pagination.per_page" v-selectpicker="pagination.per_page"\n                                @change="perpageChange(pagination.per_page)">\n                            <option v-for="opt in items_per_page" :value="opt.value">{{ opt.value }}</option>\n                        </select>\n                    </li>\n                </ul>\n            </nav>\n        </div>\n    </div>\n</div>\n';
-},{}],130:[function(require,module,exports){
+},{}],129:[function(require,module,exports){
 module.exports = '<div class="content">\n    <div class="box">\n        <div class="row">\n            <div class="col-md-10">\n                <div v-for="lab in labs">\n                    <div>\n                        <h3>Termineinstellungen <small>{{ lab.name }}</small></h3>\n                        <hr>\n                        <form class="form-horizontal">\n                            <div class="form-group" v-for="set in lab.settings" v-if="set.name != \'excluded_day\'">\n                                <label for="{{ set.description }}" class="col-sm-4 control-label">{{ set.description }}</label>\n                                <div class="col-sm-8">\n                                    <div class="input-group">\n                                        <input id="{{ set.description }}" class=" form-control" v-model="set.value" @keyup.enter="saveSetting(set)" @blur="saveSetting(set)">\n                                        <span class="input-group-addon" id="basic-addon2">Minuten</span>\n                                    </div>\n                                </div>\n                            </div>\n                            <hr>\n                            <div class="form-group">\n                                <label for="selectDay" class="col-sm-4 control-label">Terminzeitraum hinzufügen für:</label>\n                                <div class="col-sm-8">\n                                    <select v-model="selectDay" class="form-control" id="selectDay">\n                                        <option v-for="day in weekdays" v-bind:value="day.id">{{ day.name }}</option>\n                                    </select>\n                                </div>\n                            </div>\n                            <div class="form-group" v-for="timeFrame in lab.timeframes">\n                                <input type="hidden" v-model="timeFrame.day">\n                                <input type="hidden" v-model="timeFrame.day_of_week">\n                                <label for="" class="col-sm-4 control-label">{{ timeFrame.day_of_week | weekDayNames }}</label>\n                                <div class="col-sm-7">\n                                    <div class="row">\n                                        <div class="col-sm-6">\n                                            <div class="form-group">\n                                                <label for="" class="col-sm-2 control-label">von</label>\n                                                <div class="col-sm-10">\n                                                    <h5><span class="label label-success">{{ timeFrame.startTime }}</span></h5>\n                                                    <!--<input class="form-control" v-model="timeFrame.startTime" type="text">-->\n                                                </div>\n                                            </div>\n                                        </div>\n                                        <div class="col-sm-6">\n                                            <div class="form-group">\n                                                <label for="" class="col-sm-2 control-label">bis</label>\n                                                <div class="col-sm-10">\n                                                    <h5><span class="label label-success">{{ timeFrame.endTime }}</span></h5>\n                                                    <!--<input class="form-control" v-model="timeFrame.endTime" type="text">-->\n                                                </div>\n                                            </div>\n                                        </div>\n                                    </div>\n                                </div>\n                                <div class="col-sm-1">\n                                    <a href="#" class="action">\n                                        <i class="fa fa-trash control-label" aria-hidden="true" @click="removeTimeframe(timeFrame, lab)"></i>\n                                    </a>\n                                </div>\n                            </div>\n                            <div class="form-group" v-for="timeFrame in timeFrames">\n                                <input type="hidden" v-model="newTimeFrame.day" value="{{ timeFrame.day }}">\n                                <label for="" class="col-sm-4 control-label">{{ timeFrame.day | weekDayNames }}</label>\n                                <div class="col-sm-7">\n                                    <div class="row">\n                                        <div class="col-sm-6">\n                                            <div class="form-group">\n                                                <label for="" class="col-sm-2 control-label">von</label>\n                                                <div class="col-sm-10">\n                                                    <input class="form-control" v-model="timeFrame.startTime" type="text" name="startTime" value="{{ timeFrame.start }}">\n                                                </div>\n                                            </div>\n                                        </div>\n                                        <div class="col-sm-6">\n                                            <div class="form-group">\n                                                <label for="" class="col-sm-2 control-label">bis</label>\n                                                <div class="col-sm-10">\n                                                    <input class="form-control" v-model="timeFrame.endTime" type="text" name="endTime">\n                                                </div>\n                                            </div>\n                                        </div>\n                                    </div>\n                                </div>\n                                <div class="col-sm-1">\n                                    <i class="fa fa-trash control-label" aria-hidden="true" @click="removeNewTimeframe(timeFrame)"></i>\n                                </div>\n                            </div>\n                            <div class="form-group">\n                                <button type="button" @click="saveTimeFrames(lab)" class="btn btn-success pull-right">Terminzeiträume speichern</button>\n                            </div>\n                        </form>\n                        <hr/>\n                        <form class="form-horizontal">\n                            <h4>Termine freihalten</h4>\n                            <div class="form-group">\n                                <label for="excludeDay" class="col-sm-4 control-label">Tage an denen keine Termine gewünscht sind:</label>\n                                <div class="col-sm-2" class="trigger">\n                                    <label for="">Von</label>\n                                    <input v-datepicker="from" v-model="from" class="form-control">\n                                </div>\n                                <div class="col-sm-2" class="trigger">\n                                    <label for="">Bis einschließlich</label>\n                                    <input v-datepicker="till" v-model="till" class="form-control">\n                                </div>\n                            </div>\n                            <div class="form-group">\n                                <label for="excludeDay" class="col-sm-4 control-label"></label>\n                                <div class="col-sm-8">\n                                    <div class="btn btn-success" @click="saveDate(from, till)">Tage speichern</div>\n                                </div>\n                            </div>\n                            <p><strong>Tage, die freigehalten werden:</strong></p>\n                            <div class="form-group" v-for="day in excludedDays">\n                                <label for="" class="col-sm-4 control-label">Bitte keine Termine am: </label>\n                                <div class="col-sm-7">\n                                    <div class="row">\n                                        <div class="col-sm-6">\n                                            <div class="col-sm-12 label label-danger" style="line-height: 200%;">{{ day.day | weekDayNames }}</div>\n                                        </div>\n                                    </div>\n                                </div>\n                                <div class="col-sm-1">\n                                    <i class="fa fa-trash control-label" aria-hidden="true" @click="removeExcludedDay(day)"></i>\n                                </div>\n                            </div>\n                            <div class="form-group" v-for="block in excludedDayBlocks">\n                                <label for="" class="col-sm-4 control-label"></label>\n                                <div class="col-sm-7">\n                                    <div class="row">\n                                        <div class="col-sm-6">\n                                            <div class="label label-danger" style="line-height: 200%;">{{ block.from.format(\'DD-MM-YYYY\') }}<span v-if="block.to"> TO {{ block.to.format(\'DD-MM-YYYY\') }}</span></div>\n                                            <a href="#" class="action"><i class="fa fa-trash control-label" aria-hidden="true" @click="removeBlock(block)"></i>\n                                        </div>\n                                    </div>\n                                </div>\n                            </div>\n                            <!--<div class="form-group" v-for="day in lab.settings" v-if="day.name == \'excluded_day\'">\n                                <label for="" class="col-sm-4 control-label"></label>\n                                <div class="col-sm-7">\n                                    <div class="row">\n                                        <div class="col-sm-6">\n                                            <div class="label label-danger" style="line-height: 200%;">{{ day.value }}</div>\n                                            <a href="#" class="action"><i class="fa fa-trash control-label" aria-hidden="true" @click="removeSetting(day, lab)"></i>\n                                        </div>\n                                    </div>\n                                </div>\n                            </div>-->\n                        </form>\n                    </div>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n';
-},{}],131:[function(require,module,exports){
+},{}],130:[function(require,module,exports){
 module.exports = '<div>\n    <div class="content">\n        <div class="box stats-box" v-if="isAdmin">\n            <div class="row">\n                <div class="col-md-2">\n                    <div class="stat">\n                        <div class="text">Kontakte gesamt</div>\n                        <div class="number">{{ lab.patients.length }} / {{ lab.patients | filterBy \'1\' in \'confirmed\' |\n                            count }} / <span class="green">{{ lab.patients | filterBy \'5\' in \'phase\' | count }}</span>\n                        </div>\n                        <small>insges./bestät./Auftrag</small>\n                    </div>\n                </div>\n                <div class="col-md-2">\n                    <div class="stat">\n                        <div class="text">Kontakte (dieser Monat)</div>\n                        <div class="number">{{ status.month }}</div>\n                    </div>\n                </div>\n                <div class="col-md-2">\n                    <div class="stat">\n                        <div class="text">Kontakte (30 Tage)</div>\n                        <div class="number">{{ status.thirtydays }}</div>\n                    </div>\n                </div>\n                <div class="col-md-2">\n                    <div class="stat">\n                        <div class="text">Kontakte (7Tage)</div>\n                        <div class="number">{{ status.sevendays }}</div>\n                    </div>\n                </div>\n                <div class="col-md-2">\n                    <div class="stat">\n                        <div class="text">Logins</div>\n                        <div class="number">{{ status.logins }}</div>\n                    </div>\n                </div>\n                <div class="col-md-2">\n                    <div class="stat">\n                        <div class="text">Termine</div>\n                        <div class="number">{{ status.dates }}</div>\n                    </div>\n                </div>\n            </div>\n        </div>\n        <div class="box">\n            <h3>Profil bearbeiten</h3>\n            <div class="row">\n                <form class="form-horizontal col-md-7">\n                    <div class="form-group">\n                        <div class="col-md-4 control-label">\n                            <label for="welcometext">Begrüßungstext</label>\n                            <span class="help-block">Maximal 25 Wörter.</span>\n                        </div>\n                        <div class="col-md-8">\n                            <textarea name="" id="" cols="30" rows="10" class="form-control"\n                                      v-model="lab.labmeta.hello">{{ lab.labmeta.hello }}</textarea>\n                        </div>\n                    </div>\n                    <hr>\n                    <div class="form-group">\n                        <div class="col-md-4 control-label">\n                            <label for="welcometext">Spezielle Leistungen</label>\n                            <span class="help-block">Was macht Sie einzigartig? Auf welchen Gebieten sind Sie spezialisiert?</span>\n                        </div>\n                        <div class="col-md-8">\n                            <p>\n                                <input type="text" class="form-control" @blur="saveLab" v-model="lab.labmeta.special1">\n                            <p>\n                                <input type="text" class="form-control" @blur="saveLab" v-model="lab.labmeta.special2">\n                            <p>\n                                <input type="text" class="form-control" @blur="saveLab" v-model="lab.labmeta.special3">\n                            <p>\n                                <input type="text" class="form-control" @blur="saveLab" v-model="lab.labmeta.special4">\n                            <p>\n                                <input type="text" class="form-control" @blur="saveLab" v-model="lab.labmeta.special5">\n                        </div>\n                    </div>\n                    <hr>\n                    <div class="form-group">\n                        <div class="col-md-4 control-label">\n                            <label for="moretext">Weiterer Text</label>\n                            <span class="help-block">Maximal 150 Wörter.</span>\n                        </div>\n                        <div class="col-md-8">\n                            <textarea name="" id="" cols="30" rows="10" class="form-control" v-model="lab.labmeta.text"\n                                      @blur="saveLab">{{ lab.labmeta.text }}</textarea>\n                        </div>\n                    </div>\n                    <div class="row">\n                        <div class="col-md-8 col-md-offset-4">\n                            <button type="button" class="btn btn-primary" @click="saveLab">Speichern</button>\n                        </div>\n                    </div>\n                </form>\n                <div class="col-md-5">\n                    <h4>Logo</h4>\n                    <p>Jpg-Datei, min. 300 px in Breite und Höhe, Hoch-/Querformat/quadratische Form möglich, im\n                        Optimalfall mit weißem Hintergrund</p>\n                    <form action="/api/fileUpload" method="post" enctype="multipart/form-data">\n                        <input name="logo" type="file" v-fileinput class="file" id="logo">\n                        <input type="hidden" name="_token" id="csrf-token">\n                        <p>Mit dem Hochladen der Bilder bestätige ich, dass ich die Rechte besitze dieses Bild zu\n                            verwenden. Außerdem habe ich die schriftliche Bestätigung der zu sehenden Personen\n                            eingeholt, um das jeweilige Bild zu veröffentlichen.</p>\n                        <input type="hidden" name="lab_id" id="lab_id" value="{{ lab.id }}">\n                    </form>\n                    <p v-if="images.logo"><img :src="images.logo.url" alt="">\n                    <p v-else><img src="/img/logos/logo{{ lab.id }}_neu.jpg" alt="">\n                    <p><a v-link="{ name: \'lab.edit.images\' }" class="btn btn-primary">\n                        Bilder und Zertifikate hochladen</a></p>\n                </div>\n            </div>\n        </div>\n        <div class="box">\n            <h3>Kontaktdaten / Ansprechpartner</h3>\n            <div class="row">\n                <form class="form-horizontal col-md-8">\n                    <div class="form-group">\n                        <label for="labname" class="col-md-4 control-label">Name des Labors</label>\n                        <div class="col-md-8">\n                            <input type="text" class="form-control" id="labname" v-model="lab.name" @blur="saveLab">\n                        </div>\n                    </div>\n                    <div class="form-group" v-if="isAdmin">\n                        <label for="labslug" class="col-md-4 control-label">URL</label>\n                        <div class="col-md-8">\n                            <input type="text" class="form-control" id="labslug" v-model="lab.slug" @blur="saveLab">\n                        </div>\n                    </div>\n                    <div class="form-group">\n                        <label for="username" class="col-md-4 control-label">Benutzername</label>\n                        <div class="col-md-8">\n                            <input type="text" class="form-control" id="username" v-model="lab.user.name"\n                                   @blur="saveLab">\n                        </div>\n                    </div>\n                    <div class="form-group">\n                        <label for="contactname" class="col-md-4 control-label">Ansprechpartner</label>\n                        <div class="col-md-8">\n                            <input type="text" class="form-control" id="contactname"\n                                   v-model="lab.labmeta.contact_person" @blur="saveLab">\n                        </div>\n                    </div>\n                    <!--div class="form-group">\n                        <label for="contactname" class="col-md-4 control-label">Webseite</label>\n                        <div class="col-md-8">\n                            <input type="text" class="form-control" id="contactname" v-model="lab.labmeta.url" @blur="saveLab">\n                        </div>\n                    </div-->\n                    <div class="form-group">\n                        <label for="street" class="col-md-4 control-label">Straße, Hausnummer</label>\n                        <div class="col-md-8">\n                            <input type="text" class="form-control" id="street" v-model="lab.labmeta.street"\n                                   @blur="saveLab">\n                        </div>\n                    </div>\n                    <div class="form-group">\n                        <label for="plz" class="col-md-4 control-label">PLZ, Ort</label>\n                        <div class="col-md-4">\n                            <input type="text" class="form-control" id="plz" v-model="lab.labmeta.zip" @blur="saveLab">\n                        </div>\n                        <div class="col-md-4">\n                            <input type="text" class="form-control" id="city" v-model="lab.labmeta.city"\n                                   @blur="saveLab">\n                        </div>\n                    </div>\n                    <div class="form-group">\n                        <label for="plz" class="col-md-4 control-label">Land</label>\n                        <div class="col-md-8">\n                            <select name="country_code" class="form-control" @change="saveLab"\n                                    v-model="lab.labmeta.country_code">\n                                <option v-for="country_code in country_codes" v-bind:value="country_code.key">\n                                    {{ country_code.name }}\n                                </option>\n                            </select>\n                        </div>\n                        <div class="col-md-4">\n\n                        </div>\n                    </div>\n                    <div class="form-group">\n                        <label for="tel" class="col-md-4 control-label">Telefonnummer</label>\n                        <div class="col-md-8">\n                            <input type="text" class="form-control" id="tel" v-model="lab.labmeta.tel" @blur="saveLab">\n                        </div>\n                    </div>\n                    <div class="row">\n                        <div class="col-md-8 col-md-offset-4">\n                            <button type="button" class="btn btn-primary" @click="saveLab">Speichern</button>\n                        </div>\n                    </div>\n                </form>\n                <div class="col-md-4">\n                    <h4>Portraitfoto Ansprechpartner</h4>\n                    <p>Jpg-Datei, min. 300 px in Breite und Höhe, Hochformat, Seitenverhältnis 2:3 oder 3:4, im\n                        Optimalfall mit hellem Hintergrund\n                    <form action="/api/fileUpload" method="post" enctype="multipart/form-data">\n                        <input type="file" id="kontaktfoto" v-fileinput name="kontaktfoto" @change="uploadaFile">\n                        <input type="hidden" name="_token" id="csrf-token2">\n                        <p>Mit dem Hochladen der Bilder bestätige ich, dass ich die Rechte besitze dieses Bild zu\n                        verwenden. Außerdem habe ich die schriftliche Bestätigung der zu sehenden Personen\n                        eingeholt, um das jeweilige Bild zu veröffentlichen.</p>\n                        <input type="hidden" name="lab_id" id="lab_id" value="{{ lab.id }}">\n                    </form>\n                    <p v-if="images.kontaktfoto"><img :src="images.kontaktfoto.url" alt="">\n                    <p v-else><img src="/img/kontaktfotos/foto{{ lab.id }}_neu.jpg" alt="">\n                </div>\n            </div>\n        </div>\n        <div class="box">\n            <h3>Zugangsdaten</h3>\n            <div class="row">\n                <form class="form-horizontal col-md-6">\n                    <div class="form-group">\n                        <label for="email" class="col-md-4 control-label">E-Mail-Adresse</label>\n                        <div class="col-md-8">\n                            <input type="email" class="form-control" id="email" v-model="lab.user.email">\n                        </div>\n                    </div>\n                    <div class="form-group">\n                        <label for="email-again" class="col-md-4 control-label">E-Mail-Adresse wiederholen</label>\n                        <div class="col-md-8">\n                            <input type="email" class="form-control" id="email-again">\n                        </div>\n                    </div>\n                    <div class="row">\n                        <div class="col-md-8 col-md-offset-4">\n                            <button type="submit" class="btn btn-primary" @click="saveEmail">E-Mail-Adresse Speichern\n                            </button>\n                        </div>\n                    </div>\n                </form>\n                <form class="form-horizontal col-md-6">\n                    <div class="form-group">\n                        <label for="password" class="col-md-4 control-label">Passwort</label>\n                        <div class="col-md-8">\n                            <input type="password" class="form-control" id="password" v-model="password">\n                        </div>\n                    </div>\n                    <div class="form-group">\n                        <label for="password_confrimation" class="col-md-4 control-label">Passwort wiederholen</label>\n                        <div class="col-md-8">\n                            <input type="password" class="form-control" id="password_confirmation">\n                        </div>\n                    </div>\n                    <div class="row">\n                        <div class="col-md-8 col-md-offset-4">\n                            <button type="submit" class="btn btn-primary" @click="savePassword">Passwort speichern\n                            </button>\n                        </div>\n                    </div>\n                </form>\n            </div>\n        </div>\n        <div class="box" v-if="isAdmin">\n            <h3>Gruppe</h3>\n            <div class="row">\n                <form class="form-horizontal col-md-8">\n                    <div class="form-group">\n                        <label for="gruppe" class="control-label col-md-4">Gruppe</label>\n                        <div class="col-md-8">\n                            <select name="gruppe" class="form-control" @change="saveLab" v-model="lab.membership">\n                                <option v-for="group in groups" v-bind:value="group.key">\n                                    {{ group.name }}\n                                </option>\n                            </select>\n\n                        </div>\n                    </div>\n                </form>\n            </div>\n\n\n        </div>\n        <div class="box" v-if="isAdmin">\n            <h3>Status</h3>\n            <div class="row">\n                <form class="form-horizontal col-md-8">\n                    <div class="form-group">\n                        <label for="status" class="control-label col-md-4">Laborstatus</label>\n                        <div class="col-md-8">\n                            <select id="status" v-model="lab.status">\n                                <option v-for="status in stati" v-bind:value="status.key">{{ status.name }}</option>\n                            </select>\n                        </div>\n                    </div>\n                </form>\n            </div>\n        </div>\n        <div class="box" v-if="isAdmin">\n            <h3>Login</h3>\n            <div class="row">\n                <form class="form-horizontal col-md-8">\n                    <div class="form-group">\n                        <label for="status" class="control-label col-md-4">Laborlogin</label>\n                        <div class="col-md-8">\n                            <select id="allowlogin" v-model="lab.user.allowlogin">\n                                <option v-for="al in allowlogin" v-bind:value="al.key">{{ al.name }}</option>\n                            </select>\n                        </div>\n                    </div>\n                </form>\n            </div>\n        </div>\n        <div class="box" v-if="isAdmin">\n            <div class="row">\n                <form class="form-horizontal col-md-12">\n                    <div class="form-group">\n                        <button type="button" v-if="hasCrmAccess" @click.prevent="toggleCrmAccess"\n                                class="btn btn-danger" style="margin-right: 10px;">Patienten anlegen CRM Zugriff\n                            deaktivieren\n                        </button>\n                        <button type="button" v-else @click.prevent="toggleCrmAccess" class="btn btn-success"\n                                style="margin-right: 10px;">Patienten anlegen CRM\n                            Zugriff aktivieren\n                        </button>\n\n\n                        <button type="button" v-if="hasDentistCrmAccess" @click.prevent="toggleDentistCrmAccess"\n                                class="btn btn-danger" style="margin-right: 10px;">Zahnarzt-CRM Zugriff deaktivieren\n                        </button>\n                        <button type="button" v-else @click.prevent="toggleDentistCrmAccess" class="btn btn-success"\n                                style="margin-right: 10px;">Zahnarzt-CRM\n                            Zugriff aktivieren\n                        </button>\n\n\n                        <!--<button type="button" v-if="hasExtraUsers" @click.prevent="toggleHasExtraUsers"\n                                class="btn btn-danger" style="margin-right: 10px;">Deactivate multiple lab users\n                        </button>\n                        <button type="button" v-else @click.prevent="toggleHasExtraUsers" class="btn btn-success"\n                                style="margin-right: 10px;">\n                            Activate multiple lab users\n                        </button>-->\n\n                    </div>\n                </form>\n            </div>\n        </div>\n\n\n        <div class="box table-box" v-if="isAdmin && lab.users.length">\n            <div class="table-wrap">\n                <table class="table">\n                    <thead>\n                    <tr>\n                        <th><i class="fa fa-circle dot"></i>\n                        <th>Name\n                        <th>Email\n                        <th>Login erlauben\n                        <th><i class="fa fa-sign-in" aria-hidden="true"></i>\n                    <tbody>\n                    <tr v-for="user in lab.users" v-if="lab.users.length">\n                        <td><i class="fa fa-circle dot" v-bind:class="(user.status == \'Aktiv\') ? \'activ\' : \'not-activ\'"\n                               aria-hidden="true"></i>\n                        <td>{{ user.name }}\n                        <td><a href="mailto:{{ user.email }} "><i class="fa fa-envelope-o " aria-hidden="true "></i></a>\n                            {{ user.email }}\n                        <td>\n                            <span v-if="user.allowlogin == \'allow\'">Aktiv</span>\n                            <span v-else>Inaktiv</span>\n                        </td>\n\n                        <td><a href="/fl/{{ user.id }}"><i data-toggle="tooltip" data-placement="left"\n                                                           title="Als {{ lab.name }} anmelden" class="fa fa-sign-in"\n                                                           aria-hidden="true"></i></a>\n                </table>\n            </div>\n        </div>\n\n        <a v-if="isAdmin" @click="removeLab(lab.id)" class="btn btn-danger">Labor löschen</a>\n\n    </div>\n</div>\n';
-},{}],132:[function(require,module,exports){
+},{}],131:[function(require,module,exports){
 module.exports = '<div>\n    <div class="content">\n        <div class="row">\n\n\n            <div class="col-md-6">\n                <div class="box">\n                    <h4>Termine heute\n                        <small>(bevorstehend)</small>\n                    </h4>\n                    <table class="table table-striped table-condensed">\n                        <thead>\n                        <tr>\n                            <th class="col-md-3">Name</th>\n                            <th class="col-md-3">Angelegt von</th>\n                            <th class="col-md-3">Datum</th>\n                            <th class="col-md-3">Phase</th>\n                        </tr>\n                        </thead>\n                        <tbody>\n                        <tr v-for="date in dates.today_new.data | orderBy \'date\' 1">\n                            <td data-user-id="{{ date.patient.id }}"><a\n                                v-link="{ name: \'admin.contactSingle\', params: { id: date.patient.id } }">{{\n                                date.patient.patientmeta.name }}</a></td>\n                            <td>{{ date.user }}</td>\n                            <td>{{ niceDate(date.date) }}</td>\n                            <td><span :class="date.phase_class">{{ date.phase_label }}</span></td>\n                        </tr>\n                        </tbody>\n                    </table>\n\n                    <!--pagination for today old appointments\n                    <div class="contacts-pagination ">\n                      <nav>\n                        <ul class="pagination">\n                          <li v-if="newNowDatePagination.current_page > 1">\n                            <a href="#" aria-label="Previous" @click.prevent="changePage(newNowDatePagination.current_page - 1,\'newNowDate\')">\n                              <span aria-hidden="true">&laquo;</span>\n                            </a>\n                          </li>\n                          <li v-for="page in datePagesNumber" v-bind:class="[ page == isNewNowDatePageActived ? \'active\' : \'\']">\n                            <a href="#" @click.prevent="changePage(page,\'newNowDate\')">{{ page }}</a>\n                          </li>\n                          <li v-if="newNowDatePagination.current_page < newNowDatePagination.last_page">\n                            <a href="#" aria-label="Next" @click.prevent="changePage(newNowDatePagination.current_page + 1,\'newNowDate\')">\n                              <span aria-hidden="true">&raquo;</span>\n                            </a>\n                          </li>\n                        </ul>\n                        <ul class="pagination">\n                          <li>\n                            <select v-model="newNowDatePagination.per_page" v-selectpicker="newNowDatePagination.per_page"\n                                    @change="numPerPageChange(newNowDatePagination.per_page,\'newNowDate\')">\n                              <option v-for="opt in items_per_page" :value="opt.value">{{ opt.value }}</option>\n                            </select>\n                          </li>\n                        </ul>\n                      </nav>\n                    </div>\n                    end pagiantion for today old appointments-->\n                </div>\n\n\n                <div class="box">\n                    <h4>Termine heute\n                        <small>(vergangen)</small>\n                    </h4>\n                    <table class="table table-striped table-condensed">\n                        <thead>\n                        <tr>\n                            <th class="col-md-3">Name</th>\n                            <th class="col-md-3">Angelegt von</th>\n                            <th class="col-md-3">Datum</th>\n                            <th class="col-md-3">Phase</th>\n                        </tr>\n                        </thead>\n                        <tbody>\n                        <tr v-for="date in dates.today_old.data | orderBy \'date\' 1">\n                            <td data-user-id="{{ date.patient.id }}"><a\n                                v-link="{ name: \'admin.contactSingle\', params: { id: date.patient.id } }">{{\n                                date.patient.patientmeta.name }}</a></td>\n                            <td>{{ date.user }}</td>\n                            <td>{{ niceDate(date.date) }}</td>\n                            <td><span :class="date.phase_class">{{ date.phase_label }}</span></td>\n                        </tr>\n                        </tbody>\n                    </table>\n\n\n                    <!--pagination for today old appointments\n                    <div class="contacts-pagination ">\n                      <nav>\n                        <ul class="pagination">\n                          <li v-if="newOldDatePagination.current_page > 1">\n                            <a href="#" aria-label="Previous" @click.prevent="changePage(newOldDatePagination.current_page - 1,\'newOldDate\')">\n                              <span aria-hidden="true">&laquo;</span>\n                            </a>\n                          </li>\n                          <li v-for="page in datePagesNumber" v-bind:class="[ page == isNewOldDatePageActived ? \'active\' : \'\']">\n                            <a href="#" @click.prevent="changePage(page,\'newOldDate\')">{{ page }}</a>\n                          </li>\n                          <li v-if="newOldDatePagination.current_page < newOldDatePagination.last_page">\n                            <a href="#" aria-label="Next" @click.prevent="changePage(newOldDatePagination.current_page + 1,\'newOldDate\')">\n                              <span aria-hidden="true">&raquo;</span>\n                            </a>\n                          </li>\n                        </ul>\n                        <ul class="pagination">\n                          <li>\n                            <select v-model="newOldDatePagination.per_page" v-selectpicker="newOldDatePagination.per_page"\n                                    @change="numPerPageChange(newOldDatePagination.per_page,\'newOldDate\')">\n                              <option v-for="opt in items_per_page" :value="opt.value">{{ opt.value }}</option>\n                            </select>\n                          </li>\n                        </ul>\n                      </nav>\n                    </div>\n                    end pagiantion for today old appointments-->\n                </div>\n            </div>\n\n\n            <div class="col-md-6">\n                <div class="box">\n                    <h4>Kommende Termine</h4>\n                    <table class="table table-striped table-condensed">\n                        <thead>\n                        <tr>\n                            <th class="col-md-3">Name</th>\n                            <th class="col-md-3">Angelegt von</th>\n                            <th class="col-md-3">Datum</th>\n                            <th class="col-md-3">Phase</th>\n\n                        </tr>\n                        </thead>\n                        <tbody>\n                        <tr v-for="date in dates.dates.data | orderBy \'date\' 1">\n                            <td data-user-id="{{ date.patient.id }}"><a\n                                v-link="{ name: \'admin.contactSingle\', params: { id: date.patient.id } }">{{\n                                date.patient.patientmeta.name }}</a></td>\n                            <td>{{ date.user }}</td>\n                            <td>{{ niceDate(date.date) }}</td>\n                            <td><span :class="date.phase_class">{{ date.phase_label }}</span></td>\n                        </tr>\n                        </tbody>\n                    </table>\n\n                    <!--pagination for next appointments\n                    <div class="contacts-pagination ">\n                      <nav>\n                        <ul class="pagination">\n                          <li v-if="datePagination.current_page > 1">\n                            <a href="#" aria-label="Previous" @click.prevent="changePage(datePagination.current_page - 1,\'date\')">\n                              <span aria-hidden="true">&laquo;</span>\n                            </a>\n                          </li>\n                          <li v-for="page in datePagesNumber" v-bind:class="[ page == isDatePageActived ? \'active\' : \'\']">\n                            <a href="#" @click.prevent="changePage(page,\'date\')">{{ page }}</a>\n                          </li>\n                          <li v-if="datePagination.current_page < datePagination.last_page">\n                            <a href="#" aria-label="Next" @click.prevent="changePage(datePagination.current_page + 1,\'date\')">\n                              <span aria-hidden="true">&raquo;</span>\n                            </a>\n                          </li>\n                        </ul>\n                        <ul class="pagination">\n                          <li>\n                            <select v-model="datePagination.per_page" v-selectpicker="datePagination.per_page"\n                                    @change="numPerPageChange(datePagination.per_page,\'date\')">\n                              <option v-for="opt in items_per_page" :value="opt.value">{{ opt.value }}</option>\n                            </select>\n                          </li>\n                        </ul>\n                      </nav>\n                    </div>\n                    end pagiantion for next appointments-->\n                </div>\n            </div>\n        </div>\n\n\n        <div class="row">\n            <div class="col-md-12">\n                <div class="box">\n                    <h4>Vergangene Termine</h4>\n                    <table class="table  table-striped table-condensed">\n                        <thead>\n                        <tr>\n                            <th>Name</th>\n                            <th>Angelegt von</th>\n                            <th>Datum</th>\n                            <th>Phase</th>\n                        </tr>\n                        </thead>\n                        <tbody>\n                        <tr v-for="date in dates.old_dates.data | orderBy \'date\' -1">\n                            <td data-patient-id="{{ date.patient_id }}" data-date-id="{{ date.id }}"\n                                data-user-id="{{ date.patient.id }}"><a\n                                v-link="{ name: \'admin.contactSingle\', params: { id: date.patient.id } }">{{\n                                date.patient.patientmeta.name }}</a></td>\n                            <td>{{ date.user }}</td>\n                            <td>{{ niceDate(date.date) }}</td>\n                            <td><span :class="date.phase_class">{{ date.phase_label }}</span></td>\n                        </tr>\n                        </tbody>\n                    </table>\n\n                    <!--pagination for old appointments\n                    <div class="contacts-pagination ">\n                      <nav>\n                        <ul class="pagination">\n                          <li v-if="oldDatePagination.current_page > 1">\n                            <a href="#" aria-label="Previous" @click.prevent="changePage(oldDatePagination.current_page - 1,\'oldDate\')">\n                              <span aria-hidden="true">&laquo;</span>\n                            </a>\n                          </li>\n                          <li v-for="page in oldDatePagesNumber" v-bind:class="[ page == isOldDatePageActived ? \'active\' : \'\']">\n                            <a href="#" @click.prevent="changePage(page,\'oldDate\')">{{ page }}</a>\n                          </li>\n                          <li v-if="oldDatePagination.current_page < oldDatePagination.last_page">\n                            <a href="#" aria-label="Next" @click.prevent="changePage(oldDatePagination.current_page + 1,\'oldDate)">\n                              <span aria-hidden="true">&raquo;</span>\n                            </a>\n                          </li>\n                        </ul>\n                        <ul class="pagination">\n                          <li>\n                            <select v-model="oldDatePagination.per_page" v-selectpicker="oldDatePagination.per_page"\n                                    @change="numPerPageChange(oldDatePagination.per_page,\'oldDate\')">\n                              <option v-for="opt in items_per_page"  :value="opt.value">{{ opt.value }}</option>\n                            </select>\n                          </li>\n                        </ul>\n                      </nav>\n                    </div>\n                    end pagiantion for old appointments-->\n                </div>\n            </div>\n        </div>\n\n\n    </div>\n</div>';
-},{}],133:[function(require,module,exports){
+},{}],132:[function(require,module,exports){
 module.exports = '<div>\n  <div class="content">\n   <div class="box">\n      <!--pre>{{ account | json }}</pre-->\n      <validator name="newLabValidator">\n        <section class="login-credentials">\n          <h2>Zugangsdaten</h2>\n          <hr>\n          <div class="row">\n            <form class="form-horizontal col-md-7" novalidate>\n              <div class="form-group">\n                <label for="name" class="col-md-4 control-label">Name</label>\n                <div class="col-md-8">\n                  <input type="text" name="username" v-validate:username="[\'required\']" class="form-control" id="name" v-model="account.user.name">\n                </div>\n              </div>\n              <div class="form-group">\n                <label for="email" class="col-md-4 control-label">E-Mail-Adresse</label>\n                <div class="col-md-8">\n                  <input type="email" class="form-control" id="email" v-validate:email="[\'required\']" v-model="account.user.email">\n                </div>\n              </div>\n              <div class="form-group">\n                <label for="password" class="col-md-4 control-label">Passwort</label>\n                <div class="col-md-8">\n                  <input type="password" class="form-control" name="password" v-validate:password="[\'required\']" id="password" v-model="account.user.password">\n                </div>\n              </div>\n            </form>\n          </div>\n        </section>\n\n        <section class="contact-person-data">\n          <h2>Kontaktdaten / Ansprechpartner</h2>\n          <hr>\n          <div class="row">\n            <form class="form-horizontal col-md-7">\n              <div class="form-group">\n                <label for="labname" class="col-md-4 control-label">Name des Labors</label>\n                <div class="col-md-8">\n                  <input type="text" class="form-control" id="labname" name="labname" v-validate:labname="[\'required\']" v-model="account.lab.name">\n                </div>\n              </div>\n              <div class="form-group">\n                <label for="contactname" class="col-md-4 control-label">Ansprechpartner</label>\n                <div class="col-md-8">\n                  <input type="text" class="form-control" id="contactname" name="contactname" v-validate:contactname="[\'required\']" v-model="account.labmeta.contact_person">\n                </div>\n              </div>\n              <!--div class="form-group">\n                <label for="contactname" class="col-md-4 control-label">Webseite</label>\n                <div class="col-md-8">\n                  <input type="text" class="form-control" id="laburl" name="laburl" v-validate:laburl="[\'required\']" v-model="account.labmeta.url">\n                </div>\n              </div-->\n              <div class="form-group">\n                <label for="street" class="col-md-4 control-label">Straße, Hausnummer</label>\n                <div class="col-md-8">\n                  <input type="text" class="form-control" id="street" name="street" v-validate:street="[\'required\']" v-model="account.labmeta.street">\n                </div>\n              </div>\n              <div class="form-group">\n                <label for="plz" class="col-md-4 control-label">PLZ, Ort</label>\n                <div class="col-md-4">\n                  <input type="text" class="form-control" id="zip" name="zip" v-validate:zip="[\'required\']" v-model="account.labmeta.zip">\n                </div>\n                <div class="col-md-4">\n                  <input type="text" class="form-control" id="city" name="city" v-validate:city="[\'required\']" v-model="account.labmeta.city">\n                </div>\n              </div>\n              <div class="form-group">\n                <label for="tel" class="col-md-4 control-label">Telefonnummer</label>\n                <div class="col-md-8">\n                  <input type="text" class="form-control" id="tel" name="tel" v-validate:tel="[\'required\']" v-model="account.labmeta.tel">\n                </div>\n              </div>\n\n              <div class="form-group">\n                <label for="street" class="col-md-4 control-label">E-Mail-Adresse</label>\n                <div class="col-md-8">\n                  <input type="email" class="form-control" id="contactemail" name="contactemail" v-validate:contactmail="[\'required\']" v-model="account.labmeta.contact_email">\n                </div>\n              </div>\n            </form>\n            <div class="col-md-4">\n              <!--h4>Portraitfoto Ansprechpartner</h4>\n              <p>Jpg-Datei, min. 300 px in Breite und Höhe, Hochformat, Seitenverhältnis 2:3 oder 3:4, im Optimalfall mit hellem Hintergrund\n              <p><input type="file">\n              <p><img src="http://padento.de/img/foto74_200small.jpg" alt=""-->\n            </div>\n          </div>\n        </section>\n\n        <section class="profile-data">\n          <h2>Profil</h2>\n          <hr>\n          <div class="row">\n            <form class="form-horizontal col-md-7">\n              <div class="form-group">\n                <div class="col-md-4 control-label">\n                  <label for="welcometext">Begrüßungstext</label>\n                  <span class="help-block">Maximal 25 Wörter.</span>\n                </div>\n                <div class="col-md-8">\n                  <textarea name="" id="" cols="30" rows="10" class="form-control"  v-model="account.labmeta.hello">{{ labmeta.hello }}</textarea>\n                </div>\n              </div>\n              <hr>\n              <div class="form-group">\n                <div class="col-md-4 control-label">\n                  <label for="welcometext">Spezielle Leistungen</label>\n                  <span class="help-block">Was macht Sie einzigartig? Auf welchen Gebieten sind Sie spezialisiert?</span>\n                </div>\n                <div class="col-md-8">\n                  <p><input type="text" class="form-control"  v-model="account.labmeta.special1">\n                  <p><input type="text" class="form-control"  v-model="account.labmeta.special2">\n                  <p><input type="text" class="form-control"  v-model="account.labmeta.special3">\n                  <p><input type="text" class="form-control"  v-model="account.labmeta.special4">\n                  <p><input type="text" class="form-control"  v-model="account.labmeta.special5">\n                </div>\n              </div>\n              <hr>\n              <div class="form-group">\n                <div class="col-md-4 control-label">\n                  <label for="moretext">Weiterer Text</label>\n                  <span class="help-block">Maximal 150 Wörter.</span>\n                </div>\n                <div class="col-md-8">\n                  <textarea name="" id="" cols="30" rows="10" class="form-control"  v-model="account.labmeta.text">{{ labmeta.text }}</textarea>\n                </div>\n              </div>\n            </form>\n            <div class="col-md-5">\n              <!--h4>Logo</h4>\n              <p>Jpg-Datei, min. 300 px in Breite und Höhe, Hoch-/Querformat/quadratische Form möglich, im Optimalfall mit weißem Hintergrund</p>\n              <p><input name="logo" type="file" id="logo"></p>\n              <p><img src="http://padento.de/img/logo74_175small.jpg" alt=""></p-->\n            </div>\n          </div>\n        </section>\n        <div class="row">\n          <div class="col-md-7">\n            <div class="row">\n              <div class="col-md-4"></div>\n              <div class="col-md-8">\n                <button class="btn btn-primary" @click="saveLab" v-if="$newLabValidator.valid">Kontakt anlegen</button>\n              </div>\n            </div>\n          </div>\n        </div>\n      </validator>\n    </div>\n  </div>\n</div>';
-},{}],134:[function(require,module,exports){
+},{}],133:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44334,16 +43813,23 @@ exports.default = {
             });
         },
         handleLinkMove: function handleLinkMove( /**Event*/evt, /**Event*/originalEvent) {
+            var _this5 = this;
+
             if (evt.relatedRect.top < 100) {
-                var self = this;
-                if (!this.scrolling) {
-                    var container = $(".content");
-                    $(".content").animate({ scrollTop: $(".content").scrollTop() - 200 }, 1000, function () {
-                        self.scrolling = true;
-                    }).promise().done(function () {
-                        self.scrolling = false;
-                    });
-                }
+                var container;
+
+                (function () {
+                    var self = _this5;
+                    if (!_this5.scrolling) {
+                        container = $(".content");
+
+                        $(".content").animate({ scrollTop: $(".content").scrollTop() - 200 }, 1000, function () {
+                            self.scrolling = true;
+                        }).promise().done(function () {
+                            self.scrolling = false;
+                        });
+                    }
+                })();
             }
         }
     },
@@ -44364,9 +43850,9 @@ exports.default = {
     }
 };
 
-},{"./Links.template.html":135}],135:[function(require,module,exports){
+},{"./Links.template.html":134}],134:[function(require,module,exports){
 module.exports = '<div class="content">\n    <div class="row">\n        <div class="col-md-8">\n            <div class="form-group">\n                <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#newLink">\n                    <i class="fa fa-plus"></i> Neuer Link\n                </button>\n            </div>\n        </div>\n    </div>\n    <div class="row">\n        <div class="col-md-12">\n            <div class="filter-form ">\n                <div class="form-group ">\n                    <label>Suche:</label>\n                    <div class="input-group ">\n                        <input type="text " class="form-control " placeholder="Suchen... " v-model="search"\n                               id="search">\n                        <span class="input-group-btn ">\n                            <button class="btn btn-default " type="button "><i class="fa fa-search "\n                                                                               aria-hidden="true "></i></button>\n                        </span>\n                    </div>\n                </div>\n            </div>\n        </div>\n    </div>\n    <div class="row">\n        <div class="col-md-12">\n            <ul class="list-group" v-if="linksList.length" v-sortable="{handle: \'.handle\', onUpdate: sortLinks, onMove: handleLinkMove}">\n                <li class="list-group-item" v-for="link in linksList" :key="link.id">\n                    {{ link.title }} - <a :href="link.url" target="_blank">{{ link.url }}</a>\n                    <div class="pull-right">\n                        <i @click="editLinkForm(link)" style="cursor:pointer; margin-right: 5px;"\n                           class="fa fa-pencil"></i>\n                        <i @click="deleteLink(link.id)" style="color:red; cursor:pointer; margin-right: 5px;"\n                           class="fa fa-trash"></i>\n                        <i class="fa fa-arrows handle"></i>\n                    </div>\n                    <div class="clearfix"></div>\n                </li>\n            </ul>\n        </div>\n    </div>\n\n</div>\n<div class="modal fade" id="newLink" tabindex="-1" role="dialog" aria-labelledby="newLink">\n    <div class="modal-dialog" role="document">\n        <div class="modal-content">\n            <div class="modal-header">\n                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span\n                        aria-hidden="true">&times;</span></button>\n                <h4 class="modal-title" id="myModalLabel">Neuer Link</h4>\n            </div>\n            <validator name="newContactValidator">\n                <div class="modal-body">\n                    <form class="form-horizontal" novalidate>\n                        <div class="form-group">\n                            <label for="title" class="col-sm-4 control-label">Titel</label>\n                            <div class="col-sm-8">\n                                <input type="text" class="form-control" id="title" placeholder="Title"\n                                       v-model="newLink.title">\n                            </div>\n                        </div>\n                        <div class="form-group">\n                            <label for="url" class="col-sm-4 control-label">URL</label>\n                            <div class="col-sm-8">\n                                <input type="text" class="form-control" id="url" placeholder="URL"\n                                       v-model="newLink.url">\n                            </div>\n                        </div>\n                        <!--<div v-if="links.length">\n                            <div class="form-group">\n                                <div class="col-sm-12">\n                                    <label for="lab">Select Parent URL:</label>\n                                    <select class="form-control" v-model="newLink.parent_id" name="parent_id" size="3">\n                                        <option v-for="link in links" v-bind:value="link.id">\n                                            {{ link.title }} [{{ link.url }}]\n                                        </option>\n                                    </select>\n                                </div>\n                            </div>\n                        </div>-->\n                        <div class="form-group" v-if="links.length">\n                            <label for="parent_id" class="col-sm-4 control-label">Wählen Sie Übergeordnete URL\n                                aus:</label>\n                            <div class="col-sm-8">\n                                <select v-model="newLink.parent_id"\n                                        v-selectpicker="[newLink.parent_id, links]"\n                                        data-live-search="true" id="parent_id">\n                                    <option value=0>None</option>\n                                    <option data-divider="true"></option>\n                                    <option v-for="link in links" v-bind:value="link.id">\n                                        {{ link.title }} - [{{ link.url }}]\n                                    </option>\n                                </select>\n                            </div>\n                        </div>\n                    </form>\n                </div>\n                <div class="modal-footer">\n                    <button type="button" class="btn btn-default" data-dismiss="modal">Stornieren</button>\n                    <button class="btn btn-primary" @click="saveLink" v-if="formReady">Erstellen</button>\n                </div>\n            </validator>\n        </div>\n    </div>\n</div>\n\n<div class="modal fade" id="editLink" tabindex="-1" role="dialog" aria-labelledby="editLink">\n    <div class="modal-dialog" role="document">\n        <div class="modal-content">\n            <div class="modal-header">\n                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span\n                        aria-hidden="true">&times;</span></button>\n                <h4 class="modal-title" id="myEditModalLabel">Link bearbeiten</h4>\n            </div>\n            <validator name="newContactValidator">\n                <div class="modal-body">\n                    <form class="form-horizontal" novalidate>\n                        <div class="form-group">\n                            <label for="title" class="col-sm-4 control-label">Titel</label>\n                            <div class="col-sm-8">\n                                <input type="text" class="form-control" id="editTitle" placeholder="Title"\n                                       v-model="editLink.title">\n                            </div>\n                        </div>\n                        <div class="form-group">\n                            <label for="url" class="col-sm-4 control-label">URL</label>\n                            <div class="col-sm-8">\n                                <input type="text" class="form-control" id="editUrl" placeholder="URL"\n                                       v-model="editLink.url">\n                            </div>\n                        </div>\n                        <!--<div v-if="links.length">\n                            <div class="form-group">\n                                <div class="col-sm-12">\n                                    <label for="lab">Select Parent URL:</label>\n                                    <select class="form-control" v-model="editLink.parent_id" name="parent_id" size="3">\n                                        <option v-for="link in links" v-bind:value="link.id">\n                                            {{ link.title }} [{{ link.url }}]\n                                        </option>\n                                    </select>\n                                </div>\n                            </div>\n                        </div>-->\n                        <div class="form-group" v-if="links.length">\n                            <label for="edit_parent_id" class="col-sm-4 control-label">Wählen Sie Übergeordnete URL\n                                aus:</label>\n                            <div class="col-sm-8">\n                                <select v-model="editLink.parent_id"\n                                        v-selectpicker="[editLink.parent_id, links]"\n                                        data-live-search="true" id="edit_parent_id">\n                                    <option value=0>None</option>\n                                    <option data-divider="true"></option>\n                                    <option v-for="link in links" v-bind:value="link.id">\n                                        {{ link.title }} - [{{ link.url }}]\n                                    </option>\n                                </select>\n                            </div>\n                        </div>\n                    </form>\n                </div>\n                <div class="modal-footer">\n                    <button type="button" class="btn btn-default" data-dismiss="modal">Stornieren</button>\n                    <button class="btn btn-primary" @click="updateLink" v-if="formEditReady">Aktualisieren</button>\n                </div>\n            </validator>\n        </div>\n    </div>\n</div>\n';
-},{}],136:[function(require,module,exports){
+},{}],135:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44399,9 +43885,9 @@ exports.default = {
   filters: {}
 };
 
-},{"./DocsPage.template.html":137}],137:[function(require,module,exports){
+},{"./DocsPage.template.html":136}],136:[function(require,module,exports){
 module.exports = '<div>\n  <div class="content">\n  	<div class="container">\n	  	<div class="box">\n\n			<h2>Kontakte</h2>\n			<h3>Neuer Kontakt anlegen</h3>\n			<p>In der Kontaktübersicht, kann nur der Administrator einen neuen Kontakt anlegen.</p>\n			<p>Sobald alle notwendigen Felder ausgefüllt worden sind, erscheint der Button zum speichern.</p>\n			<p>Nach dem Speichern passiert folgendes:</p>\n			<ul>\n				<li>Wenn das Labor der "neuen Gruppe" angehört, wird der Kontakt zurückgehalten</li>\n				<li>Wenn das Labor nicht der "neuen Gruppe" angehört, wird erhält der Kontakt eine Mail mit den Informationen des Labors und das Labor eine Mail mit der Nachricht, dass ein neuer Interessent eingegangen ist.</li>\n			</ul>\n\n			<h3>Auflistung</h3>\n			<h4>Übersicht</h4>\n			<p><strong>Die Suche</strong></p>\n			<p>Die Suche sucht in den Feldern:</p>\n			<ul>\n				<li>Name</li>\n				<li>E-Mail</li>\n				<li>Zip</li>\n				<li>Telefonnummer</li>\n			</ul>\n			<p><strong>Als Administrator:</strong></p>\n			<p>Es stehen folgende Spalten und Filtermöglichkeiten zur Verfügung:</p>\n			<p><strong>Spalten:</strong></p>\n			<ul>\n				<li>ID</li>\n				<li>Name</li>\n				<li>Anfragedatum</li>\n				<li>E-Mail</li>\n				<li>Telefon</li>\n				<li>PLZ</li>\n				<li>Labor (Laborname)</li>\n				<li>Phase</li>\n				<li>Kam rein über (Beschreibt, über welche Webseite der Kontakt kommt)</li>\n				<li>Direkt (Beschreibt, ob dieser Patient über einen Direktlink gekommen ist)</li>\n				<li>Zurückgeschoben (Gibt an, wie oft der Kontakt bereits zurückgeschoben worden ist)</li>\n			</ul>\n			<p>Nach diesen Spalten kann sortiert werden. Durch erneutes klicken auf die Spalte, dreht sich die Sortierung um.</p>\n			<p><strong>Filtermöglichkeiten:</strong></p>\n			<ul>\n				<li>\n					Status\n					<ul>\n						<li>Alle (Ohne Archiv)</li>\n						<li>Bestätigt</li>\n						<li>Unbestätigt</li>\n						<li>Archiviert</li>\n					</ul>\n				</li>\n				<li>\n					Labor\n					<ul>\n						<li>Bei klick auf einem Labor, werden nur die Kontakte des ausgewählten Labores angezeigt.</li>\n					</ul>\n				</li>\n					Phase\n				</li>\n			</ul>\n\n			<p><strong>Als Mitarbeiter:</strong></p>\n			<p><strong>Spalten:</strong></p>\n			<p><strong>Filtermöglichkeiten:</strong></p>\n\n\n			<p><strong>Als Labor:</strong></p>\n			<p>Als Labor sieht man standartmäßig alle Kontakte, die nicht archiviert sind.</p>\n			<h4>Einzelner Kontakt</h4>\n			<h3>Kontaktmanagement</h3>\n			<h4>Phasen</h4>\n			<p>Derzeit gibt es folgende 6 Phasen:\n			<ol>\n				<li>Neu</li>\n				<li>Kontaktaufnahme</li>\n				<li>Besuchstermin vereinbart</li>\n				<li>In Betreuung</li>\n				<li>Auftrag erhalten</li>\n				<li>Kein Interesse</li>\n			</ol>\n			<p>Bei Akivierung der oben gennante Phasen, passiert <strong>nichts</strong> weiter, mit einer Ausnahme:\n			<p>Ist ein Administrator oder Mitarbeiter angemeldet und verschiebt einen Kontakt, der sich gerade in der Verwaltungsschleife befindet auf die Phase "Kein Interesse", so passiert folgendes:\n\n			<ol>\n				<li>Wechsel der Phase auf "Kein Interesse"</li>\n				<li>Entfernen des Kontaktes aus der Verwaltungsschleife</li>\n				<li>Benachrichtigung des Labors über einen neuen Kontakt per Mail</li>\n			</ol>\n\n			<h4>Kontakt weiterleiten</h4>\n			<p>Ein Kontakt kann nur von Administratoren oder Mitarbeitern weitergeleitet werden.</p>\n			<p>Wenn kein anderes Labor ausgewählt wird, ist das standartmäßige Labor des Kontaktes ausgewählt. Für die folgenden Möglichkeiten 1 und 2 muss daher kein Labor gesucht werden, wenn nicht ein anderes ausgewählt werden soll.</p>\n			<p>Es gibt drei Möglichkeiten der Weiterleitung</p>\n			<ul>\n				<li>\n					<strong>Möglichkeit 1: "Kontakt ist nicht erreichbar"</strong> Hierbei passiert folgendes:\n					<ol>\n						<li>Der Kontakt wird aus der Verwaltungsschleife entfernt und ist damit für das Labor sichtbar</li>\n						<li>Es wird automatisch zur Phase 2 gewelchselt</li>\n						<li>Versand einer Mail an das Labor: "Sie haben einen neuen Interessenten"</li>\n						<li>Versand einer Mail an den Kontakt, wenn dieser bereits bestätigt ist: "Wir konnten Sie nicht erreichen. Hier ist ihr Labor"</li>\n					</ol>\n				</li>\n				<li>\n					<strong>Möglichkeit 1: "Kontakt möchte selber Kontakt aufnehmen"</strong> Hierbei passiert folgendes:\n					<ol>\n						<li>Der Kontakt wird als bestätigt markiert</li>\n						<li>Der Kontakt wird aus der Verwaltungschleife entfernt und ist damit sichtbar für das Labor</li>\n						<li>Versand einer Mail an das Labor: "Sie haben einen neuen Interessenten"</li>\n						<li>Versand einer Mail an den Kontakt: "Ihr Labor + Kontaktdaten"</li>\n					</ol>\n				</li>\n				<li>\n					<strong>Möglichkeit 1: "Kontakt Einfach verschieben"</strong> Hierbei passiert folgendes:\n					<ol>\n						<li>Wenn das Labor eines der "neuen Gruppe" ist, wird dieser Kontakt in die Verwaltungsschleife geschoben</li>\n						<li>Wenn das Labor nicht in der "neuen Gruppe" ist, wird der Kontakt einfach verschoben. Es gehen keine Mails raus!</li>\n					</ol>\n				</li>\n			</ul>\n\n\n			<h3 id="kontaktverteilung">Kontaktverteilung</h3>\n			<p>In den Einstellungen können folgende Werte für die Kontaktverteilung gesetzt werden:</p>\n			<ul>\n				<li>\n					<p><strong>Zeitraum zur überprüfung der Patientenanzahl:</strong>\n					<p>In diesem Zeitraum wird verglichen, welches Labor in den letzten eingstellten Tagen am wenigsten Kontakte erhalten hat.</p>\n				</li>\n				<li>\n					<p><strong>Patientenradius Start:</strong>\n					<p>Innerhalb dieses Radiuses um den Patienten (Postleizahl), werden alle Labore gesucht. </p>\n					<p>Jetzt werden diese Labore genommen und unterinander vergliechen. Das Labor mit den wenigsten Patienten in dem eingestellten Zeiraum (Zeitraum zur überprüfung der Patientenanzahl) erhält den Kontakt bzw. den Patienten.</p>\n				</li>\n				<li>\n					<p><strong>Patientenradius Inkrementierung:</strong></p>\n					<p>Sollte innerhalb des Startradius kein Labor gefunden worden sein, wird erneut gesucht mit einem Radius, der um den einsgellten Wert von "Patientenradius Inkrementierung" größer ist.</p>\n				</li>\n				<li>\n					<p><strong>Patientenradius Ende:</strong></p>\n					<p>Sollte nach der ersten Inkrementierung kein Labor gefunden worden sein, passiert dies so oft, bis der eingstellte Radius von "Patientenradius Ende" erreicht ist.</p>\n				</li>\n			</ul>\n			<p><strong>Wichtig:</strong>\n			<ol>\n				<li>Sollte ein Direktlink verwendet werden, wird die Verteilung außer Kraft gesetzt und das Labor des zugehörigen Direktlinks wird immer ausgewählt, wenn ein potentieller Kontakt über diesen Link auf Padento gelankt.</p>\n				<li>Wenn ein Patient erneut mit einer E-Mail-Adresse sich einträgt, wird zunächst das Labor geholt zu dem es das letzte mal weitergeleitet wird. Dieses Labor wird dann auf die Entfernung mit der Postleitzahl überprüft. Sollte die Entfernung größer als die in "Entfernung für ab wann ein Kontakt ein neues Labor bekommen soll" definierte sein, fängt die Umkreissuche wie oben beschrieben erneut an. Sollte die Entfernung kleiner sein, wird wieder das gleiche Labor ausgewählt.\n			</ol>\n\n			<h2>Labore</h2>\n\n	  	</div>\n  	</div>\n  </div>\n</div>';
-},{}],138:[function(require,module,exports){
+},{}],137:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44434,9 +43920,9 @@ exports.default = {
   filters: {}
 };
 
-},{"./DownloadsPage.template.html":139}],139:[function(require,module,exports){
+},{"./DownloadsPage.template.html":138}],138:[function(require,module,exports){
 module.exports = '<div>\n  <div class="content">\n  	<div class="container">\n	  	<div class="box">\n	  		<ul>\n				<li><a href="/downloads/ueber-padento">Über Padento</a>\n				<li><a href="/downloads/pressetext">Pressetext</a>\n				<li><a href="/downloads/aufkleber">Aufkleber</a>\n				<li><a href="/downloads/aufkleber-anleitung">Aufkleber - Anleitung</a>\n				<li><a href="/downloads/guide/padento-einfuehrung">Technische Einführung in Padento</a>\n				<li><a href="/downloads/guide/patienten-gewinnen">Patienten gewinnen mit Padento</a>\n				<li><a href="/downloads/telefon-fragebogen">Telefon-Fragebogen</a>\n				<li><a href="/downloads/padentogespraechsleitfaden">Padento-Gesprächsleitfaden</a>\n				<li><a href="/downloads/logos">Padento Logos</a>\n	  		</ul>\n	  	</div>\n  	</div>\n  </div>\n</div>';
-},{}],140:[function(require,module,exports){
+},{}],139:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44468,9 +43954,9 @@ exports.default = {
   filters: {}
 };
 
-},{"./GuidesPage.template.html":141}],141:[function(require,module,exports){
+},{"./GuidesPage.template.html":140}],140:[function(require,module,exports){
 module.exports = '<div>\n  <div class="content">\n  	<div class="container">\n	  	<div class="box">\n	  		<div class="row">\n	  			<div class="col-md-6">\n	      			<a href="/downloads/guide/padento-einfuehrung">\n	      				<img src="/img/Padento_Guide_1_technische_Einfuehrung.png">\n	  				</a>\n	  			</div>\n	  			<div class="col-md-6">\n		  			<a href="/downloads/guide/patienten-gewinnen">\n		  				<img src="/img/Padento_Guide_2_Patienten_gewinnen.png">\n		  			</a>\n	  			</div>\n	  		</div>\n\n	  	</div>\n  	</div>\n  </div>\n</div>';
-},{}],142:[function(require,module,exports){
+},{}],141:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44502,9 +43988,9 @@ exports.default = {
   filters: {}
 };
 
-},{"./PartnerPage.template.html":143}],143:[function(require,module,exports){
+},{"./PartnerPage.template.html":142}],142:[function(require,module,exports){
 module.exports = '<div>\n  <div class="content">\n\n  	<div class="container">\n	  	<div class="row-fluid">\n	  		<div class="col-md-4">\n	  			<div class="box">\n	  				<a href="http://www.dentalligent.de/" target="_blank">\n	  					<img src="/img/dentalligent.jpg" alt="">\n	  				</a>\n	  			</div>\n	  		</div>\n	  		<div class="col-md-4">\n	  			<div class="box">\n					<a href="http://www.synmedico.com/" target="_blank">\n						<img src="/img/synmedico.jpg" alt="">\n					</a>\n	  			</div>\n	  		</div>\n	  		<div class="col-md-4">\n	  			<div class="box">\n	  				<a href="http://www.abcfinance.de/" target="_blank">\n	  					<img src="/img/abcfinance.jpg" alt="">\n	  				</a>\n	  			</div>\n	  		</div>\n	  	</div>\n	  	<div class="row-fluid">\n	  		<div class="col-md-4">\n	  			<div class="box">\n	  				<a href="http://www.carecapital.de/" target="_blank">\n	  					<img src="/img/carecapital.jpg" alt="">\n	  				</a>\n	  			</div>\n	  		</div>\n	  	</div>\n	  	<div class="row-fluid">\n	  		<div class="col-md-4">\n	  			<div class="box">\n	  				<a href="http://www.denseo-hiq.de/de/" target="_blank">\n	  					<img src="/img/Denseo.jpg" alt="">\n	  				</a>\n	  			</div>\n	  		</div>\n	  	</div>\n  	</div>\n  </div>\n</div>';
-},{}],144:[function(require,module,exports){
+},{}],143:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44537,9 +44023,9 @@ exports.default = {
   filters: {}
 };
 
-},{"./UpgradesPage.template.html":145}],145:[function(require,module,exports){
+},{"./UpgradesPage.template.html":144}],144:[function(require,module,exports){
 module.exports = '<div>\n  <div class="content">\n	  	<div class="row">\n	  		<div class="col-md-8">\n		  		<div class="box">\n		  			<h2>Upgrade: Terminmanagement</h2>\n\n		  			<p>Sie haben als Laborchef nicht so viel Zeit, die Kontakte, die von Padento kommen, anzurufen? Rechnen Sie sich Ihren Stundensatz einmal aus und zählen Sie die Zeit einmal zusammen, wie lange Sie für das Telefonieren der Kontakte im Monat brauchen.\n\n		  			<p>Wenn Ihr Stundensatz bei ca. 60 € liegt, sind das nur 2,5 Stunden, die schnell verbraucht sind. Wenn wir für Sie telefonieren sind das 150 € im Monat. Das entspricht also genau den 2,5 Stunden. Wenn Sie mehr Zeit im Monat dazu brauchen, macht es Sinn für Sie, diesen Service zu buchen. Sie sparen dabei echtes Geld.\n\n		  			<p>Vielleicht haben Sie aber auch einfach nicht immer die Motivation, nach einem anstrengenden Laboralltag die Kontakte anzurufen und machen es vielleicht deshalb nur halbherzig und Ihre Ergebnisse werden nicht so gut. Wir haben eine fast 100%-ige Trefferquote für einen Termin bei Ihnen im Labor, wenn wir den Kontakt erreichen, weil wir das den ganzen Tag machen.\n\n		  			<p>Mit diesem Service bekommen Sie also den Patienten auf dem Silbertablett in Ihr Labor. Wahrscheinlich sind es auch mehr Termine, die wir erreichen.\n\n		  			<p>Selbst wenn ein Patient nicht zum Termin erscheint, schicken Sie ihn einfach mit einem Klick wieder an uns zurück und wir versuchen es noch einmal.\n\n		  			<p>Der Service ist an keine Laufzeit gebunden und kann jederzeit monatlich gebucht oder storniert werden. Auch für Urlaubszeiten ist das ideal.\n\n		  			<p>Wenn Sie den Terminservice buchen wollen, schreiben Sie uns eine kurze Mail, oder rufen Sie uns an:\n		  			<p><a href="mailto:info@padento.de" class="btn btn-primary">Mailanfrage senden</a>\n		  		</div>\n\n		  		<div class="box">\n		  			<h2>Upgrade: Mehr Kontakte</h2>\n		  			<p>Sie sehen, dass Padento für Sie funktioniert und Sie wollen mehr Kontakte haben? Kein Problem. Wenn Sie mehr investieren in mehr Werbung, erreichen wir mehr Menschen.\n\n		  			<p>Sie können so viel zusätzlich bezahlen, wie Sie möchten. Sinn macht es, mit monatlichen 200 € - 600 € zusätzliche Kontakte zu generieren.\n\n		  			<p>Dieser Service ist an keine Laufzeit gebunden und kann monatlich zugebucht oder storniert werden.\n\n		  			<p>Wenn Sie mehr Umsatz in Ihr Labor holen wollen, fragen Sie diesen Service per Mail an oder rufen Sie uns an:\n		  			<p><a href="mailto:info@padento.de" class="btn btn-primary">Mailanfrage senden</a>\n		  		</div>\n	  		</div>\n	  		<div class="col-md-4">\n	  			<div class="box">\n	  				<h4>Kontakt</h4>\n					<p>\n						<strong>E-Mail:</strong> <a href="mailto:">info@padento.de</a><br>\n						<strong>Telefon:</strong> <a href="tel:+495141360010">+49 5141 - 36 0010</a>\n	  			</div>\n	  		</div>\n	  	</div>\n  	</div>\n</div>';
-},{}],146:[function(require,module,exports){
+},{}],145:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44689,24 +44175,31 @@ exports.default = {
             });
         },
         handleTaskMove: function handleTaskMove( /**Event*/evt, /**Event*/originalEvent) {
+            var _this7 = this;
+
             if (evt.relatedRect.top < 100) {
-                var self = this;
-                if (!this.scrolling) {
-                    var container = $(".content");
-                    $(".content").animate({ scrollTop: $(".content").scrollTop() - 200 }, 1000, function () {
-                        self.scrolling = true;
-                    }).promise().done(function () {
-                        self.scrolling = false;
-                    });
-                }
+                var container;
+
+                (function () {
+                    var self = _this7;
+                    if (!_this7.scrolling) {
+                        container = $(".content");
+
+                        $(".content").animate({ scrollTop: $(".content").scrollTop() - 200 }, 1000, function () {
+                            self.scrolling = true;
+                        }).promise().done(function () {
+                            self.scrolling = false;
+                        });
+                    }
+                })();
             }
         }
     }
 };
 
-},{"./Todo.template.html":147}],147:[function(require,module,exports){
+},{"./Todo.template.html":146}],146:[function(require,module,exports){
 module.exports = '<div>\n    <div class="content">\n        <div class="container">\n\n            <div class="row">\n                <div class="col-md-6">\n                    <div class="box">\n                        <h3>Todo Liste: mit Telefonservice</h3>\n                        <hr>\n                        <form action="#" @submit.prevent="editWithWaiting ? update(todoWithWaiting) : create(todoWithWaiting)">\n                            <div class="input-group">\n                                <input v-model="todoWithWaiting.title" v-focus="true" v-el:todoWithWaitinginput\n                                       type="text" name="title" class="form-control WithWaiting" autofocus>\n                                <span class="input-group-btn">\n                                    <button v-show="!editWithWaiting" type="submit" class="btn btn-primary">Todo hinzufügen</button>\n                                    <button v-show="editWithWaiting" type="submit" class="btn btn-primary">Todo bearbeiten</button>\n                                </span>\n                            </div>\n                        </form>\n                        <hr>\n                        <ul class="list-group" v-if="listWithWaiting.length" v-sortable="{handle: \'.handle\', onUpdate: sortWithWaitingTasks, onMove: handleTaskMove}">\n                            <li class="list-group-item" v-for="todo in listWithWaiting" :key="todo.id">\n                                {{ todo.title }}\n                                <div class="pull-right">\n                                    <i @click="fillFormEdit(todo)" style="cursor:pointer;" class="fa fa-edit"></i>\n                                    <i v-if="isAdmin" @click="delete(todo.id)" style="color:red; cursor:pointer;" class="fa fa-trash"></i>\n                                    <i class="fa fa-arrows handle"></i>\n                                </div>\n                                <div class="clearfix"></div>\n                            </li>\n                        </ul>\n                    </div>\n                </div>\n\n                <div class="col-md-6">\n                    <div class="box">\n                        <h3>Todo Liste: ohne Telefonservice</h3>\n                        <hr>\n                        <form action="#" @submit.prevent="editWithoutWaiting ? update(todoWithoutWaiting) : create(todoWithoutWaiting)">\n                            <div class="input-group">\n                                <input v-model="todoWithoutWaiting.title" v-el:todoWithoutWaitinginput type="text"\n                                       name="title" class="form-control WithoutWaiting" autofocus>\n                                <span class="input-group-btn">\n                                    <button v-show="!editWithoutWaiting" type="submit" class="btn btn-primary">Todo hinzufügen</button>\n                                    <button v-show="editWithoutWaiting" type="submit" class="btn btn-primary">Todo bearbeiten</button>\n                                </span>\n                            </div>\n                        </form>\n                        <hr>\n                        <ul class="list-group" v-if="listWithoutWaiting.length" v-sortable="{handle: \'.handle\', onUpdate: sortWithoutWaitingTasks, onMove: handleTaskMove}">\n                            <li class="list-group-item" v-for="todo in listWithoutWaiting" :key="todo.id">\n                                {{ todo.title }}\n                                <div class="pull-right">\n                                    <i @click="fillFormEdit(todo)" style="cursor:pointer;" class="fa fa-edit"></i>\n                                    <i v-if="isAdmin" @click="delete(todo.id)" style="color:red; cursor:pointer;" class="fa fa-trash"></i>\n                                    <i class="fa fa-arrows handle"></i>\n                                </div>\n                                <div class="clearfix"></div>\n                            </li>\n                        </ul>\n\n                    </div>\n                </div>\n            </div>\n\n        </div>\n    </div>\n</div>\n';
-},{}],148:[function(require,module,exports){
+},{}],147:[function(require,module,exports){
 'use strict';
 
 Object.defineProperty(exports, "__esModule", {
@@ -44925,8 +44418,8 @@ exports.default = {
     }
 };
 
-},{"./Tools.template.html":149}],149:[function(require,module,exports){
+},{"./Tools.template.html":148}],148:[function(require,module,exports){
 module.exports = '<div>\n    <div class="content">\n        <div class="container">\n\n\n            <div class="box">\n                <h3>Verteilung überprüfen</h3>\n                <form class="form-horizontal">\n                    <div class="form-group">\n                        <label for="" class="col-sm-2 control-label">Postleitzahl</label>\n                        <div class="col-sm-10">\n                            <input type="text" v-model="zip" class="form-control" value="42111"\n                                   @enter="getLabs(zip, email)">\n                        </div>\n                    </div>\n                    <div class="form-group">\n                        <label for="" class="col-sm-2 control-label">Land</label>\n                        <div class="col-sm-10">\n                            <select name="country" id="country" v-model="country" class="form-control">\n                                <option value="de" selected>Deutschland</option>\n                                <option value="at">Österreich</option>\n                            </select>\n                        </div>\n                    </div>\n                    <div class="form-group">\n                        <label for="" class="col-sm-2 control-label">E-Mail-Adresse</label>\n                        <div class="col-sm-10">\n                            <input type="mail" v-model="email" class="form-control">\n                        </div>\n                    </div>\n                    <div class="form-group">\n                        <div class="col-sm-offset-2 col-sm-10">\n                            <div class="checkbox">\n                                <label>\n                                    <input type="checkbox" v-model="nerdmode"> Nerdmode\n                                </label>\n                            </div>\n                        </div>\n                    </div>\n                    <div class="form-group">\n                        <div class="col-sm-offset-2 col-sm-10">\n                            <button type="button" class="btn btn-primary" @click="getLabs(zip, email, country)">\n                                Verteilung simulieren\n                            </button>\n                            <a v-link="{ name: \'admin.settings.index\' }" class="btn btn-link"><i class="fa fa-cog"></i>\n                                Verteilungseinstellungen ändern</a>\n                        </div>\n                    </div>\n                    <hr>\n                    <div v-if="showresults">\n                        <div v-if="results.patient.lab">\n                            <h4>Patient:</h4>\n                            <div class="row">\n                                <div class="col-md-6">\n                                    <dl class="property-fields">\n                                        <div class="property-row row">\n                                            <dt class="col-xs-4">Anrede</dt>\n                                            <dd class="col-xs-7">\n                                                <span\n                                                        class="no-input">{{ results.patient.patientmeta.salutation }}</span>\n                                            </dd>\n                                        </div>\n                                        <div class="property-row row">\n                                            <dt class="col-xs-4">Name</dt>\n                                            <dd class="col-xs-7">\n                                                <span class="no-input">\n										<a v-link="{ name: \'admin.contactSingle\', params: { id: results.patient.id } }"\n                                           target="_blank">\n											{{ results.patient.patientmeta.name }}\n										</a>\n									</span>\n                                            </dd>\n                                        </div>\n                                        <div class="property-row row">\n                                            <dt class="col-xs-4">E-Mail-Adresse</dt>\n                                            <dd class="col-xs-7">\n                                                <span class="no-input">{{ results.patient.patientmeta.email }}</span>\n                                            </dd>\n                                        </div>\n                                        <div class="property-row row">\n                                            <dt class="col-xs-4">Postleitzahl</dt>\n                                            <dd class="col-xs-7">\n                                                <span class="no-input">{{ results.patient.patientmeta.zip }}</span>\n                                            </dd>\n                                        </div>\n                                        <div class="property-row row">\n                                            <dt class="col-xs-4">Laborname</dt>\n                                            <dd class="col-xs-7">\n                                                <span class="no-input">{{ results.patient.lab.name }}</span>\n                                            </dd>\n                                        </div>\n                                    </dl>\n                                </div>\n                            </div>\n                        </div>\n                        <h4>Verteilungs-Labore:</h4>\n                        <p>\n                            <small><strong>Wichtig:</strong> Das oberste Labor würde den Kontakt erhalten. <a\n                                    v-link="{ name: \'docs\' }">Wie kommen diese Labore zustande?</a></small>\n                        </p>\n                        <table class="table table-striped table-condensed">\n                            <thead>\n                            <th>Labor</th>\n                            <th>Stadt</th>\n                            <th>Entfernung zu {{ zip }}</th>\n                            <th>Kontakte in der letzten eingestellten Zeit:</th>\n                            </thead>\n                            <tbody>\n                            <tr v-for="result in results.labs">\n                                <td>{{ result.lab.name }}</td>\n                                <td>{{ result.lab.labmeta.city }}</td>\n                                <td>{{ result.dist | round }}</td>\n                                <td>{{ result.patient_count_last_seven_days }}</td>\n                            </tr>\n                            </tbody>\n                        </table>\n                        <div v-if="nerdmode">\n                            <pre style="font-size:11px">{{ results | json }}</pre>\n                        </div>\n                    </div>\n                </form>\n\n                <div v-show="showMap && showresults">\n                    <hr/>\n                    <div id="map" style="height: 450px"></div>\n                </div>\n            </div>\n\n            <div class="box">\n                <h3>Kontakte exportieren</h3>\n\n                <div v-if="stop">\n                    <p>Der Export wurde abgebrochen. Bitte Seite neu laden, wenn der Export erneut gestartet werden\n                        soll.</p>\n                </div>\n                <div v-else>\n                    <div v-if="exportStatus == 100">\n                        <p>Der Download wird gestartet. Falls nichts passiert, bitte folgenden Link klicken:\n                            <a :href="downloadLink">Download</a>\n                        </p>\n\n                    </div>\n                    <div v-else>\n                        <div class="number" v-if="csvExport Page > 1">\n                            <h2>{{ exportStatus }} % <i class="fa fa-spinner spin" aria-hidden="true"></i></h2>\n                        </div>\n\n                        <button v-if="csvExportPage == 1" @click="startExport()" class="btn btn-primary">\n                            Export\n                            starten\n                        </button>\n                        <button v-if="csvExportPage > 1" @click="stopExport()" class="btn btn-primary">Export abbrechen\n                        </button>\n                    </div>\n                </div>\n            </div>\n        </div>\n    </div>\n</div>\n';
-},{}]},{},[62]);
+},{}]},{},[61]);
 
 //# sourceMappingURL=bundle.js.map

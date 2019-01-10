@@ -22,7 +22,7 @@
 
                 <h4>Administration</h4>
                 <ul class="nav">
-                    <li><a v-link="{ name: 'stats' }"><i class="fa fa-bar-chart"></i> Statistiken</a></li>
+                    <!-- li><a v-link="{ name: 'stats' }"><i class="fa fa-bar-chart"></i> Statistiken</a></li -->
                     <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Zahnarzt Statistiken <span
                                     class="label label-success">NEU</span></a></li>
                     {{--<li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Zahnärzte Termine--}}
