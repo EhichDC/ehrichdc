@@ -84,7 +84,7 @@ function getDevMail()
     $devMail = (new \App\Services\Setting())->getDevEmailAddress();
 
     if (!$devMail) {
-        $devMail = env('DEV_MAIL', 'pascal@pinetco.com');
+        $devMail = env('DEV_MAIL', 'info@padento.de');
     }
 
     return $devMail;

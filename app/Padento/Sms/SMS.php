@@ -24,7 +24,7 @@ class SMS
     //     'SIPGATE_PORT'          => '443',
     //     'SIPGATE_SIPURI_PREFIX' => 'sip:',
     //     'SIPGATE_SIPURI_HOST'   => 'sipgate.net',
-    //     'SIPGATE_USER'          => 'info@pinetco.com',
+    //     'SIPGATE_USER'          => 'info@padento.de',
     //     'SIPGATE_PASS'          => 'pr9awWFXiKu3CARZEUMP',
     // ];
 
