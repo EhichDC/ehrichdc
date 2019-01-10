@@ -11,9 +11,9 @@ class DsgvoController extends Controller
     {
         $patientMeta = PatientMeta::where('email', $request->email)->where('patient_id', $request->id)->with('patient')->first();
 
-        $patient = $patientMeta->patient;
 
         if ($patientMeta && $patient) {
+            $patient = $patientMeta->patient;
             $patient->estimated_deletation_at = null;
             $patient->save();
 
