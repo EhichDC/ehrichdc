@@ -405,13 +405,19 @@ class DentistContactController extends Controller
 
         $meta = $dentist->dentistmeta;
 
-        if ($request['dentistmeta']['tel'] != '-' && $request['dentistmeta']['tel'] != '') {
-            // $meta->tel = phone_format($request['dentistmeta']['tel'], $country_code = 'DE');
-            $meta->tel = $request['dentistmeta']['tel'];
+        if (array_key_exists("tel", $request['dentistmeta'])) {
+            if ($request['dentistmeta']['tel'] != '-' && $request['dentistmeta']['tel'] != '') {
+                // $meta->tel = phone_format($request['dentistmeta']['tel'], $country_code = 'DE');
+                $meta->tel = $request['dentistmeta']['tel'];
+            }
         }
-        if ($request['dentistmeta']['mobile'] != '-' && $request['dentistmeta']['mobile'] != '') {
-            // $meta->mobile = phone_format($request['dentistmeta']['mobile'], $country_code = 'DE');
-            $meta->mobile = $request['dentistmeta']['mobile'];
+        if (array_key_exists("mobile", $request['dentistmeta']))
+        {
+            if ($request['dentistmeta']['mobile'] != '-' && $request['dentistmeta']['mobile'] != '')
+            {
+                // $meta->mobile = phone_format($request['dentistmeta']['mobile'], $country_code = 'DE');
+                $meta->mobile = $request['dentistmeta']['mobile'];
+            }
         }
         $meta->salutation    = $request['dentistmeta']['salutation'];
         $meta->name          = $request['dentistmeta']['name'];
