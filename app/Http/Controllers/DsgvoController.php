@@ -12,15 +12,17 @@ class DsgvoController extends Controller
         $patientMeta = PatientMeta::where('email', $request->email)->where('patient_id', $request->id)->with('patient')->first();
 
 
-        if ($patientMeta && $patient) {
+        if ($patientMeta) {
             $patient = $patientMeta->patient;
-            $patient->estimated_deletation_at = null;
-            $patient->save();
+            if ($patient) {
+                $patient->estimated_deletation_at = null;
+                $patient->save();
 
-            activity()->causedBy($patient)->performedOn($patient)->withProperties(['subject' => 'Daten weiterhin speichern', 'message' => 'Patient möchte seine Daten beibehalten'])->performedOn($patient)->log('accepted_dsgvo');
+                activity()->causedBy($patient)->performedOn($patient)->withProperties(['subject' => 'Daten weiterhin speichern', 'message' => 'Patient möchte seine Daten beibehalten'])->performedOn($patient)->log('accepted_dsgvo');
 
-            if ($patient->lab) {
-                mailer('DSGVOAutoDeletePatientMailForLab', $patient, $patient->lab)->toLab()->send();
+                if ($patient->lab) {
+                    mailer('DSGVOAutoDeletePatientMailForLab', $patient, $patient->lab)->toLab()->send();
+                }
             }
         }
 
