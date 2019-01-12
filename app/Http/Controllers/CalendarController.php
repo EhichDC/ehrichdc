@@ -57,6 +57,9 @@ class CalendarController extends Controller
         $user = auth()->user();
 
         $pat = \App\Patient::find($id);
+        if (!$pat) {
+            return response()->json(['status' => '403', 'message' => 'contact does not exist']);
+        }
         $lab = $pat->lab;
         if (!$pat->lab) {
             return response()->json(['status' => '403', 'message' => 'contact has no lab']);
