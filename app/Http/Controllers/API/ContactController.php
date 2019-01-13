@@ -544,7 +544,7 @@ class ContactController extends Controller
     {
         $usedPatient = PatientsUsed::with(['user'])->where(['patient_id' => $request->input('patient_id')])->first();
         if (!$usedPatient) {
-            return false;
+            return ['PatiendUsed is not available'];
         }
         if ($usedPatient != '' && $request->input('reset') != '') {
             $usedPatient->delete();
