@@ -176,10 +176,34 @@ class DentistContactController extends Controller
         if ($request->input('searchfor')) {
             //$results = $results->search($request->input('searchfor'), $searchThrough);
             $name = $request->input('searchfor');
-            $results->where('dentistmeta.email', 'like', '%' . str_replace(' ', '', $name) . '%')
-                ->orWhere('dentistmeta.name', 'like', "%{$name}%")
-                ->orWhere('dentistmeta.tel', 'like', "%{$name}%")
-                ->orWhere('dentistmeta.mobile', 'like', "%{$name}%");
+            $lab = null;
+            if ($user->hasRole('lab')) {
+                $lab = $user->lab->first();
+            }
+            $results = $results->where(function ($query) use ($lab, $name){
+                    if ($lab) {
+                        $query->where('dentist_contacts.lab_id', $lab->id);
+                    }
+                    $query->where('dentistmeta.email', 'like', '%' . str_replace(' ', '', $name) . '%');
+                })
+                ->orWhere(function ($query) use ($lab, $name) {
+                    if ($lab) {
+                        $query->where('dentist_contacts.lab_id', $lab->id);
+                    }
+                    $query->where('dentistmeta.mobile', 'like', "%{$name}%");
+                })
+                ->orWhere(function ($query) use ($lab, $name) {
+                    if ($lab) {
+                        $query->where('dentist_contacts.lab_id', $lab->id);
+                    }
+                    $query->where('dentistmeta.tel', 'like', "%{$name}%");
+                })
+                ->orWhere(function ($query) use ($lab, $name) {
+                    if ($lab) {
+                        $query->where('dentist_contacts.lab_id', $lab->id);
+                    }
+                    $query->where('dentistmeta.name', 'like', "%{$name}%");
+                });
         } else {
             /*  if ($user->hasRole('user')) {
                   $results = $results->where('dentist_contacts.queued', '1');
