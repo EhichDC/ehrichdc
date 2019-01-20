@@ -7,8 +7,7 @@ use Sofa\Eloquence\Eloquence;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class DentistContact extends Model
-{
+class DentistContact extends Model {
     use SoftDeletes, Eloquence;
 
     protected $appends = [
@@ -63,6 +62,11 @@ class DentistContact extends Model
         return $this->hasMany(Date::class)->orderBy('date');
     }
 
+    public function phaseDate()
+    {
+        return $this->hasMany(Date::class)->orderBy('date')->where('phase', $this->phase);
+    }
+
     public function employeeDates()
     {
         return $this->hasMany(EmployeeDate::class, 'dentist_contact_id');
@@ -97,6 +101,7 @@ class DentistContact extends Model
     {
         return $this->hasMany(TodoDentist::class, 'contact_id')->orderBy('order');
     }
+
     public function removeDentistDates($excepts = [])
     {
         $this->dates()->whereNotNull('dentist_contact_id')->where('date', ' >= ', Carbon::now())->whereNotIn('id', $excepts)->delete();

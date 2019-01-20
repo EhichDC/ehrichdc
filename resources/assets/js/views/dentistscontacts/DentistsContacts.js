@@ -13,7 +13,8 @@ const phasemap = {
     3: 'Beziehung',
     4: 'Testkunde',
     5: 'B-Kunde',
-    6: 'A-Kunde'
+    6: 'A-Kunde',
+    7: 'Kein Interesse'
 };
 const classmap = {
     1: '.first.active',
@@ -45,6 +46,9 @@ export default {
                 salutation: ''
             },
             dentists: [],
+            labs: [],
+            labname: [],
+            lab: [],
             stats: [],
             phase: [],
             reverse: -1,
@@ -83,6 +87,9 @@ export default {
                         {value: 'reset', text: 'Alle (Ohne Archiv)'},
                         {value: 'archived', text: 'Archiviert'},
                     ],
+                },
+                lab: {
+                    options: [],
                 },
             },
             filter: {
@@ -147,6 +154,7 @@ export default {
 
 
     ready: function () {
+
         if (store.dentists.stored == true) {
             this.pagination = store.dentists.data.pagination;
             this.orderby = store.dentists.data.orderby;
@@ -163,6 +171,17 @@ export default {
             this.newdentistcontact.zip = '';
             this.newdentistcontact.email = '';
             this.newdentistcontact.phone = '';
+
+        });
+
+        this.setLabName(this.labname);
+
+        //initialize labs
+        this.$http.get('/api/labs', {all: true}).then(response => {
+            if (response.data.data) {
+                this.labs = response.data.data.data;
+                this.filterOptions.lab.options = this.labs;
+            }
         });
     },
 
@@ -304,6 +323,26 @@ export default {
 
                 }
             });
+        },
+
+        labName(lab) {
+            if (lab.status === 'inaktiv') {
+                return lab.name + ' [inaktiv]';
+            }
+
+            return lab.name;
+        },
+
+        setLabName: function (lab) {
+            if (lab == 0) {
+                this.labname = 'Alle';
+            } else {
+                $.map(this.labs, function (value, key) {
+                    if (lab == value.id) {
+                        this.labname = value.name;
+                    }
+                }.bind(this));
+            }
         },
 
         sortBy: function (name) {

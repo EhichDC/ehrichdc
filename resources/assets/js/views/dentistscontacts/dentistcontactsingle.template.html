@@ -461,6 +461,10 @@
                                     v-bind:class="{ 'phasedentist-6' : (dentist.phase > 5), 'active' : (dentist.phase == 6) }"
                                     v-on:click="activatePhase">A-Kunde
                                 </li>
+                                <li class="stage" data-phase="7"
+                                    v-bind:class="{ 'phasedentist-7' : (dentist.phase > 6), 'active' : (dentist.phase == 7) }"
+                                    v-on:click="activatePhase">Kein Interesse
+                                </li>
                             </ul>
                         </div>
                         <div class="box">
