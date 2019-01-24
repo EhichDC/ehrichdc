@@ -41709,6 +41709,7 @@ exports.default = {
         },
 
         savedentist: function savedentist() {
+            console.log(this.whoami);
             if (this.whoami.lab.length) {
                 this.newdentistcontact.labid = this.whoami.lab[0].id;
             } else {
