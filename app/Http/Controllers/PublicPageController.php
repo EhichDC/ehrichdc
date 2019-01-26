@@ -216,9 +216,9 @@ class PublicPageController extends Controller
 
     public function newRequest(Request $request)
     {
-        if(!in_array($request->server('HTTP_HOST'), ['padento.de', 'padento.devv', 'padento.test'])) {
+        /*if(!in_array($request->server('HTTP_HOST'), ['padento.de', 'padento.devv', 'padento.test'])) {
             return 'You are not allowed to make this request.';
-        }
+        }*/
 
         $lang = $request->input('lang');
 
