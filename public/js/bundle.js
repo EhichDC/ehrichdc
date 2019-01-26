@@ -41717,6 +41717,14 @@ exports.default = {
                 }
             }
 
+            if (!this.newdentistcontact.labid) {
+                Messenger().post({
+                    message: 'Zahnarzt nicht angelegt',
+                    type: 'error'
+                });
+                return;
+            }
+
             var data = { contact: this.newdentistcontact };
             this.$http.post('/dankedentist', data).then(function (response) {
                 this.$router.go({ name: 'admin.dentistContactSingle', params: { id: response.data.dentist_id } });
