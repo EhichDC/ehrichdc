@@ -382,7 +382,7 @@ img {
     li {
       vertical-align: middle;
       display: table-cell;
-      width: calc(100% / 6);
+      width: calc(100% / 7);
       background-color: rgba(150, 150, 150, .3);
       &:hover {
         background-color: rgba(150, 150, 150, .5);
@@ -676,6 +676,17 @@ table.table {
     }
     &.active {
       box-shadow: 0px 0px 2px 2px darken(#CDAD00, 15%)
+    }
+  }
+  &.phasedentist-7 {
+    background-color: #FF0000 !important;
+    color: white !important;
+    font-weight: bold;
+    &:hover {
+      background-color: darken(#FF0000, 5%) !important;
+    }
+    &.active {
+      box-shadow: 0px 0px 2px 2px darken(#FF0000, 15%)
     }
   }
 }
