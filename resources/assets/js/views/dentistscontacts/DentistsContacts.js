@@ -268,11 +268,12 @@ export default {
         },
 
         savedentist: function () {
-            console.log(this.whoami);
-            if (this.whoami.lab.length) {
-                this.newdentistcontact.labid = this.whoami.lab[0].id;
-            } else {
-                this.newdentistcontact.labid = this.whoami.labs[0].id;
+            if (!this.isAdmin) {
+                if (this.whoami.lab.length) {
+                    this.newdentistcontact.labid = this.whoami.lab[0].id;
+                } else {
+                    this.newdentistcontact.labid = this.whoami.labs[0].id;
+                }
             }
 
             var data = {contact: this.newdentistcontact};
