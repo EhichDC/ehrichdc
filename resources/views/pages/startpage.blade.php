@@ -26,13 +26,6 @@
                           <div class="flex-video widescreen">
                               <iframe src="{!! $welcomeVideo !!}" width="604" height="405" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
                           </div>
-                          @include('common.patient-form', ['lang' => $lang,'formName' => 'form2', 'formData'=> $formData])
-                          <div class="row">
-                              <div class="medium-7 columns">
-                              </div>
-                              <div class="medium-5 columns" style="float: right;">
-                              </div>
-                          </div>
                       </div>
                     </div>
                     <div class="entry-content">
@@ -309,6 +302,9 @@
                                             <h3 style="font-weight:bold;">2. Welcher Zahnersatz passt genau zu Ihnen?</h3>
                                             <p>Um eine gute und <strong>richtige Entscheidung</strong> zu treffen, sollten Sie <strong>all Ihre Möglichkeiten</strong> kennenlernen und "begreifen". Damit Sie dieses komplexe Thema Zahnersatz wirklich verstehen können, vereinbaren Sie noch heute einen Termin in einem Padento Dentallabor direkt in Ihrer Nähe. Danach können Sie eine viel bessere Entscheidungen treffen. Schließlich gibt es extrem viele Varianten vom Material und der Technik. Deshalb sollten Sie sich IMMER aus zwei Perspektiven beraten lassen: Vom Zahnarzt <strong>und vom Zahntechniker.</strong></p>
                                         </div>
+                                    </div>
+                                    <div class="row">
+                                        @include('common.patient-form', ['lang' => $lang,'formName' => 'form2', 'formData'=> $formData])
                                     </div>
                                     <div class="row">
                                         <div class="medium-4 columns">
