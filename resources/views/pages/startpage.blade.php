@@ -304,8 +304,13 @@
                                         </div>
                                     </div>
                                     <div class="row">
-                                        <div class="medium-6 columns medium-centered">
-                                            @include('common.patient-form', ['lang' => $lang,'formName' => 'form2', 'formData'=> $formData])
+                                        <div class="medium-4 columns"></div>
+                                        <div class="medium-8 columns">
+                                            <div class="row">
+                                                <div class="medium-10 columns medium-centered">
+                                                    @include('common.patient-form', ['lang' => $lang,'formName' => 'form2', 'formData'=> $formData])
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="row">
