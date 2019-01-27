@@ -103,11 +103,6 @@
                             </div>
                         </div>
 
-                        <label>
-                            <input type="checkbox" name="onWeekend" id="onWeekend" value="1">
-                            <strong>Sind Sie Samstags zu erreichen?</strong>
-                        </label>
-
                         <div id="weekendTimes" style="display: none">
                             <div class="row">
                                 <div class="medium-4 columns">
