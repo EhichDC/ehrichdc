@@ -21,12 +21,19 @@
                             </div>
                         </div>
                     </header>
-                    <div class="medium-7 columns text-center" style="width: 100%">
-                      <div class="padento-box-content">
-                          <div class="flex-video widescreen">
-                              <iframe src="{!! $welcomeVideo !!}" width="604" height="405" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
+                    @if($welcomeVideo == "")
+                        <div class="medium-7 columns text-center" style="width: 100%">
+                          <div class="padento-box-content">
+                              <div class="flex-video widescreen">
+                                  <iframe src="{!! $welcomeVideo !!}" width="604" height="405" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
+                              </div>
                           </div>
-                      </div>
+                        </div>
+                    @endif
+                    <div class="row">
+                        <div class="medium-6 columns medium-centered">
+                            @include('common.patient-form', ['lang' => $lang,'formName' => 'form2', 'formData'=> $formData])
+                        </div>
                     </div>
                     <div class="entry-content">
                           <!--div class="padento-box">
