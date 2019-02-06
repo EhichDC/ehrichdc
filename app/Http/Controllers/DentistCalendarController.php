@@ -31,7 +31,7 @@ class DentistCalendarController extends Controller
         }
 
         $year       = \Carbon\Carbon::now()->year;
-        $holidays   = file_get_contents('http://feiertage.jarmedia.de/api/?jahr=' . $year . '&nur_daten');
+        $holidays   = file_get_contents(' https://ipty.de/feiertag/api.php?do=getFeiertage&loc=SN,BY,BW,BB&outformat=Y-m-d');
         $excludes   = [];
         $timeframes = [];
         $duration = '30';
