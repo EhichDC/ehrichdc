@@ -21,7 +21,7 @@
                             </div>
                         </div>
                     </header>
-                    @if($welcomeVideo == "")
+                    @if($welcomeVideo != "")
                         <div class="medium-7 columns text-center" style="width: 100%">
                           <div class="padento-box-content">
                               <div class="flex-video widescreen">
@@ -29,12 +29,14 @@
                               </div>
                           </div>
                         </div>
-                    @endif
-                    <div class="row">
-                        <div class="medium-6 columns medium-centered">
-                            @include('common.patient-form', ['lang' => $lang,'formName' => 'form2', 'formData'=> $formData])
+                    @else
+                        <div class="row">
+                            <div class="medium-6 columns medium-centered">
+                                @include('common.patient-form', ['lang' => $lang,'formName' => 'form2', 'formData'=> $formData])
+                            </div>
                         </div>
-                    </div>
+                    @endif
+
                     <div class="entry-content">
                           <!--div class="padento-box">
                               <div class="padento-box-head">
