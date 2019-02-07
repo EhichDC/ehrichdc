@@ -3,7 +3,7 @@
 @section('head')
 <script src="/bower_components/jquery/dist/jquery.min.js"></script>
 {{--<script src="/js/map.js"></script>--}}
-<script src="http://openlayers.org/api/OpenLayers.js"></script>
+<script src="https://openlayers.org/api/OpenLayers.js"></script>
 @stop
 
 @section('content')
