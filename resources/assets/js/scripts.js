@@ -15,6 +15,7 @@ $(function() {
             scrollTarget: '#form-section',
             afterScroll: function () {
                 $("#form-section form :text").first().focus();
+                fbq('track', 'go-to-form');
             }
         });
         return false;

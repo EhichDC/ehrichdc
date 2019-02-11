@@ -30,7 +30,7 @@
                             </div>
                         </div>
                     </header>
-                    @if($welcomeVideo != "")
+                    @if($welcomeVideo != "" && AB::getCurrentTest() == 'versionAVideo')
                         <div class="medium-7 columns text-center" style="width: 100%">
                           <div class="padento-box-content">
                               <div class="flex-video widescreen">

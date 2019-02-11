@@ -48,6 +48,7 @@
 
                 fbq('init', '798274203651101');
                 fbq('track', 'PageView');
+                fbq('track', '{{ AB::getCurrentTest()  }}');
             }
 
             function optOutFacebook() {

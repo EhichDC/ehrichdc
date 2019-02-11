@@ -6,8 +6,9 @@ return [
     'default' => 'none',
 
     'tests' => [
-        'versionA' => 1,
-        'versionB' => 1
+        'versionAVideo' => 1,
+        'versionBTopFormWithSubHeader' => 1,
+        'versionCFormTopWithoutSubHeader' => 1
     ],
 
 ];
