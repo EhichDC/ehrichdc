@@ -7,4 +7,16 @@ $(function() {
     $('.navigation .close-button').click(function() {
     	$('.navigation').removeClass('active');
     });
+    $("a#go-to-form").on('click', function() {
+        $.smoothScroll({
+            offset: -300,
+            speed: 800,
+            easing: 'swing',
+            scrollTarget: '#form-section',
+            afterScroll: function () {
+                $("#form-section form :text").first().focus();
+            }
+        });
+        return false;
+    });
 });

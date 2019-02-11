@@ -1,7 +1,16 @@
 @extends('layouts.home')
 
 @section('head')
-
+    <style>
+        .shrink {
+            background-color: white !important;
+            background: white;
+            box-shadow: 0 1px 6px 0 rgba(32,33,36,0.28);
+        }
+        nav.top-bar {
+            background-color: #d6ede7;
+        }
+    </style>
 @stop
 
 
@@ -358,7 +367,7 @@
                                 </span>
                             </div>
 
-                            <div class="row">
+                            <div class="row" id="form-section">
                               <div class="medium-5 columns" style="float: right;">
                                 @include('common.patient-form', ['lang' => $lang,'formName' => 'form2', 'formData'=> $formData])
                               </div>
