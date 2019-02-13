@@ -134,7 +134,7 @@ if (!isset($_COOKIE['orig_page'])) {
 
 
 <!--script type="text/javascript" src="{{ URL::asset('js/all.js') }}"></script-->
-<script type="text/javascript" src="{{ URL::asset('assets/js/scripts.js') }}"></script>
+<script type="text/javascript" src="{{ URL::asset('assets/js/scripts.js?v=1.1') }}"></script>
 
 @yield('foot')
 <!--script src='//cdn.tinymce.com/4/tinymce.min.js'></script-->
