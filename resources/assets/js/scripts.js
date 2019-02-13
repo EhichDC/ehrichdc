@@ -9,7 +9,7 @@ $(function() {
     });
     $("a#go-to-form").on('click', function() {
         $.smoothScroll({
-            offset: -300,
+            offset:-194,
             speed: 800,
             easing: 'swing',
             scrollTarget: '#form-section',
