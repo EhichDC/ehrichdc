@@ -8,7 +8,7 @@ return [
     'tests' => [
         'versionAVideo' => 1,
         'versionBTopFormWithSubHeader' => 0,
-        'versionCFormTopWithoutSubHeader' => 1
+        'versionCFormTopWithoutSubHeader' => 0
     ],
 
 ];
