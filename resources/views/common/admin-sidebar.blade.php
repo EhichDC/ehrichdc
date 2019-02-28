@@ -260,7 +260,7 @@
                 @endif
 
                 @endrole
-
+                @if(!count(Auth::user()->lab))
                 @if(Auth::user()->lab[0]->membership != 5)
                     <h4>Hilfreiches</h4>
                     <ul class="nav">
@@ -290,6 +290,7 @@
                         <li><a href="{{ url('downloads/mail_vorlagen') }}"><i class="fa fa-book"></i> Mailvorlagen</a></li>
 
                     </ul>
+                @endif
                 @endif
                 <hr>
                 <h4>Marketing</h4>
