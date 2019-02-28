@@ -38,12 +38,6 @@
                               </div>
                           </div>
                         </div>
-                    @else
-                        <div class="row">
-                            <div class="medium-6 columns medium-centered">
-                                @include('common.patient-form', ['lang' => $lang,'formName' => 'form2', 'formData'=> $formData])
-                            </div>
-                        </div>
                     @endif
 
                     <div class="entry-content">
