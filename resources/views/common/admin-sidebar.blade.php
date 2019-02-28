@@ -192,7 +192,9 @@
                                     Statistiken <span class="label label-success">NEU</span></a></li>
                             <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Zahnärzte
                                     Termine <span class="label label-success">NEU</span></a></li>
-                            <li><a v-link="{ name: 'lab.settings' }"><i class="fa fa-cog"></i> Termin-Einstellungen</a>
+                            <li v-if="whoami.lab[0].user_id === whoami.id">
+                                <a v-link="{ name: 'lab.users' }"><i class="fa fa-user"></i> Laborbenutzer
+                                    <span class="label label-success">NEU</span></a>
                             </li>
                         </ul>
                         <hr>
@@ -200,10 +202,12 @@
                         <ul class="nav">
                             <li><a href="/labor/{{ Auth::user()->lab[0]->slug }}" target="_blank"><i class="fa fa-globe"
                                                                                                      aria-hidden="true"> </i>Mein
-                                    Profil online ansehen</a>
+                            Profil online ansehen</a>
                             <li>
                                 <a v-link="{ name: 'admin.labSingle', params: { id: {{ Auth::user()->lab->first()->id }} } }"><i
                                             class="fa fa-pencil-square-o" aria-hidden="true"></i>Mein Profil bearbeiten</a>
+                            </li>
+                            <li><a v-link="{ name: 'lab.settings' }"><i class="fa fa-cog"></i> Termin-Einstellungen</a>
                             </li>
                         </ul>
                     @endif
@@ -257,35 +261,36 @@
 
                 @endrole
 
+                @if(Auth::user()->lab[0]->membership != 5)
+                    <h4>Hilfreiches</h4>
+                    <ul class="nav">
+                        <li class="guide">
+                            <a v-link="{ name: 'guides' }">
+                                <i class="fa fa-book"></i> Padento Guide
+                                <ul>
+                                    <li>
+                                        <small>
+                                            Technische Einführung - Login Bereich
+                                        </small>
+                                    </li>
+                                    <li>
+                                        <small>
+                                            Wie Sie mit Padento erfolgreich Patienten gewinnen
+                                        </small>
+                                    </li>
+                                </ul>
+                            </a>
+                        </li>
+                        <li><a href="{{ url('downloads/padento_checkliste_gespraeche') }}"><i class="fa fa-book"></i>Checkliste
+                                für Gespräche</a></li>
+                        <li><a href="{{ url('downloads/padento_termine_machen') }}"><i class="fa fa-book"></i> Termine
+                                machen</a></li>
+                        <li><a href="{{ url('downloads/padento_wie_funktioniert_der_telefonservice') }}"><i
+                                        class="fa fa-book"></i> Wie funktioniert der Telefonservice</a></li>
+                        <li><a href="{{ url('downloads/mail_vorlagen') }}"><i class="fa fa-book"></i> Mailvorlagen</a></li>
 
-                <h4>Hilfreiches</h4>
-                <ul class="nav">
-                    <li class="guide">
-                        <a v-link="{ name: 'guides' }">
-                            <i class="fa fa-book"></i> Padento Guide
-                            <ul>
-                                <li>
-                                    <small>
-                                        Technische Einführung - Login Bereich
-                                    </small>
-                                </li>
-                                <li>
-                                    <small>
-                                        Wie Sie mit Padento erfolgreich Patienten gewinnen
-                                    </small>
-                                </li>
-                            </ul>
-                        </a>
-                    </li>
-                    <li><a href="{{ url('downloads/padento_checkliste_gespraeche') }}"><i class="fa fa-book"></i>Checkliste
-                            für Gespräche</a></li>
-                    <li><a href="{{ url('downloads/padento_termine_machen') }}"><i class="fa fa-book"></i> Termine
-                            machen</a></li>
-                    <li><a href="{{ url('downloads/padento_wie_funktioniert_der_telefonservice') }}"><i
-                                    class="fa fa-book"></i> Wie funktioniert der Telefonservice</a></li>
-                    <li><a href="{{ url('downloads/mail_vorlagen') }}"><i class="fa fa-book"></i> Mailvorlagen</a></li>
-
-                </ul>
+                    </ul>
+                @endif
                 <hr>
                 <h4>Marketing</h4>
                 <ul class="nav">
