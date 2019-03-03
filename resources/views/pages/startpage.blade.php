@@ -294,7 +294,7 @@
                                     <div class="row">
                                         <div class="medium-12 columns">
                                             <h1 style="padding-bottom: 25px; padding-top: 25px; font-weight:bold; text-align: center;">
-                                                Vier wichtige Gründe, warum Sie sich für Padento entscheiden sollten…
+                                                Drei wichtige Gründe für Ihre neuen Zähne:
                                             </h1>
                                         </div>
                                     </div>
