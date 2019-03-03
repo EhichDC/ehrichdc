@@ -2,6 +2,9 @@
 
 @section('head')
     <style>
+        h1 {
+            color:#5e5e5e !important;
+        }
         .shrink {
             background-color: white !important;
             background: white;
@@ -301,8 +304,8 @@
                                                                      alt="Was ist Padento?"/></p>
                                         </div>
                                         <div class="medium-8 columns">
-                                            <h3 style="font-weight: bold;">1. Warum sollten Sie Ihren Zahntechniker kennenlernen?</h3>
-                                            <p>Den bestmöglichen Zahnersatz erhalten Sie, wenn ein <strong>guter Zahnarzt</strong> und ein <strong>gutes Dentallabor</strong> zusammenarbeiten. Aber wie bekommen Sie das heraus? Die in Deutschland <strong>einmalige Idee</strong> <strong>von Padento</strong> geht einen völlig neuen Weg: Denn&nbsp;<strong>nur Zahntechniker wissen</strong>, welcher Zahnarzt wirklich gut ist. Der Zahntechniker vor Ort wird Sie zahntechnisch beraten und Sie zu einem richtig guten Zahnarzt begleiten, der genau zu Ihnen passt.</p>
+                                            <h3 style="font-weight: bold;">1. Zahntechniker zeigen Ihnen Ihre Möglichkeiten:</h3>
+                                            <p>Der Zahnarzt ist der Mediziner und stellt selber keinen Zahnersatz her. Das macht der Zahntechniker. Deshalb kann Ihnen der Zahnarzt nur bedingt die zahntechnischen Lösungen genau zeigen. Da macht es doch Sinn, dass&nbsp;der&nbsp; Zahntechniker Sie bei Ihrem neuen Zahnersatz begleitet. <strong>Er wird immer an Ihrer Seite sein.</strong> So werden Ihre neuen Zähne viel besser zu Ihnen passen.&nbsp;</p>
                                         </div>
                                     </div>
                                     <div class="row">
@@ -311,8 +314,8 @@
                                                                      alt=""></p>
                                         </div>
                                         <div class="medium-8 columns">
-                                            <h3 style="font-weight:bold;">2. Welcher Zahnersatz passt genau zu Ihnen?</h3>
-                                            <p>Um eine gute und <strong>richtige Entscheidung</strong> zu treffen, sollten Sie <strong>all Ihre Möglichkeiten</strong> kennenlernen und "begreifen". Damit Sie dieses komplexe Thema Zahnersatz wirklich verstehen können, vereinbaren Sie noch heute einen Termin in einem Padento Dentallabor direkt in Ihrer Nähe. Danach können Sie eine viel bessere Entscheidungen treffen. Schließlich gibt es extrem viele Varianten vom Material und der Technik. Deshalb sollten Sie sich IMMER aus zwei Perspektiven beraten lassen: Vom Zahnarzt <strong>und vom Zahntechniker.</strong></p>
+                                            <h3 style="font-weight:bold;">2. Sie bekommen einen richtig guten Zahnarzt:</h3>
+                                            <p>Ein guter Zahnarzt ist die grundlegende&nbsp;Basis für guten Zahnersatz. Laien, also alle Menschen, die sich nicht mit Zahnersatz auskennen, können nicht beurteilen, ob der Zahnarzt wirklich gut ist. Das können ausschliesslich Zahntechniker. <strong>Diese sehen das am Zahn-Abdruck innerhalb weniger Sekunden</strong>.&nbsp;&nbsp;Fragen Sie deshalb unsere Zahntechniker vor Ort.</p>
                                         </div>
                                     </div>
                                     <div class="row">
@@ -321,22 +324,8 @@
                                                                      alt=""></p>
                                         </div>
                                         <div class="medium-8 columns">
-                                            <h3 style="font-weight:bold;">3. Warum ist eine zweite Meinung so wichtig?</h3>
-                                            <p>Ihrer Zähne - Ihre Entscheidung! Sie haben Alles in Ihrer Hand. Sie können sich nicht nur Ihren Zahnarzt aussuchen. Sie haben sogar die freie Wahl, wer Ihren Zahnersatz herstellt. <strong>Holen Sie sich deshalb nicht nur eine zweite Meinung von einem guten Zahnarzt</strong>. Sondern informieren Sie sich zudem auch in einem Dentallabor in Ihrer Nähe beim Zahntechniker. <strong>Sicher ist sicher!</strong> Denn Ihre neuen Zähne sollen lange halten, fest sitzen wie die Eigenen und Ihnen ein schönes Lebensgefühl zurückgeben.</p>
-                                        </div>
-                                    </div>
-                                    <div class="row">
-                                        <div class="medium-4 columns">
-                                            <p class="centered"><img src="{{ URL::to('/') }}/img/preis.svg" alt=""></p>
-                                        </div>
-                                        <div class="medium-8 columns">
-                                            <h3 style="font-weight:bold;">4. Wie kann Ratenzahlung Ihnen helfen?</h3>
-                                            @if ($lang  == 'de')
-                                            <p style="text-align: left;">Es ist heutzutage völlig normal, schöne und wertvolle Dinge zu finanzieren. Nicht jeder hat ein paar tausend Euro so einfach übrig. Sie können bei uns ganz einfach und <strong>bequem Ihren Eigenanteil finanzieren</strong> lassen! Viele Menschen schieben das Thema Zahngesundheit zu sehr auf die lange Bank oder machen beim Zahnersatz nur "Stückwerk", weil die meisten das Geld einfach nicht haben. Das ist völlig normal. Ihre Sicherheit besteht darin, dass Sie diese <strong>Finanzierung</strong> ausschliesslich für hochwertigen Zahnersatz zu <strong>100% Made in Germany</strong> bekommen.&nbsp;&nbsp;Somit sind Sie auf der absolut sicheren Seite, dass Ihr Geld gut angelegt ist.</p>
-                                            @endif
-                                            @if ($lang  == 'at')
-                                            <p style="text-align: left;">Es ist heutzutage völlig normal, schöne und wertvolle Dinge zu finanzieren. Nicht jeder hat ein paar tausend Euro so einfach übrig. Sie können bei uns ganz einfach und <strong>bequem Ihren Eigenanteil finanzieren</strong> lassen! Viele Menschen schieben das Thema Zahngesundheit zu sehr auf die lange Bank oder machen beim Zahnersatz nur "Stückwerk", weil die meisten das Geld einfach nicht haben. Das ist völlig normal. Ihre Sicherheit besteht darin, dass Sie diese <strong>Finanzierung</strong> ausschliesslich für hochwertigen Zahnersatz zu <strong>100% Made in Austria</strong> bekommen.&nbsp;&nbsp;Somit sind Sie auf der absolut sicheren Seite, dass Ihr Geld gut angelegt ist.</p>
-                                            @endif
+                                            <h3 style="font-weight:bold;">3. Bezahlbarer Zahnersatz durch Teilzahlung:</h3>
+                                            <p>Zahnersatz kommt meistens unverhofft und übersteigt oftmals das persönliche Budget.&nbsp;Deshalb wird entweder nur "Stückwerk" oder gar nichts gemacht. <strong>So bleibt nicht nur die Ästhetik, sondern auch die Gesundheit auf der Strecke</strong>. Deswegen bieten wir eine Zahnersatz-Finanzierung an, so dass auch wirklich guter Zahnersatz bezahlbar wird.</p>
                                         </div>
                                     </div>
                                 </div>
@@ -601,39 +590,6 @@
                                 </div>
                             </div>
                         </section-->
-
-
-                        <section class="snd-opinion section">
-                            <div class="row">
-                                <div class="small-12 medium-12 columns">
-
-                                    <h1 style="padding-top:25px; text-align: center; font-weight:bold;">Padento ist ein
-                                        echtes Familienunternehmen
-                                    </h1>
-
-                                    <p style="text-align:center; padding-bottom: 10px;">
-                                        <strong>Seit April 2014 ist Padento online</strong> und wir haben bis heute
-                                        bundesweit viele
-                                        <strong>ausgewählte Dentallabore</strong> als Partner gewinnen können. Die
-                                        Begeisterung
-                                        ist wirklich groß. Padento konnte bereits in den ersten Jahren sehr <strong>viele
-                                            Menschen sehr glücklich machen</strong>. Mittlerweile haben sich mehr als
-                                        25.000
-                                        Patienten bei Padento gemeldet. Unser Team wächst und wir entwickeln
-                                        uns jeden Tag weiter. Wir sind <strong>kein Call-Center</strong>, sondern ein
-                                        rein geführter
-                                        Familienbetrieb.
-                                    </p>
-                                </div>
-
-                                <div class="small-12 medium-12 columns">
-                                    <p style="text-align:center;">
-                                        <img style="box-shadow: #d6ede7 0px 0px 18px 5px; border-radius: 30px;"
-                                             src="https://padento.de/wissen/c/uploads/2017/09/padentofamily-new-start-page.jpg"/>
-                                    </p>
-                                </div>
-                            </div>
-                        </section>
 
                         <!--
                                                 <section class="snd-opinion section">
