@@ -4,6 +4,7 @@
     <style>
         h1 {
             color:#5e5e5e !important;
+            font-weight: bold !important;
         }
         .shrink {
             background-color: white !important;
@@ -29,7 +30,7 @@
                     <header class="entry-header">
                         <div class="row">
                             <div class="small-12 columns">
-                                <h1><b>{!! $heading !!}</b></h1>
+                                <h1>{!! $heading !!}</h1>
                             </div>
                         </div>
                     </header>
