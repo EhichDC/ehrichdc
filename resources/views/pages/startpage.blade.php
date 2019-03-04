@@ -14,6 +14,9 @@
         nav.top-bar {
             background-color: #d6ede7;
         }
+        header h3 {
+            color: #5e5e5e;
+        }
     </style>
 @stop
 
