@@ -29,7 +29,7 @@
                     <header class="entry-header">
                         <div class="row">
                             <div class="small-12 columns">
-                                <h1>{!! $heading !!}</h1>
+                                <h1><b>{!! $heading !!}</b></h1>
                             </div>
                         </div>
                     </header>
@@ -320,7 +320,7 @@
                                     </div>
                                     <div class="row">
                                         <div class="medium-4 columns">
-                                            <p class="centered"><img src="{{ URL::to('/') }}/img/WasistPadento3.svg"
+                                            <p class="centered"><img src="{{ URL::to('/') }}/img/preis.svg"
                                                                      alt=""></p>
                                         </div>
                                         <div class="medium-8 columns">
@@ -339,13 +339,13 @@
 
                             <p style="text-align:center;">
                             <h3 class="blue"
-                                style="font-weight:bold;margin-top: 15px; margin-bottom: 15px; text-align:center;">
+                                style="font-weight:bold;margin-top: 15px; margin-bottom: 15px; text-align:center; color: #5e5e5e !important;">
                                 Sichern Sie sich Ihre <u>kostenfreie</u> Beratung im Dentallabor!
                             </h3>
                             </p>
 
                             <div style="width: 80%;margin: auto; margin-top:20px !important; margin-bottom: 20px !important; background-color:#f8f8f7; padding:15px; text-align:center; border-radius:15px;">
-                                <span class="blue" style="font-weight:bold; text-align:center;">
+                                <span class="blue" style="font-weight:bold; text-align:center; color: #5e5e5e !important;">
                                     ⓘ Dieses Angebot ist sehr begehrt, weil es ein komplett neuer Weg ist. Reagieren Sie also schnell und nehmen Sie noch heute Kontakt mit Ihrem Zahntechniker auf.
                                 </span>
                             </div>
