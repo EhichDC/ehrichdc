@@ -66,6 +66,7 @@ export default {
                         {value: '4', text: 'Testkunde'},
                         {value: '5', text: 'B-Kunde'},
                         {value: '6', text: 'A-Kunde'},
+                        {value: '7', text: 'Kein Interesse'},
                     ],
                 },
                 queued: {

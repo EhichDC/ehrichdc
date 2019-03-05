@@ -242,13 +242,13 @@ class PublicPageController extends Controller
             }
 
             $lookup = getLocation($request->plz, $lang); //Get Lat Long of PLZ
-
+            $salutation       = isset($p['salutation']) ? $p['salutation'] : '';
             $meta             = new \App\PatientMeta();
             $meta->zip        = $p['zip'];
             $meta->city       = ''; // array_get($lookup, 'city');
             $meta->name       = $p['name'];
             $meta->email      = $p['email'];
-            $meta->salutation = $p['salutation'];
+            $meta->salutation = $salutation;
             $meta->tel        = phone_format($p['phone'], $country_code);
             $meta->ref        = 'Direkteingabe';
             $meta->orig_ref   = 'Direkteingabe';
