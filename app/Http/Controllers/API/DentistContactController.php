@@ -91,6 +91,7 @@ class DentistContactController extends Controller
             'dentistmeta.email',
             'dentistmeta.tel',
             'dentistmeta.mobile',
+            'dentistmeta.city',
             // 'dentistmeta.zip',
             // 'created_at',
             'id',
@@ -204,6 +205,12 @@ class DentistContactController extends Controller
                         $query->where('dentist_contacts.lab_id', $lab->id);
                     }
                     $query->where('dentistmeta.name', 'like', "%{$name}%");
+                })
+                ->orWhere(function ($query) use ($lab, $name) {
+                    if ($lab) {
+                        $query->where('dentist_contacts.lab_id', $lab->id);
+                    }
+                    $query->where('dentistmeta.city', 'like', "%{$name}%");
                 });
         } else {
             /*  if ($user->hasRole('user')) {

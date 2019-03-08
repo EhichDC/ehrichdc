@@ -48,7 +48,8 @@ class ContactController extends Controller
 //            'patientmeta.email',
             'patientmeta.tel',
             'patientmeta.mobile',
-            // 'patientmeta.zip',
+            'patientmeta.zip',
+            'patientmeta.city',
             // 'created_at',
             'id',
         ];
@@ -137,6 +138,7 @@ class ContactController extends Controller
             $results->where(function ($q) use ($name) {
                 $q->where('patientmeta.name', 'like', "%{$name}%")
                     ->orWhere('patientmeta.tel', 'like', "%{$name}%")
+                    ->orWhere('patientmeta.city', 'like', "%{$name}%")
                     ->orWhere('patientmeta.mobile', 'like', "%{$name}%");
             });
             //$results = $results->search($request->input('searchfor'), $searchThrough);
