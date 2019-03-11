@@ -12,8 +12,7 @@
                     <li><a v-link="{ name: 'home' }"><i class="fa fa-tachometer"></i> Übersicht</a></li>
                     <li><a v-link="{ name: 'admin.contacts', params: {type: 'all'} }"><i class="fa fa-user"></i>
                             Kontakte</a></li>
-                    <li><a v-link="{ name: 'admin.dentistsContacts' }"><i class="fa fa-user-md"></i> Zahnärzte <span
-                                    class="label label-success">NEU</span></a></li>
+                    <li><a v-link="{ name: 'admin.dentistsContacts' }"><i class="fa fa-user-md"></i> Zahnärzte</a></li>
                     <li><a v-link="{ name: 'admin.labs' }"><i class="fa fa-user-md"></i> Labore</a></li>
                     <li><a v-link="{ name: 'my.calendar' }"><i class="fa fa-calendar"></i> Rückruftermine</a></li>
 
@@ -23,8 +22,7 @@
                 <h4>Administration</h4>
                 <ul class="nav">
                     <!-- li><a v-link="{ name: 'stats' }"><i class="fa fa-bar-chart"></i> Statistiken</a></li -->
-                    <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Zahnarzt Statistiken <span
-                                    class="label label-success">NEU</span></a></li>
+                    <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Zahnarzt Statistiken</a></li>
                     {{--<li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Zahnärzte Termine--}}
                     {{--<span class="label label-success">NEU</span></a></li>--}}
 
@@ -100,8 +98,7 @@
                         <h4>Zahnärzte</h4>
                         <ul class="nav">
                             <li><a href="http://www.rainerehrich.de/crm-hinter-den-kulissen" target="_blank"><i
-                                            class="fa fa-user-md"></i> Upgrade Zahnärzte <span
-                                            class="label label-success">NEU</span></a>
+                                            class="fa fa-user-md"></i> Upgrade Zahnärzte</a>
                             </li>
                         </ul>
                     @endif
@@ -110,8 +107,7 @@
                         <h4>Zahnärzte</h4>
                         <ul class="nav">
                             <li><a href="http://www.rainerehrich.de/crm-hinter-den-kulissen" target="_blank"><i
-                                            class="fa fa-user-md"></i> Upgrade Zahnärzte <span
-                                            class="label label-success">NEU</span></a>
+                                            class="fa fa-user-md"></i> Upgrade Zahnärzte</a>
                             </li>
                         </ul>
                     @endif
@@ -124,14 +120,12 @@
                         <h4>Zahnärzte</h4>
                         <ul class="nav">
                             <li><a v-link="{ name: 'admin.dentistsContacts' }"><i class="fa fa-user-md"></i> Zahnärzte
-                                    <span class="label label-success">NEU</span></a></li>
-                            <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Statistiken <span
-                                            class="label label-success">NEU</span></a></li>
-                            <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Termine <span
-                                            class="label label-success">NEU</span></a></li>
+                                   </a></li>
+                            <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Statistiken </a></li>
+                            <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Termine </a></li>
                             <li v-if="whoami.lab[0].user_id === whoami.id">
                                 <a v-link="{ name: 'lab.users' }"><i class="fa fa-user"></i> Laborbenutzer
-                                    <span class="label label-success">NEU</span></a>
+                                   </a>
                             </li>
                         </ul>
                         <hr>
@@ -141,14 +135,12 @@
                         <h4>Zahnärzte</h4>
                         <ul class="nav">
                             <li><a v-link="{ name: 'admin.dentistsContacts' }"><i class="fa fa-user-md"></i> Zahnärzte
-                                    <span class="label label-success">NEU</span></a></li>
-                            <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Statistiken <span
-                                            class="label label-success">NEU</span></a></li>
-                            <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Termine <span
-                                            class="label label-success">NEU</span></a></li>
+                                   </a></li>
+                            <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Statistiken </a></li>
+                            <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Termine </a></li>
                             <li v-if="whoami.lab[0].user_id === whoami.id">
                                 <a v-link="{ name: 'lab.users' }"><i class="fa fa-user"></i> Laborbenutzer
-                                    <span class="label label-success">NEU</span></a>
+                                   </a>
                             </li>
                         </ul>
                         <hr>
@@ -163,11 +155,11 @@
                         <h4>Zahnärzte</h4>
                         <ul class="nav">
                             <li><a v-link="{ name: 'admin.dentistsContacts' }"><i class="fa fa-user-md"></i> Zahnärzte
-                                    <span class="label label-success">NEU</span></a></li>
+                                   </a></li>
                             <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Zahnarzt
-                                    Statistiken <span class="label label-success">NEU</span></a></li>
+                                    Statistiken</a></li>
                             <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Zahnärzte
-                                    Termine <span class="label label-success">NEU</span></a></li>
+                                    Termine</a></li>
                             <li><a v-link="{ name: 'lab.settings' }"><i class="fa fa-cog"></i> Termin-Einstellungen</a>
                             </li>
                         </ul>
@@ -187,14 +179,14 @@
                         <h4>Zahnärzte</h4>
                         <ul class="nav">
                             <li><a v-link="{ name: 'admin.dentistsContacts' }"><i class="fa fa-user-md"></i> Zahnärzte
-                                    <span class="label label-success">NEU</span></a></li>
+                                   </a></li>
                             <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Zahnarzt
-                                    Statistiken <span class="label label-success">NEU</span></a></li>
+                                    Statistiken</a></li>
                             <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Zahnärzte
-                                    Termine <span class="label label-success">NEU</span></a></li>
+                                    Termine</a></li>
                             <li v-if="whoami.lab[0].user_id === whoami.id">
                                 <a v-link="{ name: 'lab.users' }"><i class="fa fa-user"></i> Laborbenutzer
-                                    <span class="label label-success">NEU</span></a>
+                                   </a>
                             </li>
                         </ul>
                         <hr>
