@@ -118,12 +118,13 @@
                         <h2>3. Datenschutzbeauftragter</h2>
                         <h3>Gesetzlich vorgeschriebener Datenschutzbeauftragter</h3>
                         <p>Wir haben für unser Unternehmen einen Datenschutzbeauftragten bestellt.
-                        <p>Herrn Joachim Kramer<br>
-                            Kramer Datenschutz OHG<br>
-                            Elsternweg 24<br>
-                            42555 Velbert<br>
-                            Telefon: +49 2052 9289766<br>
-                            E-Mail: info@datenschutz-kramer.de<br>
+                        <p>Pagestreet<br>
+                            legal.solutions GmbH<br>
+                            Oranienburger Str. 17<br>
+                            10178 Berlin<br>
+                            Ansprechpartner: Herr Christian Martin<br>
+                            Telefon: 030 - 467240636<br>
+                            E-Mail: c.martin@pagestreet.de<br>
 
                         <h2>4. Datenerfassung auf unserer Website</h2>
                         <h3>Cookies</h3>
