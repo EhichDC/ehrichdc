@@ -90,6 +90,14 @@ class UserController extends Controller
         return response()->json(['status' => '403', 'message' => 'you are not allowed to do that']);
     }
 
+    public function delete(Request $request, $id)
+    {
+        if (Auth::user()->hasRole('admin') || Auth::user()->id == $id) {
+            $user = User::find($id);
+            $user->delete();
+        }
+    }
+
     public function whoami()
     {
         if (!Auth::check()) {
