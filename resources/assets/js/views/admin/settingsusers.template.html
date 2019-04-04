@@ -39,7 +39,7 @@
                   <li><a v-link="{ name: 'admin.settings.users.edit', params: { id: user.id} }">Bearbeiten</a></li>
                   <li role="separator" class="divider"></li>
                   <li><a href="/admin/change-user-status/{{ user.id }}" @click="changeUserStatus">{{ user.status == 'Aktiv' ? 'Deaktivieren' : 'Aktivieren' }}</a></li>
-                  <li><a href="#">Löschen</a></li>
+                  <li><a href="#" @click.prevent="delete(user.id)">Löschen</a></li>
                 </ul>
               </div>
           </tr>
