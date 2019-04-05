@@ -190,6 +190,7 @@ Route::group(['prefix' => 'api', 'namespace' => 'API'], function () {
     Route::get('users/all', 'UserController@index')->name('api.all.users');
     Route::get('user/{id}', 'UserController@view')->name('api.single.user');
     Route::post('user/{id}', 'UserController@update')->name('api.single.user');
+    Route::delete('user/{id}/delete', 'UserController@delete')->name('api.single.user');
     Route::get('userpassword/{id}', 'UserController@view')->name('api.single.user');
     Route::post('userpassword/{id}', 'UserController@updateUserPassword')->name('api.single.user');
     Route::get('whoami', 'UserController@whoami');
