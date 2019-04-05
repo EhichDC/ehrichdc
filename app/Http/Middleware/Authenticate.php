@@ -24,7 +24,7 @@ class Authenticate
                 return redirect()->guest('login');
             }
         }
-        if (Auth::user()->allowlogin != 'allow' || Auth::user()->status == "Deaktiviert") {
+        if (Auth::user()->allowlogin != 'allow' || (Auth::user()->status == "Deaktiviert" && Auth::user()->hasRole('user') )) {
             Auth::logout();
             return redirect('/login?user=disabled');
         }
