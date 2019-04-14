@@ -88,7 +88,6 @@ class DentistContactController extends Controller
 
         $searchThrough = [
             'dentistmeta.name',
-            'dentistmeta.email',
             'dentistmeta.tel',
             'dentistmeta.mobile',
             'dentistmeta.city',
@@ -182,13 +181,7 @@ class DentistContactController extends Controller
             if ($user->hasRole('lab')) {
                 $lab = $user->lab->first();
             }
-            $results = $results->where(function ($query) use ($lab, $name){
-                    if ($lab) {
-                        $query->where('dentist_contacts.lab_id', $lab->id);
-                    }
-                    $query->where('dentistmeta.email', 'like', '%' . str_replace(' ', '', $name) . '%');
-                })
-                ->orWhere(function ($query) use ($lab, $name) {
+            $results = $results->where(function ($query) use ($lab, $name) {
                     if ($lab) {
                         $query->where('dentist_contacts.lab_id', $lab->id);
                     }
