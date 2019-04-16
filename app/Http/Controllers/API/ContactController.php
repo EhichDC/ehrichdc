@@ -557,19 +557,21 @@ class ContactController extends Controller
             return $usedPatient;
         } else {
             if ($request->input('user_id') != '') {
-                if ($request->input('user_id') != $usedPatient->user_id) {
-                    $timetowait = Settings::where('name', '=', 'Nach wie vielen Minuten soll ein Kontakt wieder freigegeben werden?')->first()->value;
-                    if ($timetowait - ((new \Carbon\Carbon($usedPatient->updated_at))->diffInMinutes()) < 0) {
-                        $usedPatient->delete();
-                        $usedPatient = PatientsUsed::create(['patient_id' => $request->input('patient_id'), 'user_id' => $request->input('user_id')]);
+                if ($usedPatient) {
+                    if ($request->input('user_id') != $usedPatient->user_id) {
+                        $timetowait = Settings::where('name', '=', 'Nach wie vielen Minuten soll ein Kontakt wieder freigegeben werden?')->first()->value;
+                        if ($timetowait - ((new \Carbon\Carbon($usedPatient->updated_at))->diffInMinutes()) < 0) {
+                            $usedPatient->delete();
+                            $usedPatient = PatientsUsed::create(['patient_id' => $request->input('patient_id'), 'user_id' => $request->input('user_id')]);
+                        }
+
+                        return $usedPatient;
+                    } else {
+                        $usedPatient->updated_at = date('Y-m-d H:i:s');
+                        $usedPatient->save();
+
+                        return $usedPatient;
                     }
-
-                    return $usedPatient;
-                } else {
-                    $usedPatient->updated_at = date('Y-m-d H:i:s');
-                    $usedPatient->save();
-
-                    return $usedPatient;
                 }
             }
         }
