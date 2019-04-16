@@ -72,6 +72,7 @@ class Handler extends ExceptionHandler
      */
     public function render($request, Exception $e)
     {
+        // redirect to last page with new token if expired
         if ($e instanceof \Illuminate\Session\TokenMismatchException) {
             return redirect()
                 ->back()
