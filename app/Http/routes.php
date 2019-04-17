@@ -357,6 +357,11 @@ Route::get('dashboard/karte', function () {
     }
 });
 
+Route::get('pAPI/labscoords', function () {
+    $glabs = \App\Lab::select('id', 'name', 'slug',  'lon', 'lat')->where('status', '=', 'aktiv')->get();
+    return  $glabs;
+});
+
 Route::get('fl/{id}', function ($id = 1) {
     if (Auth::user() && (Auth::user()->hasRole('admin') || session('is_admin'))) {
         Auth::logout();
