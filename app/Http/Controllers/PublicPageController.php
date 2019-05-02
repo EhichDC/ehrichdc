@@ -211,8 +211,8 @@ class PublicPageController extends Controller
             'formData'           => $setting->getFormData(),
         ];
 
-        return view('/pages/startpage', $data);
-        return redirect("http://52.58.188.250/wordpress/");
+        // return view('/pages/startpage', $data);
+        return redirect("/lp/");
     }
 
     public function newRequest(Request $request)
