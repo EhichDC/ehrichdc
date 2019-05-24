@@ -66,7 +66,7 @@ class CalendarController extends Controller
         }
 
         $year       = \Carbon\Carbon::now()->year;
-        $holidays   = [];
+        $holidays   = json_encode([]);
         $excludes   = [];
         $timeframes = [];
         $dates      = [];
