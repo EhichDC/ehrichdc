@@ -54,7 +54,7 @@ class TodoController extends Controller
         ]);
 
         if($todo->patient) {
-          activity()->causedBy($request->user())->performedOn($todo->patient)->withProperties(['task' => $todo->title])->log('task_created');
+          activity()->causedBy($request->user())->performedOn($todo->patient)->withProperties(['task' => $todo->title, 'creator' => $request->user()->name])->log('task_created');
         } else {
           activity()->causedBy($request->user())->withProperties(['task' => $todo->title])->log('task_created');
         }

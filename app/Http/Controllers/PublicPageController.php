@@ -262,7 +262,7 @@ class PublicPageController extends Controller
 
             $patient->fresh()->createToDos();
 
-            activity()->on($patient)->log('added_contact_manually');
+            activity()->on($patient)->withProperties(['creator' => $request->user()->name])->log('added_contact_manually');
 //            Event::fire(new PatientConfirmed($patient));
 
             if (!$lab->isQueueLab()) {

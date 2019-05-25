@@ -1,1 +1,1 @@
-<p>Direkteingabe von Padento</p>
+<p>Direkteingabe von Padento von {{ $activity->getExtraProperty('creator') ? $activity->getExtraProperty('creator') : '' }}</p>
