@@ -26,6 +26,7 @@
 				</div>
 			</div>
 		</header>
+		<!--
 		@if( AB::getCurrentTest() == 'versionAVideo' ||  AB::getCurrentTest() == 'versionBTopFormWithSubHeader')
 			<div  data-sticky-container>
 				<div class="sticky" data-sticky style="width: 100%;"  data-options="marginTop:0;stickyOn:small;topAnchor: page; stickyClass: shrink"">
@@ -37,6 +38,6 @@
 					</nav>
 				</div>
 			</div>
-		@endif
+		@endif -->
     </div>
 </div>
