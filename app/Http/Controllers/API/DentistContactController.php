@@ -474,12 +474,12 @@ class DentistContactController extends Controller
         $subject = $email->subject;
 
         if ($dentist->dentistmeta->email) {
-            Mail::send('emails.upload-attachments',
+            /* Mail::send('emails.upload-attachments',
                 ['body' => $message, 'footer' => $footer], function ($m) use ($dentist, $subject) {
                     $m->from('buero@padento.de', 'Padento');
                     $m->to($dentist->dentistmeta->email, $dentist->dentistmeta->name)
                         ->subject($subject);
-                });
+                }); */
         }
 
         return response("success");

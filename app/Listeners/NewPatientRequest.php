@@ -35,7 +35,7 @@ class NewPatientRequest
             $patient->patientmeta->zip,
             $patient->patientmeta->tel
         );
-
+        /*
         Log::info($msg);
 //        Activity::log($msg);
 
@@ -43,6 +43,6 @@ class NewPatientRequest
             ->toPatient()
             ->xtags('Patient, Bestätigungsmail, unbestätigt')
             ->shouldLogError()
-            ->send();
+            ->send(); */
     }
 }

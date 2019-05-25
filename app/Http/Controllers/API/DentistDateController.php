@@ -106,7 +106,7 @@ class DentistDateController extends Controller
                 if ($date->date > Carbon::today()->toDateTimeString() && $date->date < Carbon::tomorrow() && $date->date < Carbon::now()) {
                     $now_old[] = $dateArray;
                 }
-                if ($date->date > Carbon::today()->toDateTimeString() && $date->date < Carbon::tomorrow() && $date->date > Carbon::now()) {
+                if ($date->date > Carbon::today()->toDateTimeString() && $date->date <= Carbon::tomorrow() && $date->date > Carbon::now()) {
                     $now_new[] = $dateArray;
                 }
             }

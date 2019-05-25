@@ -36,11 +36,11 @@ class NewDentistDateStored
         Log::info($msg);
 //        Activity::log($msg);
 
-        mailer('Zahnarzt-Labormail', $dentist, $lab, $date)
+        /* mailer('Zahnarzt-Labormail', $dentist, $lab, $date)
             ->toLab()
             ->fromSecondary()
             ->xtags('Labor, Termin')
-            ->send();
+            ->send(); */
     }
 
 }
