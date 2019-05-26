@@ -36,7 +36,7 @@ class PatientIsConfirmed
 //        Activity::log($msg);
 
         if ($patient->queued == 1) {
-            /* mailer('kontaktinqueue', $patient, $lab)->toPatient()->send(); */
+            mailer('kontaktinqueue', $patient, $lab)->toPatient()->send();
         } else {
            mailer('Kontaktmail2', $patient, $lab)
                 ->toPatient()
