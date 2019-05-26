@@ -262,12 +262,12 @@ class PublicPageController extends Controller
 
             $patient->fresh()->createToDos();
 
-            activity()->on($patient)->withProperties(['creator' => $request->user()->name])->log('added_contact_manually');
+            //activity()->on($patient)->withProperties(['creator' => $request->user()->name])->log('added_contact_manually');
 //            Event::fire(new PatientConfirmed($patient));
 
             if (!$lab->isQueueLab()) {
                 mailer('Terminselbermachen', $patient, $lab)->toPatient()->xtags('Patient, Termin machen')->send();
-                mailer('Labormail2', $patient, $lab)->toLab()->fromSecondary()->xtags('Labor, Termin')->send();
+                /* mailer('Labormail2', $patient, $lab)->toLab()->fromSecondary()->xtags('Labor, Termin')->send(); */
             }
 
             return ['patient_id' => $patient->id];
