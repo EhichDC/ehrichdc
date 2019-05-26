@@ -41,10 +41,10 @@ class PatientWasSelfContacted
             Log::info($msg);
 //            Activity::log($msg);
 
-            mailer('Terminselbermachen', $patient, $lab)
+            /* mailer('Terminselbermachen', $patient, $lab)
                 ->toPatient()
                 ->xtags('Patient, Termin machen')
-                ->send();
+                ->send(); */
         } else {
 
             $msg = sprintf('[PatientUnobtainableLogger] => "%s" <%s> [PLZ: %s] konnte von %s nicht erreicht werden und wurde an das Labor %s weitergeleitet. Patient hat keine Mail bekommen',
