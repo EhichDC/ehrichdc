@@ -118,13 +118,12 @@
                         <h2>3. Datenschutzbeauftragter</h2>
                         <h3>Gesetzlich vorgeschriebener Datenschutzbeauftragter</h3>
                         <p>Wir haben für unser Unternehmen einen Datenschutzbeauftragten bestellt.
-                        <p>Pagestreet<br>
                             legal.solutions GmbH<br>
+                            – Datenschutzbeauftragte –<br>
                             Oranienburger Str. 17<br>
                             10178 Berlin<br>
-                            Ansprechpartner: Herr Christian Martin<br>
-                            Telefon: 030 467 24 06 18<br>
                             E-Mail: datenschutz@pagestreet.de<br>
+                            Telefon: 030 467 24 06 18<br>
 
                         <h2>4. Datenerfassung auf unserer Website</h2>
                         <h3>Cookies</h3>
