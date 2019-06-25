@@ -117,7 +117,7 @@
                             Falle der unverlangten Zusendung von Werbeinformationen, etwa durch Spam-E-Mails, vor.
                         <h2>3. Datenschutzbeauftragter</h2>
                         <h3>Gesetzlich vorgeschriebener Datenschutzbeauftragter</h3>
-                        <p>Wir haben für unser Unternehmen einen Datenschutzbeauftragten bestellt.
+                        <p>Wir haben für unser Unternehmen einen Datenschutzbeauftragten bestellt.<br>
                             legal.solutions GmbH<br>
                             – Datenschutzbeauftragte –<br>
                             Oranienburger Str. 17<br>
