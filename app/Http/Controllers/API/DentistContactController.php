@@ -97,7 +97,7 @@ class DentistContactController extends Controller
         ];
 
         //SELECT patients.*, MIN(dates.date) FROM patients LEFT JOIN dates ON patients.id = dates.dentist_contact_id AND dates.date > NOW() GROUP BY patients.id;
-        $results = DentistContact::select([
+        $results = Auth::user()->lab->first()->dentistContact()->select([
             'dentist_contacts.*',
             DB::raw('MIN(dates.date) as labDate'),
             DB::raw('MIN(employee_dates.date) as empDate'),
