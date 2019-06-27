@@ -266,8 +266,8 @@ class PublicPageController extends Controller
 //            Event::fire(new PatientConfirmed($patient));
 
             if (!$lab->isQueueLab()) {
-                /* mailer('Terminselbermachen', $patient, $lab)->toPatient()->xtags('Patient, Termin machen')->send(); */
-                /* mailer('Labormail2', $patient, $lab)->toLab()->fromSecondary()->xtags('Labor, Termin')->send(); */
+                mailer('Terminselbermachen', $patient, $lab)->toPatient()->xtags('Patient, Termin machen')->send();
+                mailer('Labormail2', $patient, $lab)->toLab()->fromSecondary()->xtags('Labor, Termin')->send();
             }
 
             return ['patient_id' => $patient->id];

@@ -56,11 +56,11 @@ class NewPatientDateStored
 
 
         if ($user->hasRole('admin') || $user->hasRole('user')) {
-            /* mailer('Labormail2', $patient, $lab, $date)
+            mailer('Labormail2', $patient, $lab, $date)
                 ->toLab()
                 ->fromSecondary()
                 ->xtags('Labor, Termin')
-                ->send(); */
+                ->send();
         }
     }
 
