@@ -42,6 +42,10 @@ class PatientIsConfirmed
                 ->toPatient()
                 ->xtags('Patient, Patienten Anfrage, bestätigt')
                 ->send();
+            mailer('Labormail1', $patient, $lab)
+                ->toLab()
+                ->xtags('Patient, Patienten Anfrage, bestätigt')
+                ->send();
         }
     }
 }
