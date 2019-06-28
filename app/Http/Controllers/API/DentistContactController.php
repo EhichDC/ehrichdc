@@ -105,13 +105,14 @@ class DentistContactController extends Controller
                     DB::raw('MIN(employee_dates.date) as empDate'),
                 ]);
             }
+        } else {
+            $results = DentistContact::select([
+                'dentist_contacts.*',
+                DB::raw('MIN(dates.date) as labDate'),
+                DB::raw('MIN(employee_dates.date) as empDate'),
+            ]);
         }
 
-        $results = DentistContact::select([
-            'dentist_contacts.*',
-            DB::raw('MIN(dates.date) as labDate'),
-            DB::raw('MIN(employee_dates.date) as empDate'),
-        ]);
 
         $results = $results->join('dentist_contact_metas as dentistmeta', 'dentistmeta.dentist_contact_id', '=', 'dentist_contacts.id');
 
