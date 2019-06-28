@@ -99,7 +99,9 @@ class DentistContactController extends Controller
         //SELECT patients.*, MIN(dates.date) FROM patients LEFT JOIN dates ON patients.id = dates.dentist_contact_id AND dates.date > NOW() GROUP BY patients.id;
         $query = new DentistContact();
         if ($user->lab) {
-            $query = $user->lab->first()->dentistContact();
+            if($query = $user->lab->first()) {
+                $query = $user->lab->first()->dentistContact();
+            }
         }
         $results = $query->select([
             'dentist_contacts.*',
