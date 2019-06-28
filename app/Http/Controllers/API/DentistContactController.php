@@ -101,7 +101,7 @@ class DentistContactController extends Controller
         if ($user->lab) {
             $query = $user->lab->first();
         }
-        $results = $query->first()->dentistContact()->select([
+        $results = $query->dentistContact()->select([
             'dentist_contacts.*',
             DB::raw('MIN(dates.date) as labDate'),
             DB::raw('MIN(employee_dates.date) as empDate'),
