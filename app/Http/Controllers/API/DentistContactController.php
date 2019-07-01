@@ -104,11 +104,13 @@ class DentistContactController extends Controller
                 DB::raw('MIN(employee_dates.date) as empDate'),
             ]);
         } else {
-            $results = DentistContact::select([
-                'dentist_contacts.*',
-                DB::raw('MIN(dates.date) as labDate'),
-                DB::raw('MIN(employee_dates.date) as empDate'),
-            ]);
+            if ($user->labs->first()) {
+                $results = $user->labs->first()->dentistContact()->select([
+                    'dentist_contacts.*',
+                    DB::raw('MIN(dates.date) as labDate'),
+                    DB::raw('MIN(employee_dates.date) as empDate'),
+                ]);
+            }
         }
 
 
@@ -191,6 +193,8 @@ class DentistContactController extends Controller
             if ($user->hasRole('lab')) {
                 $lab = $user->lab->first();
             }
+            if(!$lab)
+                $lab = $user->labs()->first();
             $results = $results->where(function ($query) use ($lab, $name) {
                     if ($lab) {
                         $query->where('dentist_contacts.lab_id', $lab->id);
@@ -251,6 +255,12 @@ class DentistContactController extends Controller
                 $lab = $user->labs->first();
             }
         }
+
+        $lab = $user->lab->first();
+
+        if (!$lab)
+            $lab = $user->labs->first();
+        $results = $results->where('dentist_contacts.lab_id', $lab->id);
 
         $results = $results->with(['dentistmeta', 'lab']);
         $results = $results->groupBy('dentist_contacts.id');
