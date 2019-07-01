@@ -97,23 +97,11 @@ class DentistContactController extends Controller
         ];
 
         //SELECT patients.*, MIN(dates.date) FROM patients LEFT JOIN dates ON patients.id = dates.dentist_contact_id AND dates.date > NOW() GROUP BY patients.id;
-        if($user->lab->first()) {
-            $results = $user->lab->first()->dentistContact()->select([
-                'dentist_contacts.*',
-                DB::raw('MIN(dates.date) as labDate'),
-                DB::raw('MIN(employee_dates.date) as empDate'),
-            ]);
-        } else {
-            if ($user->labs->first()) {
-                $results = $user->labs->first()->dentistContact()->select([
-                    'dentist_contacts.*',
-                    DB::raw('MIN(dates.date) as labDate'),
-                    DB::raw('MIN(employee_dates.date) as empDate'),
-                ]);
-            }
-        }
-
-
+        $results = DentistContact::select([
+            'dentist_contacts.*',
+            DB::raw('MIN(dates.date) as labDate'),
+            DB::raw('MIN(employee_dates.date) as empDate'),
+        ]);
         $results = $results->join('dentist_contact_metas as dentistmeta', 'dentistmeta.dentist_contact_id', '=', 'dentist_contacts.id');
 
         $results = $results->leftJoin('dates', function ($query) {
@@ -192,15 +180,23 @@ class DentistContactController extends Controller
             $lab = null;
             if ($user->hasRole('lab')) {
                 $lab = $user->lab->first();
+                if (!$lab) {
+                    $lab = $user->labs->first();
+                }
             }
-            if(!$lab)
-                $lab = $user->labs()->first();
+            if ($user->hasRole('crm-user')) {
+                $lab = $user->lab->first();
+
+                if (!$lab) {
+                    $lab = $user->labs->first();
+                }
+            }
             $results = $results->where(function ($query) use ($lab, $name) {
-                    if ($lab) {
-                        $query->where('dentist_contacts.lab_id', $lab->id);
-                    }
-                    $query->where('dentistmeta.mobile', 'like', "%{$name}%");
-                })
+                if ($lab) {
+                    $query->where('dentist_contacts.lab_id', $lab->id);
+                }
+                $query->where('dentistmeta.mobile', 'like', "%{$name}%");
+            })
                 ->orWhere(function ($query) use ($lab, $name) {
                     if ($lab) {
                         $query->where('dentist_contacts.lab_id', $lab->id);
@@ -256,15 +252,6 @@ class DentistContactController extends Controller
             }
         }
 
-        $lab = $user->lab->first();
-
-        if (!$lab)
-            $lab = $user->labs->first();
-        $results = $results->where('dentist_contacts.lab_id', $lab->id);
-
-        $results = $results->with(['dentistmeta', 'lab']);
-        $results = $results->groupBy('dentist_contacts.id');
-        $results = $results->paginate($per_page);
 
         if ($user->hasRole('lab') || $user->hasRole('crm-user') || $request->filter['lab']['selected'] === 'current') {
             $all = DentistContact::where('dentist_contacts.lab_id', $lab->id)->count();
@@ -272,6 +259,9 @@ class DentistContactController extends Controller
             $all = DentistContact::count();
         }
 
+        $results = $results->with(['dentistmeta', 'lab']);
+        $results = $results->groupBy('dentist_contacts.id');
+        $results = $results->paginate($per_page);
         $confirmed = DentistContact::where('confirmed', 1);
         if ($user->hasRole('lab') || $user->hasRole('crm-user') || $request->filter['lab']['selected'] === 'current') {
             $confirmed = $confirmed->where('dentist_contacts.lab_id', $lab->id)->count();
@@ -494,12 +484,12 @@ class DentistContactController extends Controller
         $subject = $email->subject;
 
         if ($dentist->dentistmeta->email) {
-            /* Mail::send('emails.upload-attachments',
+            Mail::send('emails.upload-attachments',
                 ['body' => $message, 'footer' => $footer], function ($m) use ($dentist, $subject) {
                     $m->from('buero@padento.de', 'Padento');
                     $m->to($dentist->dentistmeta->email, $dentist->dentistmeta->name)
                         ->subject($subject);
-                }); */
+                });
         }
 
         return response("success");
