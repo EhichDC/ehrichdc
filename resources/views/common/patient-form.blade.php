@@ -6,13 +6,12 @@
         <div class="box-wrap">
             {{-- Das Patienten-Kontakt-Formular --}}
 
-            {!! Form::open(array('url'=>'danke','method'=>'post', 'class' => 'padento-form', 'id' => $formName)) !!}
+            {!! Form::open(array('url'=>'danke','method'=>'post', 'class' => 'padento-form')) !!}
 
             @if(Session::has('direct'))
                 {{ Form::hidden('direct',  Session::get('direct') ) }}
             @endif
 
-            {!! Form::hidden('form_name', $formName) !!}
             {!! Form::hidden('lang', $lang) !!}
 
             <p>
