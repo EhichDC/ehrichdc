@@ -65,6 +65,7 @@ Route::get('dankedentist', 'PublicPageController@newDentistContact');
 Route::post('dankedentist', 'PublicPageController@newDentistContact');
 
 Route::get('danke', 'PublicPageController@newRequest');
+Route::get('formpage', 'PublicPageController@formpage');
 Route::post('danke', 'PublicPageController@newRequest');
 Route::post('danke/blog', 'PublicPageController@newRequest');
 Route::get('zahnarzt/{name}', 'LabController@showDentist');

@@ -215,6 +215,13 @@ class PublicPageController extends Controller
         return redirect("/lp/");
     }
 
+    public function formpage()
+    {
+        $lang = 'de';
+        $setting = new Setting($lang);
+        return view('pages.formpage')->with(['formData' => $setting->getFormData(), 'lang' => $lang]);
+    }
+
     public function newRequest(Request $request)
     {
         $lang = 'de';
@@ -285,7 +292,7 @@ class PublicPageController extends Controller
         if ($validator->fails()) {
             event(new ValidationFailed($request->only('plz', 'name', 'mail', 'tel')));
 
-            return view('pages.formpage')->with(['formData' => $setting->getFormData(), 'lang' => $lang])->withErrors($validator, $request->form_name)->withInput($request->all());
+            return view('pages.formpage')->with(['formData' => $setting->getFormData(), 'lang' => $lang])->withErrors($validator)->withInput($request->all());
         }
 
         if ($request->session()->has('direct')) {

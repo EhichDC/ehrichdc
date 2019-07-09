@@ -15,10 +15,10 @@
             {!! Form::hidden('lang', $lang) !!}
 
             <p>
-            @if (! $errors->$formName->isEmpty())
+            @if (! $errors->isEmpty())
                 <div class="alert alert-danger">
                     <ul>
-                        @foreach ($errors->$formName->all() as $error)
+                        @foreach ($errors->all() as $error)
                             <li class="error alert alert-danger"
                                 style="color: red; font-weight: bold">{{ ucfirst($error) }}</li>
                         @endforeach

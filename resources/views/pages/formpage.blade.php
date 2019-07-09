@@ -25,7 +25,7 @@
     <div class="row" id="form-section">
         <div class="columns"></div>
         <div class="medium-5 columns" style="">
-            @include('common.patient-form', ['lang' => $lang, 'formData'=> $formData])
+            @include('common.patient-form', ['lang' => $lang, 'formData'=> $formData, 'formName' => 'form2'])
         </div>
         <div class="columns"></div>
     </div>
