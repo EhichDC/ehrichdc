@@ -285,7 +285,7 @@ class PublicPageController extends Controller
         if ($validator->fails()) {
             event(new ValidationFailed($request->only('plz', 'name', 'mail', 'tel')));
 
-            return view('pages.formpage')->with(['formData' => $setting->getFormData(), 'lang' => $lang,'formName' => 'form2'])->withErrors($validator, $request->form_name)->withInput($request->all());
+            return view('pages.formpage')->with(['formData' => $setting->getFormData(), 'lang' => $lang])->withErrors($validator, $request->form_name)->withInput($request->all());
         }
 
         if ($request->session()->has('direct')) {
