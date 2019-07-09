@@ -217,6 +217,8 @@ class PublicPageController extends Controller
 
     public function newRequest(Request $request)
     {
+        $lang = 'de';
+        $setting = new Setting($lang);
         /*if(!in_array($request->server('HTTP_HOST'), ['padento.de', 'padento.devv', 'padento.test'])) {
             return 'You are not allowed to make this request.';
         }*/
@@ -283,7 +285,7 @@ class PublicPageController extends Controller
         if ($validator->fails()) {
             event(new ValidationFailed($request->only('plz', 'name', 'mail', 'tel')));
 
-            return back()->withErrors($validator, $request->form_name)->withInput($request->all());
+            return view('pages.formpage')->with(['formData' => $setting->getFormData(), 'lang' => $lang,'formName' => 'form2'])->withErrors($validator, $request->form_name)->withInput($request->all());
         }
 
         if ($request->session()->has('direct')) {
