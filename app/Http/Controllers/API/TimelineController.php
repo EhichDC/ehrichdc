@@ -40,25 +40,35 @@ class TimelineController extends Controller
 //            ->where('created_at','>',  $patient->created_at->toDateTimeString())
 //            ->with('causer', 'subject')->latest()->get();
 
+        if(!is_numeric($request->contact_id)) {
 
-        $activities = Activity::where('subject_id', $request->contact_id)
-            ->where('subject_type', Patient::class)
-            ->where('description', '<>', 'note_added')
-            ->with('causer', 'subject')->latest()->get();
+            $activities = Activity::where('subject_id', $request->contact_id)
+                ->where('subject_type', Patient::class)
+                ->where('description', '<>', 'note_added')
+                ->with('causer', 'subject')->latest()->get();
 
-        return view('activities.timeline', compact('activities'));
+            if ($activities) {
+                return view('activities.timeline', compact('activities'));
+            }
+        }
+        return false;
     }
 
     public function notesForContact(Request $request)
 
     {
-        $activities = Activity::where('subject_id', $request->contact_id)
-            ->where('subject_type', Patient::class)
-            ->where('description', 'note_added')
-            ->with('causer', 'subject')
-            ->latest()->get();
+        if(!is_numeric($request->contact_id)) {
+            $activities = Activity::where('subject_id', $request->contact_id)
+                ->where('subject_type', Patient::class)
+                ->where('description', 'note_added')
+                ->with('causer', 'subject')
+                ->latest()->get();
 
-        return view('activities.timeline', compact('activities'));
+            if ($activities) {
+                return view('activities.timeline', compact('activities'));
+            }
+        }
+        return false;
     }
 
 
