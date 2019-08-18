@@ -51,7 +51,8 @@ class TimelineController extends Controller
                 return view('activities.timeline', compact('activities'));
             }
         }
-        return false;
+        $activities = collect([]);
+        return view('activities.timeline', compact('activities'));
     }
 
     public function notesForContact(Request $request)
@@ -68,7 +69,8 @@ class TimelineController extends Controller
                 return view('activities.timeline', compact('activities'));
             }
         }
-        return false;
+        $activities = collect([]);
+        return view('activities.timeline', compact('activities'));
     }
 
 
