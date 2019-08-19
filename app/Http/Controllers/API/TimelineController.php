@@ -40,7 +40,7 @@ class TimelineController extends Controller
 //            ->where('created_at','>',  $patient->created_at->toDateTimeString())
 //            ->with('causer', 'subject')->latest()->get();
 
-        if(!is_numeric($request->contact_id)) {
+        if(is_numeric($request->contact_id)) {
 
             $activities = Activity::where('subject_id', $request->contact_id)
                 ->where('subject_type', Patient::class)
@@ -58,7 +58,7 @@ class TimelineController extends Controller
     public function notesForContact(Request $request)
 
     {
-        if(!is_numeric($request->contact_id)) {
+        if(is_numeric($request->contact_id)) {
             $activities = Activity::where('subject_id', $request->contact_id)
                 ->where('subject_type', Patient::class)
                 ->where('description', 'note_added')
