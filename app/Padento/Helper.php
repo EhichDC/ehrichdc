@@ -15,7 +15,7 @@ class Helper
             $lab = $patient ? $patient->lab : null;
         }
 
-        if ($patient != null) {
+        if ($patient != null &&is_object($patient)) {
             $name         = $patient->patientmeta->name;
             $patientEmail = $patient->patientmeta->email;
             $salutation   = $patient->patientmeta->salutation;
