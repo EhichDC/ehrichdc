@@ -65,7 +65,7 @@ function dentist_phases($phaseId = null)
         'undefined' => '',
     ];
 
-    if (!isset($phases[$phaseId])) return $phases;
+    if (!isset($phases[$phaseId])) return 'undefined';
     return $phaseId ? $phases[$phaseId] : $phases;
 }
 
