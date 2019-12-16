@@ -115,7 +115,7 @@ class PublicPageController extends Controller
             if ($lang = 'at') {
                 $file = app_path() . "/../plz." . $lang . ".txt";
                 $plzs = file($file);
-                $labs = LabMeta::whereIn('plz', $plzs)->get();
+                $labs = LabMeta::whereIn('zip', $plzs)->get();
                 dd($labs);
             }
         }
