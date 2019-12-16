@@ -24,6 +24,7 @@ use Excel;
 use App\PatientMeta;
 use App\Patient;
 use App\Todo;
+use App\Labmeta;
 
 class PublicPageController extends Controller
 {
@@ -110,6 +111,12 @@ class PublicPageController extends Controller
 
                     return $picked;
                 }
+            }
+            if ($lang = 'at') {
+                $file = app_path() . "/../plz." . $lang . ".txt";
+                $plzs = file($file);
+                $labs = LabMeta::whereIn('plz', $plzs)->get();
+                dd($labs);
             }
         }
 
