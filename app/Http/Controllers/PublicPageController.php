@@ -301,17 +301,17 @@ class PublicPageController extends Controller
             $inList = Helper::zipIsInList($request->plz, $lang);
             if ($inList == false) {
                 $inList = Helper::zipIsInList($request->plz, 'at');
-                if ($inList == false) {
-                    Event::fire(new PlzIsMissing($request->plz));
-                }
+                $lang = 'at';
+            }
+            if ($inList == false) {
+                Event::fire(new PlzIsMissing($request->plz));
                 // return "Es wurde leider kein Labor in Ihrer näheren Umgebung gefunden.";
                 // return redirect()->back()->withInput()->withErrors(['msg' => 'Diese PLZ gibt es scheinbar nicht.']);
             } else {
-
                 $count = 3;
-
                 while ($count) {
                     $lookup     = getLocation($request->plz, $lang); //Get Lat Long of PLZ
+
                     $pickedLabs = $this::pickLab($lookup, $request->mail, $lang); //Get Labs
 
                     if (count($pickedLabs) > 0 || !$count) {
