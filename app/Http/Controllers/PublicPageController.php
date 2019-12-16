@@ -300,7 +300,10 @@ class PublicPageController extends Controller
         } else {
             $inList = Helper::zipIsInList($request->plz, $lang);
             if ($inList == false) {
-                Event::fire(new PlzIsMissing($request->plz));
+                $inList = Helper::zipIsInList($request->plz, 'at');
+                if ($inList == false) {
+                    Event::fire(new PlzIsMissing($request->plz));
+                }
                 // return "Es wurde leider kein Labor in Ihrer näheren Umgebung gefunden.";
                 // return redirect()->back()->withInput()->withErrors(['msg' => 'Diese PLZ gibt es scheinbar nicht.']);
             } else {
