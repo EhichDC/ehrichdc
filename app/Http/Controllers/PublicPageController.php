@@ -320,6 +320,7 @@ class PublicPageController extends Controller
 
                     $count--;
                 }
+                dd($lookup);
 
                 $checkedLabs = $this::checkPatients($pickedLabs); //Get Labs sorted by contacts in the last x
 
