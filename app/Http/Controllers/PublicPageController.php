@@ -113,10 +113,17 @@ class PublicPageController extends Controller
                 }
             }
             if ($lang = 'at') {
-                $file = app_path() . "/../plz." . $lang . ".txt";
+                $file = app_path() . "/../plz.txt";
                 $plzs = file($file);
-                $labs = LabMeta::whereIn('zip', $plzs)->get();
-                dd($labs);
+                $changed_plzs =  [];
+                foreach ($plzs as $plz_item) {
+                    $changed_plzs[] = trim(preg_replace('/\s+/', ' ', $plz_item));
+                }
+                $labs = LabMeta::where('country_code', 'at')->get();
+                $random = rand(0, $labs->count()-1);
+                $pickedlab = $labs[$random]->lab;
+                $picked = ['lab' => ['lab' => $pickedlab, 'dist' => '0']];
+                return $picked;
             }
         }
 
