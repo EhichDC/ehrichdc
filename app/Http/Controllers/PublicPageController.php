@@ -289,12 +289,11 @@ class PublicPageController extends Controller
 
             return ['patient_id' => $patient->id];
         }
-
         $validator = \Validator::make($request->all(), [
             'plz'  => 'required|max:6|min:4',
             'name' => 'required|max:64',
             'mail' => 'required|max:128',
-            'tel'  => 'required|phone:DE|max:128',
+            'tel'  => 'phone:DE|max:128'
         ]);
 
         if ($validator->fails()) {
@@ -352,7 +351,10 @@ class PublicPageController extends Controller
                 $meta->salutation = $request->salutation;
                 $meta->name       = $request->name;
                 $meta->email      = $request->mail;
-                $meta->tel        = phone_format($request->tel, $country_code);
+                $meta->tel        = '';
+                if($request->tel != '')  {
+                    $meta->tel        = phone_format($request->tel, $country_code);
+                }
                 if (isset($_SERVER['HTTP_REFERER'])) {
                     $meta->ref = htmlentities($_SERVER['HTTP_REFERER']);
                 } else {
