@@ -112,7 +112,7 @@ class PublicPageController extends Controller
                     return $picked;
                 }
             }
-            if ($lang = 'at') {
+            if ($lang == 'at') {
                 $file = app_path() . "/../plz.txt";
                 $plzs = file($file);
                 $changed_plzs =  [];
@@ -315,7 +315,9 @@ class PublicPageController extends Controller
             $inList = Helper::zipIsInList($request->plz, $lang);
             if ($inList == false) {
                 $inList = Helper::zipIsInList($request->plz, 'at');
-                $lang = 'at';
+                if($inList) {
+                    $lang = 'at';
+                }
             }
             if ($inList == false) {
                 Event::fire(new PlzIsMissing($request->plz));
