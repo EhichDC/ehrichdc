@@ -70,8 +70,7 @@
             <p>
                 {!! Form::text('tel',  '', [
                     'placeholder' => 'Telefonnummer',
-                    'title' => 'Bitte geben Sie Ihre Telefonnummer hier ein.',
-                    'required' => 'true'
+                    'title' => 'Bitte geben Sie Ihre Telefonnummer hier ein.'
                    ]) !!}
             </p>
             {!! $formData['text_below_form'] !!}
