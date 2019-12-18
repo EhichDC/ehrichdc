@@ -111,7 +111,6 @@ class PublicPageController extends Controller
                     return $picked;
                 }
             }
-            dd($lookup);
         }
         // $labs = \App\Lab::with('patients')->where('status', '=', 'aktiv')->get();
         $radius_start = \App\Settings::where('name', '=', 'Patientenradius Start')->first()->value;
@@ -137,6 +136,7 @@ class PublicPageController extends Controller
         // dd($lab);
         // dd($picked);
         usort($picked, [$this, 'sortByDist']);
+        dd($picked);
         return $picked;
     }
 
