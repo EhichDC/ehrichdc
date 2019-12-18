@@ -108,34 +108,18 @@ class PublicPageController extends Controller
                 $distance = \App\Settings::where('name', '=', 'Entfernung für ab wann ein Kontakt ein neues Labor bekommen soll')->first()->value;
                 if ($dist < $distance) {
                     $picked = ['lab' => ['lab' => $patient->lab, 'dist' => $dist]];
-
                     return $picked;
                 }
             }
-            if ($lang == 'at') {
-                $file = app_path() . "/../plz.txt";
-                $plzs = file($file);
-                $changed_plzs =  [];
-                foreach ($plzs as $plz_item) {
-                    $changed_plzs[] = trim(preg_replace('/\s+/', ' ', $plz_item));
-                }
-                $labs = LabMeta::where('country_code', 'at')->get();
-                $random = rand(0, $labs->count()-1);
-                $pickedlab = $labs[$random]->lab;
-                $picked = ['lab' => ['lab' => $pickedlab, 'dist' => '0']];
-                return $picked;
-            }
+            dd($lookup);
         }
-
         // $labs = \App\Lab::with('patients')->where('status', '=', 'aktiv')->get();
         $radius_start = \App\Settings::where('name', '=', 'Patientenradius Start')->first()->value;
         $radius_inc   = \App\Settings::where('name', '=', 'Patientenradius Inkrementierung')->first()->value;
         $radius_max   = \App\Settings::where('name', '=', 'Patientenradius Ende')->first()->value;
-
         $labs = \App\Lab::whereHas('labmeta', function ($query) use ($lang) {
             $query->where('country_code', '=', $lang);
         })->with(['labmeta'])->where('status', '=', 'aktiv')->get();
-
         // dd( $this::distance(8.9630488, 51.8604282, 8.7504202, 51.897825) );
         // dd($lookup);
         for ($i = $radius_start; $i <= $radius_max; $i += $radius_inc) {
@@ -152,9 +136,7 @@ class PublicPageController extends Controller
         }
         // dd($lab);
         // dd($picked);
-
         usort($picked, [$this, 'sortByDist']);
-
         return $picked;
     }
 
@@ -313,13 +295,13 @@ class PublicPageController extends Controller
             $lab['lab'] = \App\Lab::find($request->session()->get('direct'));
         } else {
             $inList = Helper::zipIsInList($request->plz, $lang);
-            if ($inList == false) {
+            if (!$inList) {
                 $inList = Helper::zipIsInList($request->plz, 'at');
                 if($inList) {
                     $lang = 'at';
                 }
             }
-            if ($inList == false) {
+            if (!$inList) {
                 Event::fire(new PlzIsMissing($request->plz));
                 // return "Es wurde leider kein Labor in Ihrer näheren Umgebung gefunden.";
                 // return redirect()->back()->withInput()->withErrors(['msg' => 'Diese PLZ gibt es scheinbar nicht.']);
