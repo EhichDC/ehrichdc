@@ -76,7 +76,7 @@ class Helper
             '[termin]'                => $date,
             '[ansprechpartner]'       => $ansprechpartner,
             '[laborname]'             => $laborname,
-            '[labortel]'              => $tel,
+            '[labortel]'              => '<a href="tel:'.$tel.'">'.$tel.'</a>',
             '[laborort]'              => $laborort,
             '[kontakttel]'            => $kontakttel,
             '[kontaktmobil]'          => $kontaktmobil,

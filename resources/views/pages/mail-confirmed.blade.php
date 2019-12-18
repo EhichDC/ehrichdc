@@ -20,17 +20,29 @@
                     </p>
                 @else
                     <h1 class="centered">Vielen Dank für Ihre Bestätigung! </h1>
+                    <div class="row">
+                        <div class="colum">
+                            <div class="lab-box">
+                                <div class="container-fluid">
+                                    <div class="lab-box-header">
+                                        <h23>Jetzt unverbindlich einen Beratungstermin abstimmen</h23>
+                                    </div>
+                                    <p class="lab-box-content">Telefon: <a href="tel:{{ $lab->labmeta->tel }}">{{ $lab->labmeta->tel }}</a></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     <section class="your-lab">
                         <div class="row">
                             <div class="medium-8 columns">
 
-                                <p>Ihr Ansprechpartner <strong>{{ $kontaktperson }}</strong> wird sich schnellstmöglich
-                                    telefonisch bei Ihnen zur Abstimmung eines Wunsch-Termines für ein ausführliches,
-                                    kostenloses Beratungsgespräch im Dentallabor melden.
+                                <p>Ihr Ansprechpartner <strong>{{ $kontaktperson }}</strong> melden Sie sich
+                                    telefonisch für ein ausführliches,
+                                    kostenloses Beratungsgespräch im Dentallabor.
 
 
                                     @if (session('patientConfirmed'))
-                                        <section class="besttime">
+                                        <!-- section class="besttime">
                                             <div class="row">
                                                 <div class="medium-12 large-12 large-centered columns">
                                                     <h5><strong>Wann können wir Sie am besten erreichen?</strong></h5>
@@ -123,7 +135,7 @@
                                                     {{ Form::close() }}
                                                 </div>
                                             </div>
-                                        </section>
+                                        </section -->
                                 @endif
 
                             </div>
