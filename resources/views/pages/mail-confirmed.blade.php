@@ -24,13 +24,13 @@
                         <div class="row">
                             <div class="medium-8 columns">
 
-                                <p>Ihr Ansprechpartner <strong>{{ $kontaktperson }}</strong> wird sich schnellstmöglich
+                                <p>Rufen Sie jetzt kostenlos und unverbindlich an <strong>{{ $kontaktperson }}</strong> wird sich schnellstmöglich
                                     telefonisch bei Ihnen zur Abstimmung eines Wunsch-Termines für ein ausführliches,
                                     kostenloses Beratungsgespräch im Dentallabor melden.
 
 
                                     @if (session('patientConfirmed'))
-                                        <section class="besttime">
+                                        <!-- section class="besttime">
                                             <div class="row">
                                                 <div class="medium-12 large-12 large-centered columns">
                                                     <h5><strong>Wann können wir Sie am besten erreichen?</strong></h5>
@@ -123,7 +123,7 @@
                                                     {{ Form::close() }}
                                                 </div>
                                             </div>
-                                        </section>
+                                        </section -->
                                 @endif
 
                             </div>
