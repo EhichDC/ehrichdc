@@ -294,7 +294,7 @@ class PublicPageController extends Controller
             'plz'  => 'required|max:6|min:4',
             'name' => 'required|max:64',
             'mail' => 'required|max:128',
-            'tel'  => 'required|phone:DE|max:128',
+            'tel'  => 'phone:DE|max:128',
         ]);
 
         if ($validator->fails()) {
