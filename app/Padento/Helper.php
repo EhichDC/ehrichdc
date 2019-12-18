@@ -76,6 +76,7 @@ class Helper
             '[termin]'                => $date,
             '[ansprechpartner]'       => $ansprechpartner,
             '[laborname]'             => $laborname,
+            '[labortel]'              => $tel,
             '[laborort]'              => $laborort,
             '[kontakttel]'            => $kontakttel,
             '[kontaktmobil]'          => $kontaktmobil,
