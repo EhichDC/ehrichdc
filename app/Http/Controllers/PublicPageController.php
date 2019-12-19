@@ -104,7 +104,6 @@ class PublicPageController extends Controller
                 $query->where('email', '=', $mail);
             })->orderBy('created_at', 'desc')->first();
             if ($patient != '' && $patient->lab != '' && $patient->lab->status == 'aktiv') {
-                dd($mail);
                 $dist     = $this::distance($lookup['latitude'], $lookup['longitude'], $patient->lab->lat, $patient->lab->lon);
                 $distance = \App\Settings::where('name', '=', 'Entfernung für ab wann ein Kontakt ein neues Labor bekommen soll')->first()->value;
                 if ($dist < $distance) {
@@ -122,11 +121,10 @@ class PublicPageController extends Controller
             }
         }
 
-        // $labs = \App\Lab::with('patients')->where('status', '=', 'aktiv')->get();
+        //$labs = \App\Lab::with('patients')->where('status', '=', 'aktiv')->get();
         $radius_start = \App\Settings::where('name', '=', 'Patientenradius Start')->first()->value;
         $radius_inc   = \App\Settings::where('name', '=', 'Patientenradius Inkrementierung')->first()->value;
         $radius_max   = \App\Settings::where('name', '=', 'Patientenradius Ende')->first()->value;
-
         $labs = \App\Lab::whereHas('labmeta', function ($query) use ($lang) {
             $query->where('country_code', '=', $lang);
         })->with(['labmeta'])->where('status', '=', 'aktiv')->get();
@@ -239,7 +237,6 @@ class PublicPageController extends Controller
             return 'You are not allowed to make this request.';
         }*/
 
-        $lang = $request->input('lang');
 
         $country_code = strtoupper($lang) ?: 'DE';
 
@@ -321,7 +318,6 @@ class PublicPageController extends Controller
                 $count = 3;
                 while ($count) {
                     $lookup     = getLocation($request->plz, $lang); //Get Lat Long of PLZ
-
                     $pickedLabs = $this::pickLab($lookup, $request->mail, $lang); //Get Labs
 
                     if (count($pickedLabs) > 0 || !$count) {
