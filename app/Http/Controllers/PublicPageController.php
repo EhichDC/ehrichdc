@@ -24,7 +24,6 @@ use Excel;
 use App\PatientMeta;
 use App\Patient;
 use App\Todo;
-use App\LabMeta;
 
 class PublicPageController extends Controller
 {
@@ -112,13 +111,6 @@ class PublicPageController extends Controller
                     return $picked;
                 }
             }
-            if ($lang == 'at') {
-                $labs = LabMeta::where('country_code', 'at')->get();
-                $random = rand(0, $labs->count()-1);
-                $pickedlab = $labs[$random]->lab;
-                $picked = ['lab' => ['lab' => $pickedlab, 'dist' => '0']];
-                return $picked;
-            }
         }
 
         // $labs = \App\Lab::with('patients')->where('status', '=', 'aktiv')->get();
@@ -185,22 +177,22 @@ class PublicPageController extends Controller
 
     public function addWelcomeVideoSetting ()
     {
-      if(! \App\Settings::where('name', 'introduction vimeo welcome video')->exists()) {
-          \App\Settings::firstOrCreate([
-              'name' => 'introduction vimeo welcome video',
-              'value' => "https://player.vimeo.com/video/302066309?color=00aff5&title=0&byline=0&portrait=0",
-          ]);
-      }
+        if(! \App\Settings::where('name', 'introduction vimeo welcome video')->exists()) {
+            \App\Settings::firstOrCreate([
+                'name' => 'introduction vimeo welcome video',
+                'value' => "https://player.vimeo.com/video/302066309?color=00aff5&title=0&byline=0&portrait=0",
+            ]);
+        }
     }
 
     public function addFormVideoSetting ()
     {
-      if(! \App\Settings::where('name', 'Padento Formular Video')->exists()) {
-          \App\Settings::firstOrCreate([
-              'name' => 'Padento Formular Video',
-              'value' => "//fast.wistia.net/embed/iframe/k41j7v41lk?videoFoam=true",
-          ]);
-      }
+        if(! \App\Settings::where('name', 'Padento Formular Video')->exists()) {
+            \App\Settings::firstOrCreate([
+                'name' => 'Padento Formular Video',
+                'value' => "//fast.wistia.net/embed/iframe/k41j7v41lk?videoFoam=true",
+            ]);
+        }
     }
 
     public function startpage($lang = 'de')
@@ -289,11 +281,12 @@ class PublicPageController extends Controller
 
             return ['patient_id' => $patient->id];
         }
+
         $validator = \Validator::make($request->all(), [
             'plz'  => 'required|max:6|min:4',
             'name' => 'required|max:64',
             'mail' => 'required|max:128',
-            'tel'  => 'phone:DE|max:128'
+            'tel'  => 'required|phone:DE|max:128',
         ]);
 
         if ($validator->fails()) {
@@ -306,21 +299,16 @@ class PublicPageController extends Controller
             $lab['lab'] = \App\Lab::find($request->session()->get('direct'));
         } else {
             $inList = Helper::zipIsInList($request->plz, $lang);
-            if (!$inList) {
-                $inList = Helper::zipIsInList($request->plz, 'at');
-                if($inList) {
-                    $lang = 'at';
-                }
-            }
-            if (!$inList) {
+            if ($inList == false) {
                 Event::fire(new PlzIsMissing($request->plz));
                 // return "Es wurde leider kein Labor in Ihrer näheren Umgebung gefunden.";
                 // return redirect()->back()->withInput()->withErrors(['msg' => 'Diese PLZ gibt es scheinbar nicht.']);
             } else {
+
                 $count = 3;
+
                 while ($count) {
                     $lookup     = getLocation($request->plz, $lang); //Get Lat Long of PLZ
-
                     $pickedLabs = $this::pickLab($lookup, $request->mail, $lang); //Get Labs
 
                     if (count($pickedLabs) > 0 || !$count) {
@@ -351,10 +339,7 @@ class PublicPageController extends Controller
                 $meta->salutation = $request->salutation;
                 $meta->name       = $request->name;
                 $meta->email      = $request->mail;
-                $meta->tel        = '';
-                if($request->tel != '')  {
-                    $meta->tel        = phone_format($request->tel, $country_code);
-                }
+                $meta->tel        = phone_format($request->tel, $country_code);
                 if (isset($_SERVER['HTTP_REFERER'])) {
                     $meta->ref = htmlentities($_SERVER['HTTP_REFERER']);
                 } else {
@@ -627,13 +612,13 @@ class PublicPageController extends Controller
 
     public function videos($lang = 'de')
     {
-      $setting = new Setting($lang);
+        $setting = new Setting($lang);
 
-      $data = [
-          'lang'               => $lang,
-          'formData'           => $setting->getFormData(),
-      ];
-      return view('pages.videos', $data);
+        $data = [
+            'lang'               => $lang,
+            'formData'           => $setting->getFormData(),
+        ];
+        return view('pages.videos', $data);
     }
 
     public function impressum()
