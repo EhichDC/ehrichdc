@@ -265,7 +265,10 @@ class PublicPageController extends Controller
             $meta->name       = $p['name'];
             $meta->email      = $p['email'];
             $meta->salutation = $salutation;
-            $meta->tel        = phone_format($p['phone'], $country_code);
+            $meta->tel        = '';
+            if ($p['phone'] != '') {
+                $meta->tel        = phone_format($p['phone'], $country_code);
+            }
             $meta->ref        = 'Direkteingabe';
             $meta->orig_ref   = 'Direkteingabe';
             $meta->orig_page  = 'Direkteingabe';
