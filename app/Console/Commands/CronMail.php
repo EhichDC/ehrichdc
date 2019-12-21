@@ -65,7 +65,9 @@ class CronMail extends Command
                 $patients = '';
 
                 foreach($pats as $pat) {
-                    $patients .= "<li>{$pat->patientmeta->name}</li>";
+                    if (is_object($pat)) {
+                        if (is_object($pat->patientmeta))  $patients .= "<li>{$pat->patientmeta->name}</li>";
+                    }
                 }
 
                 $body = str_replace('[patients]', $patients, $body);
