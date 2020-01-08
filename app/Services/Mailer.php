@@ -91,13 +91,13 @@ class Mailer
         $this->mail = $email;
         $this->mailName = $mailName;
 
-        if (get_class($this->patient) === 'App\Patient') {
+        if (get_class($this->patient) === 'App\Patient' && $this->lab !== null) {
             $this->mailSubject = strip_tags(Helper::markdown($email->subject, $this->lab, $this->patient, $this->date, $this->token));
             $this->mailBody = Helper::markdown($email->body, $this->lab, $this->patient, $this->date, $this->token);
             $this->mailFooter = Helper::markdown($email->footer, $this->lab, $this->patient, $this->date, $this->token);
         }
 
-        if (get_class($this->patient) === 'App\DentistContact') {
+        if (get_class($this->patient) === 'App\DentistContact' && $this->lab !== null) {
             $this->mailSubject = strip_tags(Helper::markdowndentist($email->subject, $this->lab, $this->patient, $this->date, $this->token));
             $this->mailBody = Helper::markdowndentist($email->body, $this->lab, $this->patient, $this->date, $this->token);
             $this->mailFooter = Helper::markdowndentist($email->footer, $this->lab, $this->patient, $this->date, $this->token);
