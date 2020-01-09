@@ -132,14 +132,10 @@ class Mailer
      */
     public function toPatient()
     {
-        if(is_object($this->patient)) {
-            if (is_object($this->patient->patientmeta)) {
-                $this->toAddress = $this->patient->patientmeta->email;
-                $this->toName = $this->patient->patientmeta->name;
+        $this->toAddress = $this->patient->patientmeta->email;
+        $this->toName = $this->patient->patientmeta->name;
 
-                $this->toPatient = true;
-            }
-        }
+        $this->toPatient = true;
 
         return $this;
     }
