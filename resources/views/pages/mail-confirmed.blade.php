@@ -19,15 +19,17 @@
                         Beratungsgespräch im Dentallabor melden.
                     </p>
                 @else
-                    <h1 class="centered">Vielen Dank für Ihre Bestätigung! </h1>
+                    <h1 class="centered">Vielen Dank für Ihr Vertrauen!<br />Sie haben alles richtig gemacht!</h1><br>
+                    Denn wenn Sie einen neunen Zahnersatz benötigen gehen Sie mit Padento den besten und sichersten Weg, den es gibt
                     <div class="row">
                         <div class="colum">
                             <div class="lab-box">
                                 <div class="container-fluid">
                                     <div class="lab-box-header">
-                                        <h23><b>Kommen Sie jetzt ins Handeln und machen Sie einen kostenfreien Beratungstermin:</b></h23>
+                                        <h2 class="centered">So geht es jetzt weiter:</h2>
                                     </div>
-                                    <p class="lab-box-content">Telefon: <a href="tel:{{ $lab->labmeta->tel }}">{{ $lab->labmeta->tel }}</a></p>
+                                    <br>
+                                    <p class="lab-box-content">Es ist für Sie nur noch <b>ein kleiner Schritt zu ihren schönen und neuen Zähnen:</b><br>Rufen Sie <u>jetzt</u> in Ihrem Dentallabor an und vereinbaren Sie einen <u>kostenlosen Beratungstermin</u>:<a href="tel:{{ $lab->labmeta->tel }}">{{ $lab->labmeta->tel }}</a></p>
                                 </div>
                             </div>
                         </div>
@@ -36,9 +38,7 @@
                         <div class="row">
                             <div class="medium-8 columns">
 
-                                <p>Ihr Ansprechpartner <strong>{{ $kontaktperson }}</strong> melden Sie sich
-                                    telefonisch für ein ausführliches,
-                                    kostenloses Beratungsgespräch im Dentallabor.
+                                <p>Ihr Ansprechpartner heißt<strong>{{ $kontaktperson }}</strong> und freut sich auf Sie!
 
 
                                     @if (session('patientConfirmed'))
