@@ -20,7 +20,6 @@
                     </p>
                 @else
                     <h1 class="centered">Vielen Dank für Ihr Vertrauen!<br />Sie haben alles richtig gemacht!</h1><br>
-                    Denn wenn Sie einen neunen Zahnersatz benötigen gehen Sie mit Padento den besten und sichersten Weg, den es gibt
                     <div class="row">
                         <div class="colum">
                             <div class="lab-box">
@@ -28,8 +27,6 @@
                                     <div class="lab-box-header">
                                         <h3 class="centered" style="color: black"><b>So geht es jetzt weiter:</b></h3>
                                     </div>
-                                    <br>
-                                    <p class="lab-box-content" style="text-align: center">Es ist für Sie nur noch <b>ein kleiner Schritt zu ihren schönen und neuen Zähnen:</b><br>Rufen Sie <u>jetzt</u> in Ihrem Dentallabor an und vereinbaren Sie einen <u>kostenlosen Beratungstermin</u>:<a href="tel:{{ $lab->labmeta->tel }}">{{ $lab->labmeta->tel }}</a></p>
                                 </div>
                             </div>
                         </div>
@@ -37,7 +34,11 @@
                     <section class="your-lab">
                         <div class="row">
                             <div class="medium-8 columns">
-
+                                <br>
+                                <p class="lab-box-content" style="text-align: center">
+                                    Es ist für Sie nur noch <b>ein kleiner Schritt zu ihren schönen und neuen Zähnen:</b><br>Rufen Sie <u>jetzt</u> in Ihrem Dentallabor an und vereinbaren Sie einen <u>kostenlosen Beratungstermin</u>:<a href="tel:{{ $lab->labmeta->tel }}">{{ $lab->labmeta->tel }}</a><br>
+                                    Denn wenn Sie einen neunen Zahnersatz benötigen gehen Sie mit Padento den besten und sichersten Weg, den es gibt
+                                </p>
                                 <p style="text-align: center">Ihr Ansprechpartner heißt<b>{{ $kontaktperson }}</b> und freut sich auf Sie!
 
 
