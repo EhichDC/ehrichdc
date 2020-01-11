@@ -102,6 +102,16 @@
             font-size: 1.4rem;
         }
     }
+    @media (min-width: 612px) {
+        #cta {
+            font-size: 2.6vw;
+        }
+    }
+    @media (max-width: 410px) {
+        #cta {
+            font-size: 1em;
+        }
+    }
 </style>
 </head>
 <body>
