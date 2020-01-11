@@ -119,7 +119,7 @@
     }
     @media (min-width: 1624px) {
         #cta {
-            font-size: 1.8vw;
+            font-size: 1.6vw;
         }
     }
 </style>
