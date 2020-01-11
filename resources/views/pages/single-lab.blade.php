@@ -15,7 +15,7 @@
                             <div class="lab-box">
                                 <div class="container-fluid">
                                     <div class="lab-box-header">
-                                        <h23><b>Kommen Sie jetzt ins Handeln und machen Sie einen kostenfreien Beratungstermin:</b></h23>
+                                        <h23 id="cta"><b>Kommen Sie jetzt ins Handeln und machen Sie einen kostenfreien Beratungstermin:</b></h23>
                                     </div>
                                     <p class="lab-box-content">Telefon: <a href="tel:{{ $lab->labmeta->tel }}">{{ $lab->labmeta->tel }}</a></p>
                                 </div>
