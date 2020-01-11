@@ -75,7 +75,7 @@ class Helper
             '[begrüßung]'             => ($salutation == 'Herr' ? 'Sehr geehrter Herr' : 'Sehr geehrte Frau'),
             '[termin]'                => $date,
             '[ansprechpartner]'       => $ansprechpartner,
-            '[laborname]'             => '<a href="$laborlink">'.$laborname.'</a>',
+            '[laborname]'             => '<a href="'.$laborlink.'">'.$laborname.'</a>',
             '[labortel]'              => '<a href="tel:'.$tel.'">'.$tel.'</a>',
             '[laborort]'              => $laborort,
             '[kontakttel]'            => $kontakttel,
