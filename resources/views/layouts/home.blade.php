@@ -94,22 +94,12 @@
 <style>
     @media (max-width: 1024px) {
         #cta {
-            font-size: 1.4rem;
+            font-size: 2.5vw;
         }
     }
     @media (min-width: 612px) {
         #cta {
-            font-size: 2.6vw;
-        }
-    }
-    @media (min-width: 1024px) {
-        #cta {
-            font-size: 1.25rem;
-        }
-    }
-    @media (max-width: 410px) {
-        #cta {
-            font-size: 1em;
+            font-size: 3.5vw;
         }
     }
 </style>
