@@ -91,7 +91,18 @@
         <!-- End Google Tag Manager -->
     @endif
     @yield('head')
-
+<style>
+    @media (min-width: 1024px) {
+        #cta {
+            font-size: 1.25rem;
+        }
+    }
+    @media (max-width: 1024px) {
+        #cta {
+            font-size: 1.4rem;
+        }
+    }
+</style>
 </head>
 <body>
 <!-- Google Tag Manager (noscript) -->
