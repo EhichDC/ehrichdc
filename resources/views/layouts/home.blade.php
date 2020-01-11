@@ -92,11 +92,6 @@
     @endif
     @yield('head')
 <style>
-    @media (max-width: 612px) {
-        #cta {
-            font-size: 4vw;
-        }
-    }
     @media (min-width: 612px) {
         #cta {
             font-size: 3.5vw;
@@ -110,6 +105,16 @@
     @media (max-width: 1024px) {
         #cta {
             font-size: 2.5vw;
+        }
+    }
+    @media (min-width: 1024px) {
+        #cta {
+            font-size: 2vw;
+        }
+    }
+    @media (max-width: 612px) {
+        #cta {
+            font-size: 4vw;
         }
     }
 </style>
