@@ -102,6 +102,11 @@
             font-size: 3.5vw;
         }
     }
+    @media (min-width: 1024px) {
+        #cta {
+            font-size: 2.5vw;
+        }
+    }
 </style>
 </head>
 <body>
