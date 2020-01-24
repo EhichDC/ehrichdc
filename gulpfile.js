@@ -26,11 +26,11 @@ elixir(function (mix) {
         ]
     };
 
-    mix.sass([
-        'app/*.scss',
-        'app/*/*.scss',
-    ], 'public/assets/css/app.css', optionsApp);
-    mix.sass(['padento/*.scss', 'padento/*/*.scss'], 'public/assets/css/style.css', optionsStyle);
+//    mix.sass([
+//        'app/*.scss',
+//       'app/*/*.scss',
+//    ], 'public/assets/css/app.css', optionsApp);
+//    mix.sass(['padento/*.scss', 'padento/*/*.scss'], 'public/assets/css/style.css', optionsStyle);
 
     mix.scripts([
         'vendor/jquery.js',
