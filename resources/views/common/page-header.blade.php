@@ -16,9 +16,20 @@
 							</button>
 							<ul>
 								@foreach(\App\Link::orderBy('sort')->get() as $link)
-									<li>
-										<a href="{{ $link->url }}">{{ $link->title }}</a>
-									</li>
+									<!-- TODO: if link is equal to a number  -->
+									@if($link-title == '✆ 05141 9780976')
+										@if(Request::is('labor/*'))
+												<a href="tel:{{ $lab->labmeta->tel }}">✆ {{ $lab->labmeta->tel }}</a>
+										@else
+												<li>
+													<a href="{{ $link->url }}">{{ $link->title }}</a>
+												</li>
+										@endif
+									@else
+										<li>
+											<a href="{{ $link->url }}">{{ $link->title }}</a>
+										</li>
+									@endif
 								@endforeach
 							</ul>
 						</nav>
