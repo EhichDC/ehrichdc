@@ -8,7 +8,7 @@
 			<h4 style="font-weight:bold;">Sie haben Fragen oder benötigen Hilfe?</h4>
 			<p>
 				Wir sind für Sie da! Montag bis Freitag von 10-16 Uhr.
-				<br>Rufen Sie uns einfach an: <a href="tel:+495141360010">05141 - 36 00 10</a>
+				<br>Rufen Sie uns einfach an: <a href="tel:{{ $lab->labmeta->tel }}">{{ $lab->labmeta->tel }}</a>
 			</p>
 		</div>
 
