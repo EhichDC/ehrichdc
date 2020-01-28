@@ -8,7 +8,8 @@
 			<h4 style="font-weight:bold;">Sie haben Fragen oder benötigen Hilfe?</h4>
 			<p>
 				Wir sind für Sie da! Montag bis Freitag von 10-16 Uhr.
-				<br>Rufen Sie uns einfach an: <a href="tel:{{ $lab->labmeta->tel }}">{{ $lab->labmeta->tel }}</a>
+
+				<br>Rufen Sie uns einfach an: @if(Request::is('labor/*'))<a href="tel:{{ $lab->labmeta->tel }}">{{ $lab->labmeta->tel }}</a>@else<a href="tel:+49051419780976">+49 (0) 5141 - 97 80 976</a>@endif
 			</p>
 		</div>
 

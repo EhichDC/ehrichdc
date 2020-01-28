@@ -286,6 +286,10 @@
     </div>
 @endsection
 
+@section('footer')
+
+@endsection
+
 @section('foot')
     <script>
         $(document).ready(function () {
