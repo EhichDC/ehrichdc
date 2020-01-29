@@ -23,7 +23,7 @@
                     <section class="your-lab">
                         <div class="row">
                             <div class="medium-8 columns">
-                                <h2>So geht es für Sie jetzt witer:</h2>
+                                <h2>So geht es für Sie jetzt weiter:</h2>
                                 <p>Es ist für Sie nur noch <b>ein kleiner Schritt <br/>zu Ihren schönen und neuen Zähnen:</b> Rufen Sie <b><u>jetzt</u></b> in ihrem Dentallabor an und vereinbaren Sie einen <u>kostenfreien Beratungstermin</u>
                                     <a href="tel:{{ $labtel  }}">{{ $labtel }}</a></p>
                                 <p>Denn wenn Sie neuen Zahnersatz benötigen, gehen Sie mit Padento den besten und sichersten Weg, den es gibt.</p>
