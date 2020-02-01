@@ -104,7 +104,6 @@ class SMS
         $sms     = 0;
         $status  = [];
         foreach ($dates as $date) {
-            dd($date->lab->membership);
             if ($date->lab->membership == 1 || $date->lab->membership == 4) {
                 if ($date->patient->patientmeta->mobile != '' && $date->patient->phase == 3) {
 
