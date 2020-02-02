@@ -97,7 +97,7 @@ class SMS
           $q->where('phase', 3);
       })
           ->with(['patient.patientmeta', 'lab.labmeta'])
-          ->whereDate('date', '>=', Carbon::now()->tomorrow())->get();
+          ->whereDate('date', '=', Carbon::now()->tomorrow())->get();
       dd($dates);
 
         $message = "";
