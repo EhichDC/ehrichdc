@@ -109,7 +109,6 @@ class SMS
 
 
                     $mobile = $date->patient->patientmeta->mobile != '' ? $date->patient->patientmeta->mobile : $date->patient->patientmeta->tel;
-                    dd($mobile. ' ---- '. $date->lab->membership);
 
                     $mobile = str_replace('+', '', $mobile);
                     $mobile = str_replace(' ', '', $mobile);
