@@ -98,7 +98,6 @@ class SMS
       })
           ->with(['patient.patientmeta', 'lab.labmeta'])
           ->whereDate('date', '=', Carbon::now()->tomorrow())->get();
-      dd($dates);
 
         $message = "";
         $count   = 0;
@@ -106,6 +105,7 @@ class SMS
         $status  = [];
         foreach ($dates as $date) {
             if ($date->lab->membership == 1 || $date->lab->membership == 4) {
+                dd($date);
                 if ($date->patient->patientmeta->mobile != '' && $date->patient->phase == 3) {
 
                     $mobile = $date->patient->patientmeta->mobile;
