@@ -9,7 +9,7 @@
 			<p>
 				Wir sind für Sie da! Montag bis Freitag von 09-17 Uhr.
 
-				<br>Rufen Sie uns einfach an: @if(Request::is('labor/*') || Request::is('mailtoken/*'))<a href="tel:{{ $lab->labmeta->tel }}">{{ $lab->labmeta->tel }}</a>@else<a href="tel:+49051419001525">+49 05141 9001525</a>@endif
+				<br>Rufen Sie uns einfach an: @if((Request::is('labor/*') || Request::is('mailtoken/*')) && isset($lab))<a href="tel:{{ $lab->labmeta->tel }}">{{ $lab->labmeta->tel }}</a>@else<a href="tel:+49051419001525">+49 05141 9001525</a>@endif
 			</p>
 		</div>
 
