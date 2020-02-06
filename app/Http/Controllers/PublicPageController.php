@@ -148,7 +148,6 @@ class PublicPageController extends Controller
         // dd($picked);
 
         usort($picked, [$this, 'sortByDist']);
-        dd($picked);
         return $picked;
     }
 
