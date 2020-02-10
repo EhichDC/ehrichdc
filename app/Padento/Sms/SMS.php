@@ -104,10 +104,11 @@ class SMS
         $sms     = 0;
         $status  = [];
         foreach ($dates as $date) {
-            if ($date->lab->membership == 1 || $date->lab->membership == 4) {
-                if ($date->patient->patientmeta->mobile != '' && $date->patient->phase == 3) {
+            if ($date->lab->membership == 1 || $date->lab->membership == 4 || $date->lab->membership == 0) {
+                if (($date->patient->patientmeta->mobile != '' || $date->patient->patientmeta->tel != '') && $date->patient->phase == 3 && $date->patient->id != "38952") {
 
-                    $mobile = $date->patient->patientmeta->mobile;
+
+                    $mobile = $date->patient->patientmeta->mobile != '' ? $date->patient->patientmeta->mobile : $date->patient->patientmeta->tel;
 
                     $mobile = str_replace('+', '', $mobile);
                     $mobile = str_replace(' ', '', $mobile);

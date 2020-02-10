@@ -112,13 +112,14 @@ class PublicPageController extends Controller
                     return $picked;
                 }
             }
+            /*
             if ($lang == 'at') {
                 $labs = LabMeta::where('country_code', 'at')->get();
                 $random = rand(0, $labs->count()-1);
                 $pickedlab = $labs[$random]->lab;
                 $picked = ['lab' => ['lab' => $pickedlab, 'dist' => '0']];
                 return $picked;
-            }
+            } */
         }
 
         //$labs = \App\Lab::with('patients')->where('status', '=', 'aktiv')->get();
@@ -147,7 +148,6 @@ class PublicPageController extends Controller
         // dd($picked);
 
         usort($picked, [$this, 'sortByDist']);
-
         return $picked;
     }
 
