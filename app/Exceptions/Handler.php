@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+use libphonenumber\NumberParseException;
 
 use Mail;
 use Auth;
@@ -28,7 +29,8 @@ class Handler extends ExceptionHandler
         HttpException::class,
         ModelNotFoundException::class,
         ValidationException::class,
-        TokenMismatchException::class
+        TokenMismatchException::class,
+        NumberParseException::class
 //        TokenMismatchException::class,
     ];
 
