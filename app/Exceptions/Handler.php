@@ -31,7 +31,6 @@ class Handler extends ExceptionHandler
         ValidationException::class,
         TokenMismatchException::class,
         NumberParseException::class
-//        TokenMismatchException::class,
     ];
 
     /**
