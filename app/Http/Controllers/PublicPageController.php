@@ -237,6 +237,13 @@ class PublicPageController extends Controller
             return 'You are not allowed to make this request.';
         }*/
 
+        $inList = Helper::zipIsInList($request->plz, $lang);
+        if (!$inList) {
+            $inList = Helper::zipIsInList($request->plz, 'at');
+            if($inList) {
+                $lang = 'at';
+            }
+        }
 
         $country_code = strtoupper($lang) ?: 'DE';
 
