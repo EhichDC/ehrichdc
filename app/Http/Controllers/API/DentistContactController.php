@@ -39,9 +39,11 @@ class DentistContactController extends Controller
         if (Auth::user()->hasRole('admin')) {
             $dentist = DentistContact::with('dentistmeta')->find($request['id']);
             $temp    = $dentist;
-            $dentist->delete();
-            $dentist = $temp;
-            Event::fire(new DentistDeleted($dentist));
+            if ($dentist) {     
+                $dentist->delete();
+                $dentist = $temp;
+                Event::fire(new DentistDeleted($dentist));
+            }
         }
     }
 
