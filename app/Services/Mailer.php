@@ -264,7 +264,9 @@ class Mailer
      */
     public function getMail($name)
     {
-        return Email::where('name', $name)->first();
+        $email = Email::where('name', $name)->first();
+        $comparsed_email = str_replace('..', '.', $email);
+        return trim($comparsed_email);
     }
 
     /**
