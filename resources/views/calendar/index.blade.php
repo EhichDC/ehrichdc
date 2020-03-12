@@ -65,12 +65,12 @@
                     },
                         @endforeach
                         @foreach(json_decode($holidays) as $k => $v)
-                    {
-                        title: "{!! $v->title !!}",
-                        allDay: true,
-                        start: '{{ $v->date }}',
-                        color: 'red'
-                    },
+                        {
+                            title: "{!! $k !!}",
+                            allDay: true,
+                            start: '{{ $v }}',
+                            color: 'red'
+                        },
                         @endforeach
                         @foreach($excludes as $e)
                     {

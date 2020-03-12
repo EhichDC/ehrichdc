@@ -24,6 +24,7 @@ use Excel;
 use App\PatientMeta;
 use App\Patient;
 use App\Todo;
+use App\LabMeta;
 
 class PublicPageController extends Controller
 {
@@ -111,13 +112,20 @@ class PublicPageController extends Controller
                     return $picked;
                 }
             }
+            /*
+            if ($lang == 'at') {
+                $labs = LabMeta::where('country_code', 'at')->get();
+                $random = rand(0, $labs->count()-1);
+                $pickedlab = $labs[$random]->lab;
+                $picked = ['lab' => ['lab' => $pickedlab, 'dist' => '0']];
+                return $picked;
+            } */
         }
 
-        // $labs = \App\Lab::with('patients')->where('status', '=', 'aktiv')->get();
+        //$labs = \App\Lab::with('patients')->where('status', '=', 'aktiv')->get();
         $radius_start = \App\Settings::where('name', '=', 'Patientenradius Start')->first()->value;
         $radius_inc   = \App\Settings::where('name', '=', 'Patientenradius Inkrementierung')->first()->value;
         $radius_max   = \App\Settings::where('name', '=', 'Patientenradius Ende')->first()->value;
-
         $labs = \App\Lab::whereHas('labmeta', function ($query) use ($lang) {
             $query->where('country_code', '=', $lang);
         })->with(['labmeta'])->where('status', '=', 'aktiv')->get();
@@ -140,7 +148,6 @@ class PublicPageController extends Controller
         // dd($picked);
 
         usort($picked, [$this, 'sortByDist']);
-
         return $picked;
     }
 
@@ -211,16 +218,32 @@ class PublicPageController extends Controller
             'formData'           => $setting->getFormData(),
         ];
 
-        return view('/pages/startpage', $data);
+        // return view('/pages/startpage', $data);
+        return redirect("/lp/");
+    }
+
+    public function formpage()
+    {
+        $lang = 'de';
+        $setting = new Setting($lang);
+        return view('pages.formpage')->with(['formData' => $setting->getFormData(), 'lang' => $lang]);
     }
 
     public function newRequest(Request $request)
     {
+        $lang = 'de';
+        $setting = new Setting($lang);
         /*if(!in_array($request->server('HTTP_HOST'), ['padento.de', 'padento.devv', 'padento.test'])) {
             return 'You are not allowed to make this request.';
         }*/
 
-        $lang = $request->input('lang');
+        $inList = Helper::zipIsInList($request->plz, $lang);
+        if (!$inList) {
+            $inList = Helper::zipIsInList($request->plz, 'at');
+            if($inList) {
+                $lang = 'at';
+            }
+        }
 
         $country_code = strtoupper($lang) ?: 'DE';
 
@@ -242,15 +265,18 @@ class PublicPageController extends Controller
             }
 
             $lookup = getLocation($request->plz, $lang); //Get Lat Long of PLZ
-
+            $salutation       = isset($p['salutation']) ? $p['salutation'] : '';
             $meta             = new \App\PatientMeta();
             $meta->zip        = $p['zip'];
             $meta->city       = ''; // array_get($lookup, 'city');
             $meta->name       = $p['name'];
             $comparsed_email = str_replace('..', '.', $p['email']);
             $meta->email      = trim($comparsed_email);
-            $meta->salutation = $p['salutation'];
-            $meta->tel        = phone_format($p['phone'], $country_code);
+            $meta->salutation = $salutation;
+            $meta->tel        = '';
+            if ($p['phone'] != '') {
+                $meta->tel        = phone_format($p['phone'], $country_code);
+            }
             $meta->ref        = 'Direkteingabe';
             $meta->orig_ref   = 'Direkteingabe';
             $meta->orig_page  = 'Direkteingabe';
@@ -262,42 +288,45 @@ class PublicPageController extends Controller
 
             $patient->fresh()->createToDos();
 
-            activity()->on($patient)->log('added_contact_manually');
+            activity()->on($patient)->withProperties(['creator' => $request->user()->name])->log('added_contact_manually');
 //            Event::fire(new PatientConfirmed($patient));
 
             if (!$lab->isQueueLab()) {
-                mailer('Terminselbermachen', $patient, $lab)->toPatient()->xtags('Patient, Termin machen')->send();
+                mailer('Terminselbermachen', $patient, $lab)->toPatient()->xtags('Patient, Termin machen')->send(); // TODO: sollte nicht ausgeführt weden
                 mailer('Labormail2', $patient, $lab)->toLab()->fromSecondary()->xtags('Labor, Termin')->send();
             }
 
             return ['patient_id' => $patient->id];
         }
-
         $validator = \Validator::make($request->all(), [
             'plz'  => 'required|max:6|min:4',
             'name' => 'required|max:64',
             'mail' => 'required|max:128',
-            'tel'  => 'required|phone:DE|max:128',
+            'tel'  => 'required|phone:DE|max:128'
         ]);
 
         if ($validator->fails()) {
             event(new ValidationFailed($request->only('plz', 'name', 'mail', 'tel')));
 
-            return back()->withErrors($validator, $request->form_name)->withInput($request->all());
+            return view('pages.formpage')->with(['formData' => $setting->getFormData(), 'lang' => $lang])->withErrors($validator)->withInput($request->all());
         }
 
         if ($request->session()->has('direct')) {
             $lab['lab'] = \App\Lab::find($request->session()->get('direct'));
         } else {
             $inList = Helper::zipIsInList($request->plz, $lang);
-            if ($inList == false) {
+            if (!$inList) {
+                $inList = Helper::zipIsInList($request->plz, 'at');
+                if($inList) {
+                    $lang = 'at';
+                }
+            }
+            if (!$inList) {
                 Event::fire(new PlzIsMissing($request->plz));
                 // return "Es wurde leider kein Labor in Ihrer näheren Umgebung gefunden.";
                 // return redirect()->back()->withInput()->withErrors(['msg' => 'Diese PLZ gibt es scheinbar nicht.']);
             } else {
-
                 $count = 3;
-
                 while ($count) {
                     $lookup     = getLocation($request->plz, $lang); //Get Lat Long of PLZ
                     $pickedLabs = $this::pickLab($lookup, $request->mail, $lang); //Get Labs
@@ -332,6 +361,9 @@ class PublicPageController extends Controller
                 $comparsed_email = str_replace('..', '.', $request->mail);
                 $meta->email      = trim($comparsed_email);
                 $meta->tel        = phone_format($request->tel, $country_code);
+                if($request->tel != '')  {
+                    $meta->tel        = phone_format($request->tel, $country_code);
+                }
                 if (isset($_SERVER['HTTP_REFERER'])) {
                     $meta->ref = htmlentities($_SERVER['HTTP_REFERER']);
                 } else {
@@ -390,6 +422,10 @@ class PublicPageController extends Controller
         $comparsed_email = str_replace('..', '.', $request->mail);
         $meta->email      = trim($comparsed_email);
         $meta->tel        = phone_format($request->tel, $country_code);
+        $meta->tel        = $request->tel;
+        if ($request->tel != '') {
+            $meta->tel        = phone_format($request->tel, $country_code);
+        }
         if (isset($_SERVER['HTTP_REFERER'])) {
             $meta->ref = htmlentities($_SERVER['HTTP_REFERER']);
         } else {

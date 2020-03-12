@@ -240,5 +240,5 @@ class ExampleTest extends TestCase
             echo "\t => \e[41m\e[97merror\e[49m\e[37m";
         }
     }
-
+    
 }

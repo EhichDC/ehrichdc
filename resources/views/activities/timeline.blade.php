@@ -19,8 +19,10 @@
                             </p>
                         </div>
                         <div class="col-md-9 note-content">
-                            @if (view()->exists("activities.{$activity->description}"))
-                                @include ("activities.{$activity->description}")
+                            @if(is_string($activity->description))
+                                @if (view()->exists("activities.{$activity->description}"))
+                                    @include ("activities.{$activity->description}")
+                                @endif
                             @endif
                         </div>
                     </div>

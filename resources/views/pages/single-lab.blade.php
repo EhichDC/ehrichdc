@@ -11,6 +11,18 @@
                 <div class="small-12 large-10 large-centered columns">
                     <h1>{{ $lab->name }}</h1>
                     <div class="row">
+                        <div class="colum">
+                            <div class="lab-box">
+                                <div class="container-fluid">
+                                    <div class="lab-box-header">
+                                        <h23 id="cta"><b>Kommen Sie jetzt ins Handeln und machen Sie einen kostenfreien Beratungstermin. Rufen Sie jetzt an:</b></h23>
+                                    </div>
+                                    <p class="lab-box-content">Telefon: <a href="tel:{{ $lab->labmeta->tel }}">{{ $lab->labmeta->tel }}</a></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
                         <div class="column medium-4">
                             <div class="lab-box contact-person">
                                 <div class="lab-box-header">
@@ -53,7 +65,7 @@
             </div>
         </header>
         @if (session('patientConfirmed'))
-            <section class="besttime">
+            <!-- section class="besttime">
                 <div class="row">
                     <div class="medium-12 large-10 large-centered columns">
                         <h2 class="text-center">Wann können wir Sie am besten erreichen?</h2>
@@ -147,7 +159,7 @@
                         {{ Form::close() }}
                     </div>
                 </div>
-            </section>
+            </section -->
         @endif
 
         <section class="lab-about">
@@ -272,6 +284,10 @@
             </div>
         </section>
     </div>
+@endsection
+
+@section('footer')
+
 @endsection
 
 @section('foot')

@@ -15,6 +15,22 @@ export default {
     }.bind(this));
     $('#title').html(this.sitename);
     $('title').text(this.sitename + ' | Padento.de');
+  },
+  methods: {
+    delete(id)
+    {
+      if(!confirm('Willst du es wirklich löschen?')) {
+        return false;
+      }
+
+      this.$http.delete('/api/user/' + id + '/delete')
+          .then(response => {
+            console.log(response);
+            $.getJSON('/api/users/all', function(data) {
+              this.users = data;
+            }.bind(this));
+          });
+    },
   }
 
 }

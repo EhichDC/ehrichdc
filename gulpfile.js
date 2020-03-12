@@ -26,11 +26,11 @@ elixir(function (mix) {
         ]
     };
 
-    mix.sass([
-        'app/*.scss',
-        'app/*/*.scss',
-    ], 'public/assets/css/app.css', optionsApp);
-    mix.sass(['padento/*.scss', 'padento/*/*.scss'], 'public/assets/css/style.css', optionsStyle);
+//    mix.sass([
+//        'app/*.scss',
+//       'app/*/*.scss',
+//    ], 'public/assets/css/app.css', optionsApp);
+//    mix.sass(['padento/*.scss', 'padento/*/*.scss'], 'public/assets/css/style.css', optionsStyle);
 
     mix.scripts([
         'vendor/jquery.js',
@@ -62,6 +62,7 @@ elixir(function (mix) {
         '../../../bower_components/jquery/dist/jquery.min.js',
         '../../../bower_components/what-input/dist/what-input.min.js',
         '../../../bower_components/foundation-sites/dist/js/foundation.js',
+        '../../../node_modules/jquery-smooth-scroll/src/jquery.smooth-scroll.js',
         'resources/assets/js/scripts.js'
     ], 'public/assets/js/scripts.js');
 

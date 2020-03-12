@@ -12,8 +12,7 @@
                     <li><a v-link="{ name: 'home' }"><i class="fa fa-tachometer"></i> Übersicht</a></li>
                     <li><a v-link="{ name: 'admin.contacts', params: {type: 'all'} }"><i class="fa fa-user"></i>
                             Kontakte</a></li>
-                    <li><a v-link="{ name: 'admin.dentistsContacts' }"><i class="fa fa-user-md"></i> Zahnärzte <span
-                                    class="label label-success">NEU</span></a></li>
+                    <li><a v-link="{ name: 'admin.dentistsContacts' }"><i class="fa fa-user-md"></i> Zahnärzte</a></li>
                     <li><a v-link="{ name: 'admin.labs' }"><i class="fa fa-user-md"></i> Labore</a></li>
                     <li><a v-link="{ name: 'my.calendar' }"><i class="fa fa-calendar"></i> Rückruftermine</a></li>
 
@@ -23,8 +22,7 @@
                 <h4>Administration</h4>
                 <ul class="nav">
                     <!-- li><a v-link="{ name: 'stats' }"><i class="fa fa-bar-chart"></i> Statistiken</a></li -->
-                    <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Zahnarzt Statistiken <span
-                                    class="label label-success">NEU</span></a></li>
+                    <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Zahnarzt Statistiken</a></li>
                     {{--<li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Zahnärzte Termine--}}
                     {{--<span class="label label-success">NEU</span></a></li>--}}
 
@@ -100,8 +98,7 @@
                         <h4>Zahnärzte</h4>
                         <ul class="nav">
                             <li><a href="http://www.rainerehrich.de/crm-hinter-den-kulissen" target="_blank"><i
-                                            class="fa fa-user-md"></i> Upgrade Zahnärzte <span
-                                            class="label label-success">NEU</span></a>
+                                            class="fa fa-user-md"></i> Upgrade Zahnärzte</a>
                             </li>
                         </ul>
                     @endif
@@ -110,8 +107,7 @@
                         <h4>Zahnärzte</h4>
                         <ul class="nav">
                             <li><a href="http://www.rainerehrich.de/crm-hinter-den-kulissen" target="_blank"><i
-                                            class="fa fa-user-md"></i> Upgrade Zahnärzte <span
-                                            class="label label-success">NEU</span></a>
+                                            class="fa fa-user-md"></i> Upgrade Zahnärzte</a>
                             </li>
                         </ul>
                     @endif
@@ -124,14 +120,12 @@
                         <h4>Zahnärzte</h4>
                         <ul class="nav">
                             <li><a v-link="{ name: 'admin.dentistsContacts' }"><i class="fa fa-user-md"></i> Zahnärzte
-                                    <span class="label label-success">NEU</span></a></li>
-                            <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Statistiken <span
-                                            class="label label-success">NEU</span></a></li>
-                            <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Termine <span
-                                            class="label label-success">NEU</span></a></li>
+                                   </a></li>
+                            <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Statistiken </a></li>
+                            <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Termine </a></li>
                             <li v-if="whoami.lab[0].user_id === whoami.id">
                                 <a v-link="{ name: 'lab.users' }"><i class="fa fa-user"></i> Laborbenutzer
-                                    <span class="label label-success">NEU</span></a>
+                                   </a>
                             </li>
                         </ul>
                         <hr>
@@ -141,14 +135,12 @@
                         <h4>Zahnärzte</h4>
                         <ul class="nav">
                             <li><a v-link="{ name: 'admin.dentistsContacts' }"><i class="fa fa-user-md"></i> Zahnärzte
-                                    <span class="label label-success">NEU</span></a></li>
-                            <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Statistiken <span
-                                            class="label label-success">NEU</span></a></li>
-                            <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Termine <span
-                                            class="label label-success">NEU</span></a></li>
+                                   </a></li>
+                            <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Statistiken </a></li>
+                            <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Termine </a></li>
                             <li v-if="whoami.lab[0].user_id === whoami.id">
                                 <a v-link="{ name: 'lab.users' }"><i class="fa fa-user"></i> Laborbenutzer
-                                    <span class="label label-success">NEU</span></a>
+                                   </a>
                             </li>
                         </ul>
                         <hr>
@@ -163,11 +155,11 @@
                         <h4>Zahnärzte</h4>
                         <ul class="nav">
                             <li><a v-link="{ name: 'admin.dentistsContacts' }"><i class="fa fa-user-md"></i> Zahnärzte
-                                    <span class="label label-success">NEU</span></a></li>
+                                   </a></li>
                             <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Zahnarzt
-                                    Statistiken <span class="label label-success">NEU</span></a></li>
+                                    Statistiken</a></li>
                             <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Zahnärzte
-                                    Termine <span class="label label-success">NEU</span></a></li>
+                                    Termine</a></li>
                             <li><a v-link="{ name: 'lab.settings' }"><i class="fa fa-cog"></i> Termin-Einstellungen</a>
                             </li>
                         </ul>
@@ -187,12 +179,14 @@
                         <h4>Zahnärzte</h4>
                         <ul class="nav">
                             <li><a v-link="{ name: 'admin.dentistsContacts' }"><i class="fa fa-user-md"></i> Zahnärzte
-                                    <span class="label label-success">NEU</span></a></li>
+                                   </a></li>
                             <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Zahnarzt
-                                    Statistiken <span class="label label-success">NEU</span></a></li>
+                                    Statistiken</a></li>
                             <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Zahnärzte
-                                    Termine <span class="label label-success">NEU</span></a></li>
-                            <li><a v-link="{ name: 'lab.settings' }"><i class="fa fa-cog"></i> Termin-Einstellungen</a>
+                                    Termine</a></li>
+                            <li v-if="whoami.lab[0].user_id === whoami.id">
+                                <a v-link="{ name: 'lab.users' }"><i class="fa fa-user"></i> Laborbenutzer
+                                   </a>
                             </li>
                         </ul>
                         <hr>
@@ -200,10 +194,12 @@
                         <ul class="nav">
                             <li><a href="/labor/{{ Auth::user()->lab[0]->slug }}" target="_blank"><i class="fa fa-globe"
                                                                                                      aria-hidden="true"> </i>Mein
-                                    Profil online ansehen</a>
+                            Profil online ansehen</a>
                             <li>
                                 <a v-link="{ name: 'admin.labSingle', params: { id: {{ Auth::user()->lab->first()->id }} } }"><i
                                             class="fa fa-pencil-square-o" aria-hidden="true"></i>Mein Profil bearbeiten</a>
+                            </li>
+                            <li><a v-link="{ name: 'lab.settings' }"><i class="fa fa-cog"></i> Termin-Einstellungen</a>
                             </li>
                         </ul>
                     @endif
@@ -256,36 +252,38 @@
                 @endif
 
                 @endrole
+                @if(count(Auth::user()->lab))
+                @if(Auth::user()->lab[0]->membership != 5)
+                    <h4>Hilfreiches</h4>
+                    <ul class="nav">
+                        <li class="guide">
+                            <a v-link="{ name: 'guides' }">
+                                <i class="fa fa-book"></i> Padento Guide
+                                <ul>
+                                    <li>
+                                        <small>
+                                            Technische Einführung - Login Bereich
+                                        </small>
+                                    </li>
+                                    <li>
+                                        <small>
+                                            Wie Sie mit Padento erfolgreich Patienten gewinnen
+                                        </small>
+                                    </li>
+                                </ul>
+                            </a>
+                        </li>
+                        <li><a href="{{ url('downloads/padento_checkliste_gespraeche') }}"><i class="fa fa-book"></i>Checkliste
+                                für Gespräche</a></li>
+                        <li><a href="{{ url('downloads/padento_termine_machen') }}"><i class="fa fa-book"></i> Termine
+                                machen</a></li>
+                        <li><a href="{{ url('downloads/padento_wie_funktioniert_der_telefonservice') }}"><i
+                                        class="fa fa-book"></i> Wie funktioniert der Telefonservice</a></li>
+                        <li><a href="{{ url('downloads/mail_vorlagen') }}"><i class="fa fa-book"></i> Mailvorlagen</a></li>
 
-
-                <h4>Hilfreiches</h4>
-                <ul class="nav">
-                    <li class="guide">
-                        <a v-link="{ name: 'guides' }">
-                            <i class="fa fa-book"></i> Padento Guide
-                            <ul>
-                                <li>
-                                    <small>
-                                        Technische Einführung - Login Bereich
-                                    </small>
-                                </li>
-                                <li>
-                                    <small>
-                                        Wie Sie mit Padento erfolgreich Patienten gewinnen
-                                    </small>
-                                </li>
-                            </ul>
-                        </a>
-                    </li>
-                    <li><a href="{{ url('downloads/padento_checkliste_gespraeche') }}"><i class="fa fa-book"></i>Checkliste
-                            für Gespräche</a></li>
-                    <li><a href="{{ url('downloads/padento_termine_machen') }}"><i class="fa fa-book"></i> Termine
-                            machen</a></li>
-                    <li><a href="{{ url('downloads/padento_wie_funktioniert_der_telefonservice') }}"><i
-                                    class="fa fa-book"></i> Wie funktioniert der Telefonservice</a></li>
-                    <li><a href="{{ url('downloads/mail_vorlagen') }}"><i class="fa fa-book"></i> Mailvorlagen</a></li>
-
-                </ul>
+                    </ul>
+                @endif
+                @endif
                 <hr>
                 <h4>Marketing</h4>
                 <ul class="nav">

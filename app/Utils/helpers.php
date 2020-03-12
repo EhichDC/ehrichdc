@@ -65,6 +65,7 @@ function dentist_phases($phaseId = null)
         'undefined' => '',
     ];
 
+    if (!isset($phases[$phaseId])) return 'undefined';
     return $phaseId ? $phases[$phaseId] : $phases;
 }
 
@@ -156,7 +157,7 @@ function getLocation($address, $lang = 'de')
 function mailSignature()
 {
     return '<div style="font-size: 12px; text-align: center">'
-        . '<br><p>Padento GmbH - Torplatz 1- 29223 Celle - Telefon 05141-360010 - E-Mail: <a href="mailto:buero@padento.de">buero@padento.de</a><br>'
+        . '<br><p>Padento GmbH - Torplatz 1- 29223 Celle - Telefon 05141-9780976 - E-Mail: <a href="mailto:buero@padento.de">buero@padento.de</a><br>'
         . 'Amtsgericht Lüneburg, HRB 205 391 - UST-ID Nr. DE294076454 -<br>'
         . 'Geschäftsführende Gesellschafterin: Marina Ehrich<br>'
         . 'Web: <a href="https://www.padento.de">https://www.padento.de</a><br>'

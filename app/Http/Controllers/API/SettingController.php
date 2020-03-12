@@ -54,7 +54,8 @@ class SettingController extends Controller
     public function getSettings()
     {
         if (Auth::user()->hasRole('admin')) {
-            return Settings::all();
+            $hiddenSettings = [10, 11, 12, 15, 16, 18, 19, 20, 21, 22, 32, 33 ];
+            return Settings::whereNotIn('id', $hiddenSettings)->get();
         }
 
         return response()->json(['status' => '403', 'message' => 'you are not allowed to do that']);

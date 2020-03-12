@@ -65,6 +65,7 @@ Route::get('dankedentist', 'PublicPageController@newDentistContact');
 Route::post('dankedentist', 'PublicPageController@newDentistContact');
 
 Route::get('danke', 'PublicPageController@newRequest');
+Route::get('formpage', 'PublicPageController@formpage');
 Route::post('danke', 'PublicPageController@newRequest');
 Route::post('danke/blog', 'PublicPageController@newRequest');
 Route::get('zahnarzt/{name}', 'LabController@showDentist');
@@ -190,6 +191,7 @@ Route::group(['prefix' => 'api', 'namespace' => 'API'], function () {
     Route::get('users/all', 'UserController@index')->name('api.all.users');
     Route::get('user/{id}', 'UserController@view')->name('api.single.user');
     Route::post('user/{id}', 'UserController@update')->name('api.single.user');
+    Route::delete('user/{id}/delete', 'UserController@delete')->name('api.single.user');
     Route::get('userpassword/{id}', 'UserController@view')->name('api.single.user');
     Route::post('userpassword/{id}', 'UserController@updateUserPassword')->name('api.single.user');
     Route::get('whoami', 'UserController@whoami');
@@ -354,6 +356,11 @@ Route::get('dashboard/karte', function () {
     } else {
         return abort(404);
     }
+});
+
+Route::get('pAPI/labscoords', function () {
+    $glabs = \App\Lab::select('id', 'name', 'slug',  'lon', 'lat')->where('status', '=', 'aktiv')->get();
+    return  $glabs;
 });
 
 Route::get('fl/{id}', function ($id = 1) {
