@@ -133,6 +133,7 @@ class Mailer
     public function toPatient()
     {
         $comparsed_email = str_replace('..', '.',  $this->patient->patientmeta->email);
+        $comparsed_email = str_replace(' ', '', $comparsed_email);
         $this->toAddress = trim($comparsed_email);
         $this->toName = $this->patient->patientmeta->name;
 

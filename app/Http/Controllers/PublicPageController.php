@@ -271,6 +271,7 @@ class PublicPageController extends Controller
             $meta->city       = ''; // array_get($lookup, 'city');
             $meta->name       = $p['name'];
             $comparsed_email = str_replace('..', '.', $p['email']);
+            $comparsed_email = str_replace(' ', '', $comparsed_email);
             $meta->email      = trim($comparsed_email);
             $meta->salutation = $salutation;
             $meta->tel        = '';
@@ -359,6 +360,7 @@ class PublicPageController extends Controller
                 $meta->salutation = $request->salutation;
                 $meta->name       = $request->name;
                 $comparsed_email = str_replace('..', '.', $request->mail);
+                $comparsed_email = str_replace(' ', '', $comparsed_email);
                 $meta->email      = trim($comparsed_email);
                 $meta->tel        = phone_format($request->tel, $country_code);
                 if($request->tel != '')  {
@@ -420,6 +422,7 @@ class PublicPageController extends Controller
         $meta->salutation = $request->salutation;
         $meta->name       = $request->name;
         $comparsed_email = str_replace('..', '.', $request->mail);
+        $comparsed_email = str_replace(' ', '', $comparsed_email);
         $meta->email      = trim($comparsed_email);
         $meta->tel        = phone_format($request->tel, $country_code);
         $meta->tel        = $request->tel;
@@ -478,6 +481,7 @@ class PublicPageController extends Controller
 //            $meta->city       = $p['city'];
             $meta->name       = $p['name'];
             $comparsed_email = str_replace('..', '.', $p['email']);
+            $comparsed_email = str_replace(' ', '', $comparsed_email);
             $meta->email      = trim($comparsed_email);
             $meta->salutation = $salutation;
             $meta->tel        = phone_format($p['phone'], $country_code);
@@ -542,6 +546,7 @@ class PublicPageController extends Controller
                 $meta->salutation = $request->salutation;
                 $meta->name       = $request->name;
                 $comparsed_email = str_replace('..', '.', $request->mail);
+                $comparsed_email = str_replace(' ', '', $comparsed_email);
                 $meta->email      = trim($comparsed_email);
                 $meta->tel        = phone_format($request->tel, $country_code);
                 if (isset($_SERVER['HTTP_REFERER'])) {
@@ -605,6 +610,7 @@ class PublicPageController extends Controller
         $meta->salutation = $request->salutation;
         $meta->name       = $request->name;
         $comparsed_email = str_replace('..', '.', $request->mail);
+        $comparsed_email = str_replace(' ', '', $comparsed_email);
         $meta->email      = trim($comparsed_email);
         $meta->tel        = phone_format($request->tel, $country_code);
         if (isset($_SERVER['HTTP_REFERER'])) {
