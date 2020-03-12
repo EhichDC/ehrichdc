@@ -132,7 +132,8 @@ class Mailer
      */
     public function toPatient()
     {
-        $this->toAddress = $this->patient->patientmeta->email;
+        $comparsed_email = str_replace('..', '.',  $this->patient->patientmeta->email);
+        $this->toAddress = trim($comparsed_email);
         $this->toName = $this->patient->patientmeta->name;
 
         $this->toPatient = true;
@@ -264,9 +265,7 @@ class Mailer
      */
     public function getMail($name)
     {
-        $email = Email::where('name', $name)->first();
-        $comparsed_email = str_replace('..', '.', $email);
-        return trim($comparsed_email);
+        return Email::where('name', $name)->first();
     }
 
     /**
