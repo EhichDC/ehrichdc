@@ -290,11 +290,16 @@ class Mailer
      */
     private function logError($message)
     {
-        $msg = sprintf('[MailError] => Mail an "%s" <%s> [PLZ: %s] konnte nicht verschickt werden.',
-            $this->patient->patientmeta->name,
-            $this->patient->patientmeta->email,
-            $this->patient->patientmeta->zip
-        );
+        $msg = "[MailError] => Mail  konnte nicht verschickt werden.";
+        if ($this->patient) {
+            if ($this->patient->patientmeta) {
+                $msg = sprintf('[MailError] => Mail an "%s" <%s> [PLZ: %s] konnte nicht verschickt werden.',
+                    $this->patient->patientmeta->name,
+                    $this->patient->patientmeta->email,
+                    $this->patient->patientmeta->zip
+                );
+            }
+        }
 
         Log::error($msg . ' [Exception: ' . $message . ']');
 
