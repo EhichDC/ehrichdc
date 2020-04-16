@@ -150,7 +150,7 @@ class LabController extends Controller
     public function store(Request $request, $id)
     {
         $this->validate($request, [
-            'slug' => 'required|min:2|regex:/^[A-Za-z-_]+$/|unique:labs,slug,' . $id,
+            'slug' => 'required|min:2|regex:/^[A-Za-z-_ 0-9\.\-\/]+$/|unique:labs,slug,' . $id,
         ]);
 
         $lab = Lab::find($id);
