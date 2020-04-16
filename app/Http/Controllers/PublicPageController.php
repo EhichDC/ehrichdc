@@ -294,7 +294,7 @@ class PublicPageController extends Controller
 
             if (!$lab->isQueueLab()) {
                 mailer('Terminselbermachen', $patient, $lab)->toPatient()->xtags('Patient, Termin machen')->send(); // TODO: sollte nicht ausgeführt weden
-                mailer('Labormail2', $patient, $lab)->toLab()->fromSecondary()->xtags('Labor, Termin')->send();
+                //mailer('Labormail2', $patient, $lab)->toLab()->fromSecondary()->xtags('Labor, Termin')->send();
             }
 
             return ['patient_id' => $patient->id];
