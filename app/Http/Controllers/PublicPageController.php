@@ -87,6 +87,8 @@ class PublicPageController extends Controller
         if ($lab != '') {
             session(['direct' => $lab->id]);
         }
+        if (!is_object($lab)) return redirect('/'); 
+        if (!is_object($lab->labmeta)) return redirect('/');
         if (!$lab->labmeta || $lab->labmeta->country_code == 'de') {
             return redirect('/');
         } else {
