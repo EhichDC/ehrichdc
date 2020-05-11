@@ -94,9 +94,9 @@
                     @endforeach
                     @foreach(json_decode($holidays) as $k => $v)
                         {
-                            title: '{{ $k }}',
+                            title: "{!! $v->title !!}",
                             allDay: true,
-                            start: '{{ $v }}',
+                            start: '{{ $v->date }}',
                             color: 'red'
                         },
                     @endforeach
