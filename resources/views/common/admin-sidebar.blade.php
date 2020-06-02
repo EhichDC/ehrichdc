@@ -61,18 +61,19 @@
                 @endrole
 
                 @role('lab')
-                @if(count(Auth::user()->lab)==0)
-
-                    @if (Auth::user()->labs[0]->membership == 0 || Auth::user()->labs[0]->membership == 1 || Auth::user()->labs[0]->membership == 2 || Auth::user()->labs[0]->membership == 3 || Auth::user()->labs[0]->membership == 4)
-                        <h4>Navigation</h4>
-                        <ul class="nav">
-                            <li><a v-link="{ name: 'home' }"><i class="fa fa-tachometer"></i> Übersicht</a></li>
-                            <li><a v-link="{ name: 'admin.contacts', params: {type: 'all'} }"><i class="fa fa-user"></i>
-                                    Kontakte</a></li>
-                            <li><a v-link="{ name: 'my.calendar' }"><i class="fa fa-calendar"></i> Termine</a></li>
-                            {{--<li v-if="whoami.lab[0].has_multi_user && whoami.lab[0].user_id === whoami.id">--}}
-                        </ul>
-                        <hr>
+                @if(count(Auth::user()->lab) == 0)
+                    @if ( count(Auth::user()->labs) !== 0 )
+                        @if (Auth::user()->labs[0]->membership == 0 || Auth::user()->labs[0]->membership == 1 || Auth::user()->labs[0]->membership == 2 || Auth::user()->labs[0]->membership == 3 || Auth::user()->labs[0]->membership == 4)
+                            <h4>Navigation</h4>
+                            <ul class="nav">
+                                <li><a v-link="{ name: 'home' }"><i class="fa fa-tachometer"></i> Übersicht</a></li>
+                                <li><a v-link="{ name: 'admin.contacts', params: {type: 'all'} }"><i class="fa fa-user"></i>
+                                        Kontakte</a></li>
+                                <li><a v-link="{ name: 'my.calendar' }"><i class="fa fa-calendar"></i> Termine</a></li>
+                                {{--<li v-if="whoami.lab[0].has_multi_user && whoami.lab[0].user_id === whoami.id">--}}
+                            </ul>
+                            <hr>
+                        @endif
                     @endif
 
                 @else
