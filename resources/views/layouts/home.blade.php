@@ -82,12 +82,12 @@
                 document.cookie = disableStr + '=true; expires=Thu, 31 Dec 2099 23:59:59 UTC; path=/';
             }
         </script>
-        <!-- Google Tag Manager -->
-            <script async src="https://www.googletagmanager.com/gtag/js?id=AW-995423199"></script> <script> window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'AW-995423199'); </script>
-        <!-- End Google Tag Manager -->
-        @if (Request::is('danke'))
-            <!-- Event snippet for dankeseite aufgerufen conversion page --> <script> gtag('event', 'conversion', {'send_to': 'AW-995423199/7wqjCJSoqpcBEN_n09oD'}); </script>            
-        @endif
+    @endif
+    <!-- Google Tag Manager -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-995423199"></script> <script> window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'AW-995423199'); </script>
+    <!-- End Google Tag Manager -->
+    @if (Request::is('danke'))
+        <!-- Event snippet for dankeseite aufgerufen conversion page --> <script> gtag('event', 'conversion', {'send_to': 'AW-995423199/7wqjCJSoqpcBEN_n09oD'}); </script>            
     @endif
     @yield('head')
 <style>
