@@ -73,7 +73,7 @@
                             durch Dritte ist nicht möglich.
                         <h3>Hinweis zur verantwortlichen Stelle</h3>
                         <p>Die verantwortliche Stelle für die Datenverarbeitung auf dieser Website ist:
-                        <p>Padento GmbH<br>
+                        <p>Ehrich Dental Consulting GmbH<br>
                             Torplatz 1<br>
                             29223 Celle<br>
                             Telefon: +49 (0) 5141 - 97 80 976<br>
