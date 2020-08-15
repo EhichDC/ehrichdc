@@ -17,7 +17,7 @@
 							<ul>
 								@foreach(\App\Link::orderBy('sort')->get() as $link)
 									<!-- if link is equal to a number  -->
-									@if($link->title == '✆ 05141 9001525' && isset($lab))
+									@if($link->title == '✆ 05141 9780976' && isset($lab))
 										@if(Request::is('labor/*') || Request::is('mailtoken/*'))
 												<a href="tel:{{ $lab->labmeta->tel }}">✆ {{ $lab->labmeta->tel }}</a>
 										@else
