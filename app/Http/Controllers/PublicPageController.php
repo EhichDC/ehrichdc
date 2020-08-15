@@ -87,6 +87,8 @@ class PublicPageController extends Controller
         if ($lab != '') {
             session(['direct' => $lab->id]);
         }
+        if (!is_object($lab)) return redirect('/'); 
+        if (!is_object($lab->labmeta)) return redirect('/');
         if (!$lab->labmeta || $lab->labmeta->country_code == 'de') {
             return redirect('/');
         } else {
@@ -294,7 +296,7 @@ class PublicPageController extends Controller
 
             if (!$lab->isQueueLab()) {
                 mailer('Terminselbermachen', $patient, $lab)->toPatient()->xtags('Patient, Termin machen')->send(); // TODO: sollte nicht ausgeführt weden
-                mailer('Labormail2', $patient, $lab)->toLab()->fromSecondary()->xtags('Labor, Termin')->send();
+                //mailer('Labormail2', $patient, $lab)->toLab()->fromSecondary()->xtags('Labor, Termin')->send();
             }
 
             return ['patient_id' => $patient->id];
