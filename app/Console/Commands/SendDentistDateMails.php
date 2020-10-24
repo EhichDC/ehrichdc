@@ -45,11 +45,11 @@ class SendDentistDateMails extends Command
             ->get();
 
         foreach ($dates as $date) {
-            /* mailer('Zahnarzt-Labormail', $date->dentist_contact, $date->lab, $date)
+            mailer('Zahnarzt-Labormail', $date->dentist_contact, $date->lab, $date)
                 ->toLab()
                 ->fromSecondary()
                 ->xtags('Labor, Termin')
-                ->send(); */
+                ->send();
         }
     }
 }
