@@ -48,6 +48,7 @@
 
                 fbq('init', '798274203651101');
                 fbq('track', 'PageView');
+                fbq('track', '{{ AB::getCurrentTest()  }}');
             }
 
             function optOutFacebook() {
@@ -81,13 +82,48 @@
                 document.cookie = disableStr + '=true; expires=Thu, 31 Dec 2099 23:59:59 UTC; path=/';
             }
         </script>
-
+    @endif
+    <!-- Google Tag Manager -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-995423199"></script> <script> window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'AW-995423199'); </script>
+    <!-- End Google Tag Manager -->
+    @if (Request::is('danke'))
+        <!-- Event snippet for dankeseite aufgerufen conversion page --> <script> gtag('event', 'conversion', {'send_to': 'AW-995423199/7wqjCJSoqpcBEN_n09oD'}); </script>            
     @endif
     @yield('head')
-
+<style>
+    @media (min-width: 612px) {
+        #cta {
+            font-size: 3.5vw;
+        }
+    }
+    @media (min-width: 1024px) {
+        #cta {
+            font-size: 2.5vw;
+        }
+    }
+    @media (max-width: 1024px) {
+        #cta {
+            font-size: 2.5vw;
+        }
+    }
+    @media (min-width: 1024px) {
+        #cta {
+            font-size: 2vw;
+        }
+    }
+    @media (max-width: 612px) {
+        #cta {
+            font-size: 4vw;
+        }
+    }
+    @media (min-width: 1624px) {
+        #cta {
+            font-size: 1.6vw;
+        }
+    }
+</style>
 </head>
 <body>
-
 <?php
 if (!isset($_COOKIE['orig_ref'])) {
     if (isset($_SERVER['HTTP_REFERER']))
@@ -133,7 +169,7 @@ if (!isset($_COOKIE['orig_page'])) {
 
 
 <!--script type="text/javascript" src="{{ URL::asset('js/all.js') }}"></script-->
-<script type="text/javascript" src="{{ URL::asset('assets/js/scripts.js') }}"></script>
+<script type="text/javascript" src="{{ URL::asset('assets/js/scripts.js?v=1.1') }}"></script>
 
 @yield('foot')
 <!--script src='//cdn.tinymce.com/4/tinymce.min.js'></script-->

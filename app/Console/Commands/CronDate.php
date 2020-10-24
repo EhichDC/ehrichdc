@@ -85,6 +85,7 @@ class CronDate extends Command
                             $msg->to($lab_mail, $kontaktperson)->subject('[Padento] ' . $lab->user->email);
                         });
                         foreach ($parsed as $p) {
+                            activity()->causedBy(adminUser())->performedOn($p->patient)->withProperties(['subject' => $email->subject, 'causedBySystem' => true, 'mail' => $email, 'receiver' => $lab->name])->log('mail_sent');
                             $p->archived = '1';
                             $p->save();
                             echo $p->date . " => " . $p->lab_id . "\n";

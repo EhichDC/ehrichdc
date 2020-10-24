@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "chart.js": "^2.7.0",
+    "jquery-smooth-scroll": "^2.2.0",
     "lodash": "^4.17.4",
     "natives": "^1.1.6",
     "vue-datetime-picker": "^0.1.1",

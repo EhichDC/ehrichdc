@@ -15,23 +15,33 @@ class Helper
             $lab = $patient ? $patient->lab : null;
         }
 
-        if ($patient != null) {
-            $name         = $patient->patientmeta->name;
-            $patientEmail = $patient->patientmeta->email;
-            $salutation   = $patient->patientmeta->salutation;
-            if ($date) {
-                $date = new \Carbon\Carbon($date->date);
-                $date = $date->formatLocalized('%d.%m.%Y %H:%M') . ' Uhr';
-            } else if ($patient->nextDate->count() > 0) {
-                setlocale(LC_TIME, 'German');
-                $date = new \Carbon\Carbon($patient->nextDate->first()->date);
-                $date = $date->formatLocalized('%d.%m.%Y %H:%M') . ' Uhr';
+        if ($patient != null && is_object($patient)) {
+            if ($patient->patientmeta) {
+                $name = $patient->patientmeta->name;
+                $patientEmail = $patient->patientmeta->email;
+                $salutation = $patient->patientmeta->salutation;
+                if ($date) {
+                    $date = new \Carbon\Carbon($date->date);
+                    $date = $date->formatLocalized('%d.%m.%Y %H:%M') . ' Uhr';
+                } else if ($patient->nextDate->count() > 0) {
+                    setlocale(LC_TIME, 'German');
+                    $date = new \Carbon\Carbon($patient->nextDate->first()->date);
+                    $date = $date->formatLocalized('%d.%m.%Y %H:%M') . ' Uhr';
+                } else {
+                    $date = '';
+                }
+                $kontakttel = $patient->patientmeta->tel;
+                $kontaktmobil = $patient->patientmeta->mobile;
+                $patientid = $patient->id;
             } else {
-                $date = '';
+                $name         = '';
+                $patientEmail = '';
+                $salutation   = '';
+                $date         = '';
+                $kontakttel   = '';
+                $kontaktmobil = '';
+                $patientid    = '';
             }
-            $kontakttel   = $patient->patientmeta->tel;
-            $kontaktmobil = $patient->patientmeta->mobile;
-            $patientid    = $patient->id;
         } else {
             $name         = '';
             $patientEmail = '';
@@ -75,7 +85,8 @@ class Helper
             '[begrüßung]'             => ($salutation == 'Herr' ? 'Sehr geehrter Herr' : 'Sehr geehrte Frau'),
             '[termin]'                => $date,
             '[ansprechpartner]'       => $ansprechpartner,
-            '[laborname]'             => $laborname,
+            '[laborname]'             => '<a href="'.$laborlink.'">'.$laborname.'</a>',
+            '[labortel]'              => '<a href="tel:'.$tel.'">'.$tel.'</a>',
             '[laborort]'              => $laborort,
             '[kontakttel]'            => $kontakttel,
             '[kontaktmobil]'          => $kontaktmobil,
@@ -167,10 +178,10 @@ class Helper
             '[anrede]'                => $salutation,
             '[begrüßung]'             => ($salutation == 'Herr' ? 'Sehr geehrter Herr' : 'Sehr geehrte Frau'),
             '[termin]'                => $date,
-            '[ansprechpartner]'       => $ansprechpartner,
-            '[laborname]'             => $laborname,
+            '[ansprechpartner]'       =>  '<a href="$laborlink">'.$ansprechpartner.'</a>',
+            '[laborname]'             => '<a href="$laborlink">'.$laborname.'</a>',
             '[laborort]'              => $laborort,
-            '[kontakttel]'            => $kontakttel,
+            '[kontakttel]'            => '<a href="tel:'.$kontakttel.'">'.$kontakttel.'</a>',
             '[kontaktmobil]'          => $kontaktmobil,
             '[padentoblog]'           => 'http://padento.de/wissen',
             '[kontaktdatenkontrolle]' => '', // TODO

@@ -7,8 +7,9 @@
 			-->
 			<h4 style="font-weight:bold;">Sie haben Fragen oder benötigen Hilfe?</h4>
 			<p>
-				Wir sind für Sie da! Montag bis Freitag von 10-16 Uhr.
-				<br>Rufen Sie uns einfach an: <a href="tel:+495141360010">05141 - 36 00 10</a>
+				Wir sind für Sie da! Montag bis Freitag von 09-17 Uhr.
+
+				<br>Rufen Sie uns einfach an: @if((Request::is('labor/*') || Request::is('mailtoken/*')) && isset($lab))<a href="tel:{{ $lab->labmeta->tel }}">{{ $lab->labmeta->tel }}</a>@else<a href="tel:+49051419780976">+49 05141-9780976</a>@endif
 			</p>
 		</div>
 

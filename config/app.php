@@ -181,6 +181,7 @@ return [
         Maatwebsite\Excel\ExcelServiceProvider::class,
         Barryvdh\LaravelIdeHelper\IdeHelperServiceProvider::class,
         Intervention\Image\ImageServiceProvider::class,
+        Bart\Ab\ServiceProvider::class,
 
     ],
 
@@ -243,6 +244,8 @@ return [
         'Image' => Intervention\Image\Facades\Image::class,
 
         'Application' => \App\Services\Application::class,
+
+        'AB' => Bart\Ab\Facade::class,
     ],
 
 ];

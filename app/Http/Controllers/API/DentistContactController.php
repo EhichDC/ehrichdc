@@ -39,9 +39,11 @@ class DentistContactController extends Controller
         if (Auth::user()->hasRole('admin')) {
             $dentist = DentistContact::with('dentistmeta')->find($request['id']);
             $temp    = $dentist;
-            $dentist->delete();
-            $dentist = $temp;
-            Event::fire(new DentistDeleted($dentist));
+            if ($dentist) {     
+                $dentist->delete();
+                $dentist = $temp;
+                Event::fire(new DentistDeleted($dentist));
+            }
         }
     }
 
@@ -88,9 +90,9 @@ class DentistContactController extends Controller
 
         $searchThrough = [
             'dentistmeta.name',
-            'dentistmeta.email',
             'dentistmeta.tel',
             'dentistmeta.mobile',
+            'dentistmeta.city',
             // 'dentistmeta.zip',
             // 'created_at',
             'id',
@@ -180,19 +182,23 @@ class DentistContactController extends Controller
             $lab = null;
             if ($user->hasRole('lab')) {
                 $lab = $user->lab->first();
+                if (!$lab) {
+                    $lab = $user->labs->first();
+                }
             }
-            $results = $results->where(function ($query) use ($lab, $name){
-                    if ($lab) {
-                        $query->where('dentist_contacts.lab_id', $lab->id);
-                    }
-                    $query->where('dentistmeta.email', 'like', '%' . str_replace(' ', '', $name) . '%');
-                })
-                ->orWhere(function ($query) use ($lab, $name) {
-                    if ($lab) {
-                        $query->where('dentist_contacts.lab_id', $lab->id);
-                    }
-                    $query->where('dentistmeta.mobile', 'like', "%{$name}%");
-                })
+            if ($user->hasRole('crm-user')) {
+                $lab = $user->lab->first();
+
+                if (!$lab) {
+                    $lab = $user->labs->first();
+                }
+            }
+            $results = $results->where(function ($query) use ($lab, $name) {
+                if ($lab) {
+                    $query->where('dentist_contacts.lab_id', $lab->id);
+                }
+                $query->where('dentistmeta.mobile', 'like', "%{$name}%");
+            })
                 ->orWhere(function ($query) use ($lab, $name) {
                     if ($lab) {
                         $query->where('dentist_contacts.lab_id', $lab->id);
@@ -204,6 +210,12 @@ class DentistContactController extends Controller
                         $query->where('dentist_contacts.lab_id', $lab->id);
                     }
                     $query->where('dentistmeta.name', 'like', "%{$name}%");
+                })
+                ->orWhere(function ($query) use ($lab, $name) {
+                    if ($lab) {
+                        $query->where('dentist_contacts.lab_id', $lab->id);
+                    }
+                    $query->where('dentistmeta.city', 'like', "%{$name}%");
                 });
         } else {
             /*  if ($user->hasRole('user')) {
@@ -242,9 +254,6 @@ class DentistContactController extends Controller
             }
         }
 
-        $results = $results->with(['dentistmeta', 'lab']);
-        $results = $results->groupBy('dentist_contacts.id');
-        $results = $results->paginate($per_page);
 
         if ($user->hasRole('lab') || $user->hasRole('crm-user') || $request->filter['lab']['selected'] === 'current') {
             $all = DentistContact::where('dentist_contacts.lab_id', $lab->id)->count();
@@ -252,6 +261,9 @@ class DentistContactController extends Controller
             $all = DentistContact::count();
         }
 
+        $results = $results->with(['dentistmeta', 'lab']);
+        $results = $results->groupBy('dentist_contacts.id');
+        $results = $results->paginate($per_page);
         $confirmed = DentistContact::where('confirmed', 1);
         if ($user->hasRole('lab') || $user->hasRole('crm-user') || $request->filter['lab']['selected'] === 'current') {
             $confirmed = $confirmed->where('dentist_contacts.lab_id', $lab->id)->count();

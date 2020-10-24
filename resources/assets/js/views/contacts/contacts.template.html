@@ -132,6 +132,7 @@
                         <th class="sortable " @click="sortBy( 'patientmeta.email') ">E-Mail</th>
                         <th class="sortable " @click="sortBy( 'patientmeta.tel') ">Telefon</th>
                         <th class="sortable " @click="sortBy( 'patientmeta.zip') ">PLZ</th>
+                        <th class="sortable " @click="sortBy( 'patientmeta.city') ">Ort</th>
                         <th class="sortable " @click="sortBy( 'labs.name') " v-if="!isLab">Labor</th>
                         <th class="sortable " @click="sortBy( 'phase') ">Phase</th>
                         <th class="sortable " @click="sortBy( 'queued') " v-if="isAdmin"><i
@@ -165,6 +166,7 @@
                         <td v-else><span class="label label-danger ">noch unbestätigt</span></td>
                         <td>{{ contact.patientmeta.tel }}</td>
                         <td>{{ contact.patientmeta.zip }}</td>
+                        <td>{{ contact.patientmeta.city }}</td>
                         <td v-if="!isLab">
                             <a v-link="{ name: 'admin.labSingle', params: { id: contact.lab.id } } "
                                v-if="isAdmin">{{ contact.lab.name }}</a>

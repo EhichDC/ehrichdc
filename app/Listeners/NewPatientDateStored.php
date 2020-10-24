@@ -44,21 +44,23 @@ class NewPatientDateStored
                 ->fromSecondary()
                 ->xtags('Patient, Termin')
                 ->send();
+        } else {
+            //also normal contact dates without default labor
+            mailer('Terminmail', $patient, $lab, $date)
+                ->toPatient()
+                ->fromSecondary()
+                ->xtags('Patient, Termin')
+                ->send();
         }
 
-        //also normal contact dates without default labor
-        mailer('Terminmail', $patient, $lab, $date)
-            ->toPatient()
-            ->fromSecondary()
-            ->xtags('Patient, Termin')
-            ->send();
+
 
         if ($user->hasRole('admin') || $user->hasRole('user')) {
-            mailer('Labormail2', $patient, $lab, $date)
+            /* mailer('Labormail2', $patient, $lab, $date)
                 ->toLab()
                 ->fromSecondary()
                 ->xtags('Labor, Termin')
-                ->send();
+                ->send(); */
         }
     }
 

@@ -21,7 +21,7 @@
                     </header>
                     <div class="entry-content">
                         <h2>Angaben gemäß § 5 TMG:</h2>
-                        <p>Padento GmbH<br>
+                        <p>Ehrich Dental Consulting GmbH<br>
                             Torplatz 1<br>
                             29223 Celle<br>
                         <h2>Vertreten durch:</h2>

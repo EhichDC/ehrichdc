@@ -132,11 +132,18 @@ class Mailer
      */
     public function toPatient()
     {
-        $this->toAddress = $this->patient->patientmeta->email;
-        $this->toName = $this->patient->patientmeta->name;
+        if (is_object($this->patient)) {
+            if (is_object($this->patient->patientmeta)) {
+                if ($this->patient->patientmeta->email) {
+                    $comparsed_email = str_replace('..', '.',  $this->patient->patientmeta->email);
+                    $comparsed_email = str_replace(' ', '', $comparsed_email);
+                    $this->toAddress = trim($comparsed_email);
+                    $this->toName = $this->patient->patientmeta->name;
 
-        $this->toPatient = true;
-
+                    $this->toPatient = true;
+                }
+            }
+        }
         return $this;
     }
 
@@ -283,11 +290,16 @@ class Mailer
      */
     private function logError($message)
     {
-        $msg = sprintf('[MailError] => Mail an "%s" <%s> [PLZ: %s] konnte nicht verschickt werden.',
-            $this->patient->patientmeta->name,
-            $this->patient->patientmeta->email,
-            $this->patient->patientmeta->zip
-        );
+        $msg = "[MailError] => Mail  konnte nicht verschickt werden.";
+        if ($this->patient) {
+            if ($this->patient->patientmeta) {
+                $msg = sprintf('[MailError] => Mail an "%s" <%s> [PLZ: %s] konnte nicht verschickt werden.',
+                    $this->patient->patientmeta->name,
+                    $this->patient->patientmeta->email,
+                    $this->patient->patientmeta->zip
+                );
+            }
+        }
 
         Log::error($msg . ' [Exception: ' . $message . ']');
 

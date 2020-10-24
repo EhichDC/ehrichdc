@@ -73,7 +73,7 @@
                             durch Dritte ist nicht möglich.
                         <h3>Hinweis zur verantwortlichen Stelle</h3>
                         <p>Die verantwortliche Stelle für die Datenverarbeitung auf dieser Website ist:
-                        <p>Padento GmbH<br>
+                        <p>Ehrich Dental Consulting GmbH<br>
                             Torplatz 1<br>
                             29223 Celle<br>
                             Telefon: +49 (0) 5141 - 97 80 976<br>
@@ -117,13 +117,13 @@
                             Falle der unverlangten Zusendung von Werbeinformationen, etwa durch Spam-E-Mails, vor.
                         <h2>3. Datenschutzbeauftragter</h2>
                         <h3>Gesetzlich vorgeschriebener Datenschutzbeauftragter</h3>
-                        <p>Wir haben für unser Unternehmen einen Datenschutzbeauftragten bestellt.
-                        <p>Herrn Joachim Kramer<br>
-                            Kramer Datenschutz OHG<br>
-                            Elsternweg 24<br>
-                            42555 Velbert<br>
-                            Telefon: +49 2052 9289766<br>
-                            E-Mail: info@datenschutz-kramer.de<br>
+                        <p>Wir haben für unser Unternehmen einen Datenschutzbeauftragten bestellt.<br>
+                            legal.solutions GmbH<br>
+                            – Datenschutzbeauftragte –<br>
+                            Oranienburger Str. 17<br>
+                            10178 Berlin<br>
+                            E-Mail: datenschutz@pagestreet.de<br>
+                            Telefon: 030 467 24 06 18<br>
 
                         <h2>4. Datenerfassung auf unserer Website</h2>
                         <h3>Cookies</h3>

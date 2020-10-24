@@ -6,20 +6,19 @@
         <div class="box-wrap">
             {{-- Das Patienten-Kontakt-Formular --}}
 
-            {!! Form::open(array('url'=>'danke','method'=>'post', 'class' => 'padento-form', 'id' => $formName)) !!}
+            {!! Form::open(array('url'=>'danke','method'=>'post', 'class' => 'padento-form')) !!}
 
             @if(Session::has('direct'))
                 {{ Form::hidden('direct',  Session::get('direct') ) }}
             @endif
 
-            {!! Form::hidden('form_name', $formName) !!}
             {!! Form::hidden('lang', $lang) !!}
 
             <p>
-            @if (! $errors->$formName->isEmpty())
+            @if (! $errors->isEmpty())
                 <div class="alert alert-danger">
                     <ul>
-                        @foreach ($errors->$formName->all() as $error)
+                        @foreach ($errors->all() as $error)
                             <li class="error alert alert-danger"
                                 style="color: red; font-weight: bold">{{ ucfirst($error) }}</li>
                         @endforeach
@@ -71,8 +70,7 @@
             <p>
                 {!! Form::text('tel',  '', [
                     'placeholder' => 'Telefonnummer',
-                    'title' => 'Bitte geben Sie Ihre Telefonnummer hier ein.',
-                    'required' => 'true'
+                    'title' => 'Bitte geben Sie Ihre Telefonnummer hier ein.'
                    ]) !!}
             </p>
             {!! $formData['text_below_form'] !!}
