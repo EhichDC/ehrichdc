@@ -340,6 +340,17 @@ Route::get('sendsmstest', function () {
 //    \Padento\Sms\SMS::sendDateReminders();
 });
 
+Route::get('sendemailtest', function () {
+    $to_name = 'julian';
+    $to_email = 'julian.bertsch42@gmail.com';
+    $data = array('body' => "A test mail");
+Mail::send('emails.testmail', $data, function($message) use ($to_name, $to_email) {
+    $message->to($to_email, $to_name)
+        ->subject('Laravel Test Mail');
+$message->from('info@ehrich-dc.de', 'Rainer Ehrich');
+
+});
+
 ##-- admin stuff --##
 Route::get('admin/contact/{patient}/toggle-phase/{phase}', ['as' => 'admin.change.phase', 'uses' => 'PatientController@changePhase']);
 //For Dentist
