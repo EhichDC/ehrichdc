@@ -5,7 +5,7 @@
     <div class="row">
         <div class="col-md-4 col-md-offset-4">
             <div class="padento-login">
-                <img src="/images/logo.png" alt="">
+                <img src="/images/logo.webp" alt="">
 
                 @if (isset($_GET['user']))
                     <div class="alert alert-warning" role="alert">Ihr Padento-Profil wurde deaktiviert. Sollte es sich dabei um ein versehen handeln, melden Sei sich bitte bei <a href="mailto:info@padento.de">info@padento.de</a></div>

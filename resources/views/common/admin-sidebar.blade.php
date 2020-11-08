@@ -1,7 +1,7 @@
 <section id="content">
     <aside style="z-index:inherit;">
         <header>
-            <a v-link="{ name: 'home' }"><img class="logo" src="/images/Padento_Claim_RGB_weiss.png"></a>
+            <a v-link="{ name: 'home' }"><img class="logo" src="/images/edc-logo-white.png"></a>
         </header>
         <nav class="main-sidebar-nav">
             <div class="nav-wrap">

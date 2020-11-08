@@ -26,11 +26,11 @@ elixir(function (mix) {
         ]
     };
 
-//    mix.sass([
-//        'app/*.scss',
-//       'app/*/*.scss',
-//    ], 'public/assets/css/app.css', optionsApp);
-//    mix.sass(['padento/*.scss', 'padento/*/*.scss'], 'public/assets/css/style.css', optionsStyle);
+    mix.sass([
+        'app/*.scss',
+       'app/*/*.scss',
+    ], 'public/assets/css/app.css', optionsApp);
+    mix.sass(['padento/*.scss', 'padento/*/*.scss'], 'public/assets/css/style.css', optionsStyle);
 
     mix.scripts([
         'vendor/jquery.js',
@@ -69,11 +69,11 @@ elixir(function (mix) {
     mix.browserify([
         'admindashboard.js',
     ]);
-    // mix.task('livereload', 'public/js/all.js');
-    // mix.task('livereload', 'public/assets/js/scripts.js');
-    // mix.task('livereload', 'public/js/all.js');
-    // mix.task('livereload', 'public/assets/css/style.css');
-    // mix.task('livereload', 'public/assets/css/app.css');
+    mix.task('livereload', 'public/js/all.js');
+    mix.task('livereload', 'public/assets/js/scripts.js');
+    mix.task('livereload', 'public/js/all.js');
+    mix.task('livereload', 'public/assets/css/style.css');
+    mix.task('livereload', 'public/assets/css/app.css');
 
 });
 
