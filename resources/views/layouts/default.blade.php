@@ -2,13 +2,14 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8"/>
-    <title>Padento.de
+    <title>Ehrich Dental Consultant
       @if(isset($title))
         – {{ $title }}
       @endif
     </title>
     <link rel="stylesheet" href="{{ URL::asset('assets/css/app.css') }}">
     <link rel="stylesheet" href="{{ URL::asset('assets/css/summernote.css') }}">
+    <link rel="shortcut icon" href="/images/favicon-32x32.webp">
 
     <script>
         window.Application = <?php echo json_encode(array_merge(
