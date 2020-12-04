@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8"/>
     <link rel="stylesheet" href="/css/foundation.min.css"/>
-    <title>Padento.de
+    <title>ehrich-dc.de
         @if(isset($title))
             – {{ $title }}
         @endif

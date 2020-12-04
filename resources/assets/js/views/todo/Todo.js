@@ -34,7 +34,7 @@ export default {
     created()
     {
         $('#title').html(this.sitename);
-        $('title').text(this.sitename + ' | Padento.de');
+        $('title').text(this.sitename + ' | crm.ehrich-dc.de');
         // this.whoAmI();
     },
 

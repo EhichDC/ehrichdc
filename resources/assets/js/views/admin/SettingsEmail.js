@@ -38,7 +38,7 @@ export default {
             $('#debug').addClass('active').find('.debugged-content').html(response.data);
         });
         $('#title').html(this.sitename);
-        $('title').text(this.sitename + ' | Padento.de');
+        $('title').text(this.sitename + ' | crm.ehrich-dc.de');
 //    $.getJSON('/api/settings/email', function(data) {
 //      this.settings = data;
 //    }.bind(this));

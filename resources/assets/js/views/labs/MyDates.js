@@ -149,7 +149,7 @@ export default {
         this.fetch();
 
         $('#title').html(this.sitename);
-        $('title').text(this.sitename + ' | Padento.de');
+        $('title').text(this.sitename + ' | crm.ehrich-dc.de');
     },
     methods: {
         whoAmI: function () {

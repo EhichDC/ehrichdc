@@ -38,6 +38,7 @@ class LabController extends Controller
                 'name',
                 'labmeta.city',
                 'labmeta.zip',
+                'labmeta.contact_person'
             ];
 
             $results = Lab::join('lab_metas as labmeta', 'labmeta.lab_id', '=', 'labs.id');

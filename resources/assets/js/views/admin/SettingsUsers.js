@@ -14,7 +14,7 @@ export default {
       this.users = data;
     }.bind(this));
     $('#title').html(this.sitename);
-    $('title').text(this.sitename + ' | Padento.de');
+    $('title').text(this.sitename + ' | crm.ehrich-dc.de');
   },
   methods: {
     delete(id)

@@ -33,7 +33,7 @@
         <div class="row filter-row" style="padding-top: 10px;">
             <div class="col-md-10">
                 <form class="filter-form">
-                    <div class="form-group">
+                    <!-- TODO: disable phasephilter in admin mode div class="form-group" v-if="isAdmin">
                         <label for="">Phase:</label>
                         <select v-model="filter.phase.selected"
                                 v-selectpicker="[filter.phase.selected, filterOptions.phase.options]">
@@ -41,7 +41,7 @@
                                 phase.text }}
                             </option>
                         </select>
-                    </div>
+                    </div -->
 
 
                     <div class="form-group">
@@ -53,15 +53,14 @@
                             </option>
                         </select>
                     </div>
-
-                    <div class="form-group" v-if="isAdmin">
+                    <div class="form-group">
                         <label>Labor:</label>
                         <select v-model="filter.lab.selected"
                                 v-selectpicker="[filter.lab.selected, filterOptions.lab.options]"
                                 data-live-search="true">
                             <option value="reset">Alle</option>
-                            <option value="ohne">Ohne Labor</option>
-                            <option data-divider="true"></option>
+                            <option value="ohne" v-if="isAdmin">Ohne Labor</option>
+                            <option data-divider="true" v-if="isAdmin"></option>
                             <option v-for="l in filterOptions.lab.options" v-bind:value="l.id">
                                 {{ labName(l) }}
                             </option>

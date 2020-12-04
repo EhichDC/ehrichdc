@@ -1,7 +1,7 @@
 <html>
 	<head>
 		<meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
-		<title>Ihre Anfrage bei Padento.de</title>
+		<title>Ihre Anfrage bei ehrich-dc.de</title>
 	</head>
 	<body>
 		<p>Sehr geehrte/r Frau/Herr {{ $data['kontaktperson'] }}</p>

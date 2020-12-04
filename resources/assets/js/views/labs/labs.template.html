@@ -100,6 +100,7 @@
                     <th class="sortable" @click="sortBy('id')">#
                     <th class="sortable" @click="sortBy('status')"><i class="fa fa-circle dot"></i>
                     <th class="sortable" @click="sortBy('name')">Name
+                    <th class="sortable" @click="sortBy('contact_person')">Kontaktperson
                     <th class="sortable" @click="sortBy('labmeta.zip')">PLZ
                     <th class="sortable" @click="sortBy('labmeta.city')"><i data-toggle="tooltip" data-placement="top"
                                                                             title="Google Maps" class="fa fa-map-marker"
@@ -122,6 +123,7 @@
                     <td><i class="fa fa-circle dot" v-bind:class="(lab.status == 'aktiv') ? 'activ' : 'not-activ'"
                            aria-hidden="true"></i>
                     <td><a v-link="{ name: 'admin.labSingle', params: { id: lab.id } }"> {{ lab.name }}</a>
+                    <td><a v-link="{ name: 'admin.labSingle', params: { id: lab.id } }"> {{ lab.labmeta.contact_person }}</a>
                     <td>{{ lab.labmeta.zip }}
                     <td><a
                         href="http://maps.google.de/?hl=de&q={{ lab.name }}+{{ lab.labmeta.street }}+{{ lab.labmeta.city }}+{{ lab.labmeta.city }}"

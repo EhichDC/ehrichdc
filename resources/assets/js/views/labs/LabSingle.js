@@ -39,6 +39,11 @@ export default {
           'name': 'Zahnarzt Labor'
         },
 
+        {
+          'key': 6,
+          'name': 'Ehrich Dental Consultant Kunde'
+        },
+
 
         {
           'key': 1,

@@ -155,7 +155,7 @@ export default {
         // this.whoAmI();
 
         $('#title').html(this.sitename);
-        $('title').text(this.sitename + ' | Padento.de');
+        $('title').text(this.sitename + ' | crm.ehrich-dc.de');
 
         this.setPhaseName('0');
         this.setLabName(this.labname);

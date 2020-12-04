@@ -27,7 +27,8 @@ export default {
                   { value: '1', text: 'Kontaktverwaltung' },
                   // { value: '2', text: 'Mehr Budget' },
                   // { value: '4', text: 'Kontaktverwaltung und mehr Budget' },
-                  { value: '5', text: 'Zahnarzt Labor' }
+                  { value: '5', text: 'Zahnarzt Labor' },
+                  { value: '6', text: 'Ehrich Dental Consultant Kunde' }
               ],
           },
       },
@@ -68,7 +69,7 @@ export default {
   },
   created: function() {
     $('#title').html(this.sitename);
-    $('title').text(this.sitename + ' | Padento.de');
+    $('title').text(this.sitename + ' | crm.ehrich-dc.de');
     // this.whoAmI();
     new Clipboard('.clip');
   },
@@ -196,6 +197,7 @@ export default {
       if (membership == '2') return 'Mehr Budget';
       if (membership == '4') return 'Kontaktverwaltung und mehr Budget';
       if (membership == '5') return 'Zahnarzt Labor';
+      if (membership == '6') return 'Ehrich Dental Consultant Kunde';
     },
   }
 }

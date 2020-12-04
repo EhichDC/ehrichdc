@@ -221,7 +221,7 @@ class PublicPageController extends Controller
         ];
 
         // return view('/pages/startpage', $data);
-        return redirect("/lp/");
+        return redirect("/login");
     }
 
     public function formpage()

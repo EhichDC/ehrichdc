@@ -16,7 +16,7 @@
         @if(isset($title))
             – {{ $title }}
         @else
-            Zahnimplantat | Beratung Zahnersatz | Padento.de
+            Zahnimplantat | Beratung Zahnersatz | crm.ehrich-dc.de
         @endif
     </title>
 
@@ -157,7 +157,7 @@ if (!isset($_COOKIE['orig_page'])) {
                     "background": "#f2f2f2"
                 },
                 "button": {
-                    "background": "#00aff5"
+                    "background": "#3b5998"
                 }
             },
             "position": "bottom-right",

@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <meta charset="UTF-8"/>
-    <title>Padento.de
+    <title>ehrich-dc.de
         @if(isset($title))
             – {{ $title }}
         @endif

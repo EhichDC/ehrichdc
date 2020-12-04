@@ -10,7 +10,7 @@ export default {
             feeds: [],
             properties: [],
             note: [],
-            sitename: "Padento Übersicht",
+            sitename: "Ehrich Dental Consultant - Übersicht",
             // whoami: [],
             dates: [],
             fetchData: {

@@ -15,7 +15,7 @@ export default {
   created: function() {
     this.getProps();
     $('#title').html(this.sitename);
-    $('title').text(this.sitename + ' | Padento.de');
+    $('title').text(this.sitename + ' | crm.ehrich-dc.de');
 
     // var resource = this.$resource('/api/settings/patient-props');
     // resource.get().then(function(response) {

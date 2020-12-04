@@ -1,7 +1,7 @@
 <html>
 	<head>
 		<meta http-equiv='Content-Type' content='text/html; charset=utf-8' />
-		<title>Eine Anfrage bei Padento.de</title>
+		<title>Eine Anfrage bei ehrich-dc.de</title>
 	</head>
 	<body>
 		<p>Folgendes Labor würde gerne bei Padento mitmachen:</p>

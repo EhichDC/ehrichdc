@@ -77,8 +77,7 @@
                     @endif
 
                 @else
-
-                    @if(Auth::user()->lab[0]->membership == 0 || Auth::user()->lab[0]->membership == 1 || Auth::user()->lab[0]->membership == 2 || Auth::user()->lab[0]->membership == 3 || Auth::user()->lab[0]->membership == 4)
+                    @if(Auth::user()->lab[0]->membership == 0 || Auth::user()->lab[0]->membership == 1 || Auth::user()->lab[0]->membership == 2 || Auth::user()->lab[0]->membership == 3 || Auth::user()->lab[0]->membership == 4  || Auth::user()->lab[0]->membership == 6)
                         <h4>Navigation</h4>
                         <ul class="nav">
                             <li><a v-link="{ name: 'home' }"><i class="fa fa-tachometer"></i> Übersicht</a></li>
@@ -161,28 +160,63 @@
                                     Statistiken</a></li>
                             <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Zahnärzte
                                     Termine</a></li>
-                            <li><a v-link="{ name: 'lab.settings' }"><i class="fa fa-cog"></i> Termin-Einstellungen</a>
+                            @if (Auth::user()->lab[0]->membership != 6)
+                                <li><a v-link="{ name: 'lab.settings' }"><i class="fa fa-cog"></i> Termin-Einstellungen</a>
+                            @endif
                             </li>
                         </ul>
                         <hr>
                         <h4>Mein Profil</h4>
                         <ul class="nav">
-                            <li><a href="/labor/{{ Auth::user()->labs[0]->slug }}" target="_blank"><i
-                                            class="fa fa-globe" aria-hidden="true"> </i>Mein Profil online ansehen</a>
+                            @if (Auth::user()->lab[0]->membership != 6)
+                                <li><a href="/labor/{{ Auth::user()->labs[0]->slug }}" target="_blank"><i
+                                                class="fa fa-globe" aria-hidden="true"> </i>Mein Profil online ansehen</a></li>
+                            @endif
                             <li>
                                 <a v-link="{ name: 'admin.labSingle', params: { id: {{ Auth::user()->labs->first()->id }} } }"><i
                                             class="fa fa-pencil-square-o" aria-hidden="true"></i>Mein Profil bearbeiten</a>
                             </li>
                         </ul>
                     @endif
+                        @if (Auth::user()->labs[0]->membership == 6)
+                            <h4>Zahnärzte</h4>
+                            <ul class="nav">
+                                <li><a v-link="{ name: 'admin.dentistsContacts' }"><i class="fa fa-user-md"></i> Zahnärzte
+                                    </a></li>
+                                @if (Auth::user()->labs[0]->membership != 6)
+                                    <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Zahnarzt
+                                            Statistiken</a></li>
+                                @endif
+                                <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Zahnärzte
+                                        Termine</a></li>
+                                @if (Auth::user()->lab[0]->membership != 6)
+                                    <li><a v-link="{ name: 'lab.settings' }"><i class="fa fa-cog"></i> Termin-Einstellungen</a>
+                                        @endif
+                                    </li>
+                            </ul>
+                            <hr>
+                            <h4>Mein Profil</h4>
+                            <ul class="nav">
+                                @if (Auth::user()->lab[0]->membership != 6)
+                                    <li><a href="/labor/{{ Auth::user()->labs[0]->slug }}" target="_blank"><i
+                                                    class="fa fa-globe" aria-hidden="true"> </i>Mein Profil online ansehen</a></li>
+                                @endif
+                                <li>
+                                    <a v-link="{ name: 'admin.labSingle', params: { id: {{ Auth::user()->labs->first()->id }} } }"><i
+                                                class="fa fa-pencil-square-o" aria-hidden="true"></i>Mein Profil bearbeiten</a>
+                                </li>
+                            </ul>
+                        @endif
                 @else
-                    @if (Auth::user()->lab[0]->membership == 5)
+                    @if (Auth::user()->lab[0]->membership == 5 || Auth::user()->lab[0]->membership == 6)
                         <h4>Zahnärzte</h4>
                         <ul class="nav">
                             <li><a v-link="{ name: 'admin.dentistsContacts' }"><i class="fa fa-user-md"></i> Zahnärzte
                                    </a></li>
-                            <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Zahnarzt
-                                    Statistiken</a></li>
+                            @if (Auth::user()->lab[0]->membership != 6)
+                                <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Zahnarzt
+                                        Statistiken</a></li>
+                            @endif
                             <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Zahnärzte
                                     Termine</a></li>
                             <li v-if="whoami.lab[0].user_id === whoami.id">
@@ -193,15 +227,19 @@
                         <hr>
                         <h4>Mein Profil</h4>
                         <ul class="nav">
-                            <li><a href="/labor/{{ Auth::user()->lab[0]->slug }}" target="_blank"><i class="fa fa-globe"
-                                                                                                     aria-hidden="true"> </i>Mein
-                            Profil online ansehen</a>
+                            @if (Auth::user()->lab[0]->membership != 6)
+                                <li><a href="/labor/{{ Auth::user()->lab[0]->slug }}" target="_blank"><i class="fa fa-globe"
+                                                                                                         aria-hidden="true"> </i>Mein
+                                        Profil online ansehen</a></li>
+                            @endif
                             <li>
                                 <a v-link="{ name: 'admin.labSingle', params: { id: {{ Auth::user()->lab->first()->id }} } }"><i
                                             class="fa fa-pencil-square-o" aria-hidden="true"></i>Mein Profil bearbeiten</a>
                             </li>
-                            <li><a v-link="{ name: 'lab.settings' }"><i class="fa fa-cog"></i> Termin-Einstellungen</a>
-                            </li>
+                            @if (Auth::user()->lab[0]->membership != 6)
+                                <li><a v-link="{ name: 'lab.settings' }"><i class="fa fa-cog"></i> Termin-Einstellungen</a>
+                                </li>
+                            @endif
                         </ul>
                     @endif
                 @endif
@@ -213,18 +251,23 @@
                     @if (Auth::user()->labs[0]->membership == 0 || Auth::user()->labs[0]->membership == 1 || Auth::user()->labs[0]->membership == 2 || Auth::user()->labs[0]->membership == 3 || Auth::user()->labs[0]->membership == 4)
                         <h4>Mein Profil</h4>
                         <ul class="nav">
-                            <li><a href="/labor/{{ Auth::user()->labs[0]->slug }}" target="_blank"><i
-                                            class="fa fa-globe"
-                                            aria-hidden="true"> </i>Mein
-                                    Profil online ansehen</a>
+                            @if (Auth::user()->lab[0]->membership != 6)
+                                <li><a href="/labor/{{ Auth::user()->labs[0]->slug }}" target="_blank"><i
+                                                class="fa fa-globe"
+                                                aria-hidden="true"> </i>Mein
+                                        Profil online ansehen</a>
+                                </li>
+                            @endif
                             <li>
                                 <a v-link="{ name: 'admin.labSingle', params: { id: {{ Auth::user()->labs->first()->id }} } }"><i
                                             class="fa fa-pencil-square-o" aria-hidden="true"></i>
                                     Mein Profil bearbeiten</a></li>
 
                             @if (Auth::user()->labs[0]->membership == 1 || Auth::user()->labs[0]->membership == 4  || Auth::user()->labs[0]->membership == 5 ||Auth::user()->labs[0]->membership == 0 )
-                                <li><a v-link="{ name: 'lab.settings' }"><i class="fa fa-cog"></i> Termin-Einstellungen</a>
-                                </li>
+                                @if (Auth::user()->lab[0]->membership != 6)
+                                    <li><a v-link="{ name: 'lab.settings' }"><i class="fa fa-cog"></i> Termin-Einstellungen</a>
+                                    </li>
+                                @endif
                                 <li><a v-link="{ name: 'stats' }"><i class="fa fa-bar-chart"></i> Statistiken</a></li>
                             @endif
                         </ul>
@@ -234,17 +277,22 @@
                     @if (Auth::user()->lab[0]->membership == 0 || Auth::user()->lab[0]->membership == 1 || Auth::user()->lab[0]->membership == 2 || Auth::user()->lab[0]->membership == 3 || Auth::user()->lab[0]->membership == 4)
                         <h4>Mein Profil</h4>
                         <ul class="nav">
-                            <li><a href="/labor/{{ Auth::user()->lab[0]->slug }}" target="_blank"><i class="fa fa-globe"
-                                                                                                     aria-hidden="true"> </i>Mein
-                                    Profil online ansehen</a>
+                            @if (Auth::user()->lab[0]->membership != 6)
+                                <li><a href="/labor/{{ Auth::user()->lab[0]->slug }}" target="_blank"><i class="fa fa-globe"
+                                                                                                         aria-hidden="true"> </i>Mein
+                                        Profil online ansehen</a>
+                                </li>
+                            @endif
                             <li>
                                 <a v-link="{ name: 'admin.labSingle', params: { id: {{ Auth::user()->lab->first()->id }} } }"><i
                                             class="fa fa-pencil-square-o" aria-hidden="true"></i>
                                     Mein Profil bearbeiten</a></li>
 
                             @if (Auth::user()->lab[0]->membership == 1 || Auth::user()->lab[0]->membership == 4  || Auth::user()->lab[0]->membership == 5 ||Auth::user()->lab[0]->membership == 0 )
-                                <li><a v-link="{ name: 'lab.settings' }"><i class="fa fa-cog"></i> Termin-Einstellungen</a>
-                                </li>
+                                @if(Auth::user()->lab[0]->membership != 6)
+                                    <li><a v-link="{ name: 'lab.settings' }"><i class="fa fa-cog"></i> Termin-Einstellungen</a>
+                                    </li>
+                                @endif
                                 <li><a v-link="{ name: 'stats' }"><i class="fa fa-bar-chart"></i> Statistiken</a></li>
                             @endif
                         </ul>
@@ -254,7 +302,7 @@
 
                 @endrole
                 @if(count(Auth::user()->lab))
-                @if(Auth::user()->lab[0]->membership != 5)
+                @if(Auth::user()->lab[0]->membership != 5 && Auth::user()->lab[0]->membership != 6)
                     <h4>Hilfreiches</h4>
                     <ul class="nav">
                         <li class="guide">
@@ -286,11 +334,21 @@
                 @endif
                 @endif
                 <hr>
-                <h4>Marketing</h4>
-                <ul class="nav">
-                    <li><a v-link="{ name: 'downloads' }"><i class="fa fa-rocket"></i> Downloads</a></li>
-                    <li><a v-link="{ name: 'partner' }"><i class="fa fa-building"></i> Partner</a></li>
-                </ul>
+                @if(count(Auth::user()->lab))
+                    @if(Auth::user()->lab[0]->membership != 6)
+                        <h4>Marketing</h4>
+                        <ul class="nav">
+                            <li><a v-link="{ name: 'downloads' }"><i class="fa fa-rocket"></i> Downloads</a></li>
+                            <li><a v-link="{ name: 'partner' }"><i class="fa fa-building"></i> Partner</a></li>
+                        </ul>
+                    @endif
+                @else
+                    <h4>Marketing</h4>
+                    <ul class="nav">
+                        <li><a v-link="{ name: 'downloads' }"><i class="fa fa-rocket"></i> Downloads</a></li>
+                        <li><a v-link="{ name: 'partner' }"><i class="fa fa-building"></i> Partner</a></li>
+                    </ul>
+                @endif
 
 
                 <!--li><a v-link="{ name: 'admin.contacts', params: {test:'test'} }"><i class="fa fa-user"></i> Kontakte <small>(Schleife)</small></a></li-->

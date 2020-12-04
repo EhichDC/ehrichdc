@@ -50,7 +50,7 @@ export default {
     created: function () {
         this.csrf = document.querySelector('#token').getAttribute('value');
         $('#title').html(this.sitename);
-        $('title').text(this.sitename + ' | Padento.de');
+        $('title').text(this.sitename + ' | crm.ehrich-dc.de');
         this.getAllLabs();
         this.loadDentist();
         this.getEmployeeDate();
