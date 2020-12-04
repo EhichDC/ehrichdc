@@ -10,7 +10,7 @@ export default {
             feeds: [],
             properties: [],
             note: [],
-            sitename: "Ehrich Dental Consultant - Übersicht",
+            sitename: "Ehrich DC - Übersicht",
             // whoami: [],
             dates: [],
             fetchData: {
