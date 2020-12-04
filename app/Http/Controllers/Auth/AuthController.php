@@ -111,7 +111,7 @@ class AuthController extends Controller
 
         session()->flush();
 
-        return redirect(property_exists($this, 'redirectAfterLogout') ? $this->redirectAfterLogout : '/lp');
+        return redirect(property_exists($this, 'redirectAfterLogout') ? $this->redirectAfterLogout : '/login');
     }
 
 }
