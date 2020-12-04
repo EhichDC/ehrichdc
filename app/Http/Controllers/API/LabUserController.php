@@ -66,12 +66,6 @@ class LabUserController extends Controller
 
     public function store(Request $request)
     {
-        $this->validate($request, [
-            'name' => 'required',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required',
-        ]);
-
         $user = $request->user();
 
         $lab = $user->lab->first();
@@ -79,6 +73,20 @@ class LabUserController extends Controller
         if (!$lab) {
             $lab = $user->labs->first();
         }
+
+        // restrict ehrich-dc customers to 3 labor-users
+        if ($lab->membership === 6) {
+            if ($lab->users()->count() === 3) {
+                return response()->json(json_decode('{ "limit": ["Laborbenutzerlimit erreicht"] }'), 422)
+                    ->header('Content-Type', 'text/json');
+            }
+        }
+
+        $this->validate($request, [
+            'name' => 'required',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required',
+        ]);
 
         $newUser = User::create(
             [

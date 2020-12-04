@@ -14,7 +14,7 @@
                             Kontakte</a></li>
                     <li><a v-link="{ name: 'admin.dentistsContacts' }"><i class="fa fa-user-md"></i> Zahnärzte</a></li>
                     <li><a v-link="{ name: 'admin.labs' }"><i class="fa fa-user-md"></i> Labore</a></li>
-                    <li><a v-link="{ name: 'my.calendar' }"><i class="fa fa-calendar"></i> Rückruftermine</a></li>
+                    <!-- li><a v-link="{ name: 'my.calendar' }"><i class="fa fa-calendar"></i> Rückruftermine</a></li -->
 
                 </ul>
                 <hr>
@@ -55,7 +55,7 @@
                     <li><a v-link="{ name: 'admin.contacts', params: {type: 'all'} }"><i class="fa fa-user"></i>
                             Kontakte</a></li>
                     <li><a v-link="{ name: 'admin.labs' }"><i class="fa fa-user-md"></i> Labore</a></li>
-                    <li><a v-link="{ name: 'my.calendar' }"><i class="fa fa-calendar"></i> Rückruftermine</a></li>
+                    <!-- li><a v-link="{ name: 'my.calendar' }"><i class="fa fa-calendar"></i> Rückruftermine</a></li -->
                 </ul>
                 <hr>
                 @endrole
