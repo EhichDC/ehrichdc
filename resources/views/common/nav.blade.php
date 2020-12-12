@@ -14,7 +14,7 @@
 <header>
     <div class="row-fluid">
         <div class="col-md-6" id="headline">
-            <h1 id="title"></h1>
+            <h1 id="title" style="font-size: 2.2rem"></h1>
         </div>
         <div class="col-md-6 navbar-right" id="navbar-right">
             <div class="navbar-field">
