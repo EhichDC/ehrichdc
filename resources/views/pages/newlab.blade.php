@@ -15,13 +15,12 @@
                     <header class="entry-header">
                         <div class="row">
                             <div class="small-12 columns">
-                                <h1>Legen Sie den EDC Kunden an.</h1>
+                                <h1>Legen Sie den neuen EDC Kunden an.</h1>
                             </div>
                         </div>
                     </header>
                     <div class="entry-content">
-                        <p class="centered">Füllen Sie das folgende Formular vollständig aus. Anschließend erhalten Sie
-                            Zugang zu Padento.
+                        <p class="centered">
                             <div class="row">
                                 <div class="large-6 large-centered columns">
                                     {{ Form::open(array('route' => 'lab.store', 'method' => 'POST')) }}
