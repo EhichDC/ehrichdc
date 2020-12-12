@@ -11,6 +11,7 @@
         "zizaco/entrust": "dev-laravel-5",
         "laravelcollective/html": "5.2.*",
         "webpatser/laravel-uuid": "2.*",
+        "draperstudio/laravel-parsedown": "^0.1.1",
         "simplepie/simplepie": "dev-master",
         "awjudd/feed-reader": "1.2.*",
         "filp/whoops": "~2.1.0",
