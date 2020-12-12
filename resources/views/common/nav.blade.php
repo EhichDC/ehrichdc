@@ -1,9 +1,22 @@
+<style>
+        @media (min-width: 292px) {
+            #navbar-right {
+                width: 50%;
+                float: right!important;
+                margin-right: -15px;
+            }
+            #headline {
+                width: 50%;
+                float: left!important;
+            }
+        }
+</style>
 <header>
     <div class="row-fluid">
-        <div class="col-md-6">
+        <div class="col-md-6" id="headline">
             <h1 id="title"></h1>
         </div>
-        <div class="col-md-6 navbar-right">
+        <div class="col-md-6 navbar-right" id="navbar-right">
             <div class="navbar-field">
               <span data-toggle="tooltip" data-placement="left" title="Profil-Einstellungen in der linken Navigation"
                     aria-hidden="true">
