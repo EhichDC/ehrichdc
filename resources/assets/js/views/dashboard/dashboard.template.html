@@ -194,8 +194,8 @@
                         <tbody>
                         <tr v-for="dentist in dentists">
                             <td><a v-link="{ name: 'admin.dentistContactSingle', params: { id: dentist.id } } ">{{
-                                dentist.dentistmeta.name }}</a></td>
-                            <a v-link="{ name: 'admin.dentistContactSingle', params: { id: dentist.id } } ">{{
+                                dentist.dentistmeta.praxisname }}</a></td>
+                            <td><a v-link="{ name: 'admin.dentistContactSingle', params: { id: dentist.id } } ">{{
                             dentist.dentistmeta.name }}</a></td>
                         </tr>
                     </table>
