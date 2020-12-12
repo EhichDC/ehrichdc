@@ -63,7 +63,7 @@
                 @role('lab')
                 @if(count(Auth::user()->lab) == 0)
                     @if ( count(Auth::user()->labs) !== 0 )
-                        @if (Auth::user()->labs[0]->membership == 0 || Auth::user()->labs[0]->membership == 1 || Auth::user()->labs[0]->membership == 2 || Auth::user()->labs[0]->membership == 3 || Auth::user()->labs[0]->membership == 4)
+                        @if (Auth::user()->labs[0]->membership == 0 || Auth::user()->labs[0]->membership == 1 || Auth::user()->labs[0]->membership == 2 || Auth::user()->labs[0]->membership == 3 || Auth::user()->labs[0]->membership == 4  || Auth::user()->labs[0]->membership == 6)
                             <h4>Navigation</h4>
                             <ul class="nav">
                                 <li><a v-link="{ name: 'home' }"><i class="fa fa-tachometer"></i> Übersicht</a></li>
@@ -123,7 +123,7 @@
                                    </a></li>
                             <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Statistiken </a></li>
                             <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Termine </a></li>
-                            <li v-if="whoami.lab[0].user_id === whoami.id">
+                            <li v-if="whoami.labs[0].user_id === whoami.id">
                                 <a v-link="{ name: 'lab.users' }"><i class="fa fa-user"></i> Laborbenutzer
                                    </a>
                             </li>
@@ -158,9 +158,9 @@
                                    </a></li>
                             <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Zahnarzt
                                     Statistiken</a></li>
-                            <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Zahnärzte
-                                    Termine</a></li>
-                            @if (Auth::user()->lab[0]->membership != 6)
+                            <!-- li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Zahnärzte
+                                    Termine</a></li -->
+                            @if (Auth::user()->labs[0]->membership != 6)
                                 <li><a v-link="{ name: 'lab.settings' }"><i class="fa fa-cog"></i> Termin-Einstellungen</a>
                             @endif
                             </li>
@@ -168,7 +168,7 @@
                         <hr>
                         <h4>Mein Profil</h4>
                         <ul class="nav">
-                            @if (Auth::user()->lab[0]->membership != 6)
+                            @if (Auth::user()->labs[0]->membership != 6)
                                 <li><a href="/labor/{{ Auth::user()->labs[0]->slug }}" target="_blank"><i
                                                 class="fa fa-globe" aria-hidden="true"> </i>Mein Profil online ansehen</a></li>
                             @endif
@@ -189,7 +189,7 @@
                                 @endif
                                 <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Zahnärzte
                                         Termine</a></li>
-                                @if (Auth::user()->lab[0]->membership != 6)
+                                @if (Auth::user()->labs[0]->membership != 6)
                                     <li><a v-link="{ name: 'lab.settings' }"><i class="fa fa-cog"></i> Termin-Einstellungen</a>
                                         @endif
                                     </li>
@@ -197,7 +197,7 @@
                             <hr>
                             <h4>Mein Profil</h4>
                             <ul class="nav">
-                                @if (Auth::user()->lab[0]->membership != 6)
+                                @if (Auth::user()->labs[0]->membership != 6)
                                     <li><a href="/labor/{{ Auth::user()->labs[0]->slug }}" target="_blank"><i
                                                     class="fa fa-globe" aria-hidden="true"> </i>Mein Profil online ansehen</a></li>
                                 @endif
@@ -251,7 +251,7 @@
                     @if (Auth::user()->labs[0]->membership == 0 || Auth::user()->labs[0]->membership == 1 || Auth::user()->labs[0]->membership == 2 || Auth::user()->labs[0]->membership == 3 || Auth::user()->labs[0]->membership == 4)
                         <h4>Mein Profil</h4>
                         <ul class="nav">
-                            @if (Auth::user()->lab[0]->membership != 6)
+                            @if (Auth::user()->labs[0]->membership != 6)
                                 <li><a href="/labor/{{ Auth::user()->labs[0]->slug }}" target="_blank"><i
                                                 class="fa fa-globe"
                                                 aria-hidden="true"> </i>Mein
@@ -264,7 +264,7 @@
                                     Mein Profil bearbeiten</a></li>
 
                             @if (Auth::user()->labs[0]->membership == 1 || Auth::user()->labs[0]->membership == 4  || Auth::user()->labs[0]->membership == 5 ||Auth::user()->labs[0]->membership == 0 )
-                                @if (Auth::user()->lab[0]->membership != 6)
+                                @if (Auth::user()->labs[0]->membership != 6)
                                     <li><a v-link="{ name: 'lab.settings' }"><i class="fa fa-cog"></i> Termin-Einstellungen</a>
                                     </li>
                                 @endif
@@ -301,6 +301,7 @@
                 @endif
 
                 @endrole
+
                 @if(count(Auth::user()->lab))
                 @if(Auth::user()->lab[0]->membership != 5 && Auth::user()->lab[0]->membership != 6)
                     <h4>Hilfreiches</h4>
@@ -343,11 +344,15 @@
                         </ul>
                     @endif
                 @else
-                    <h4>Marketing</h4>
-                    <ul class="nav">
-                        <li><a v-link="{ name: 'downloads' }"><i class="fa fa-rocket"></i> Downloads</a></li>
-                        <li><a v-link="{ name: 'partner' }"><i class="fa fa-building"></i> Partner</a></li>
-                    </ul>
+                    @if(count(Auth::user()->labs))
+                        @if(Auth::user()->labs[0]->membership != 6)
+                            <h4>Marketing</h4>
+                            <ul class="nav">
+                                <li><a v-link="{ name: 'downloads' }"><i class="fa fa-rocket"></i> Downloads</a></li>
+                                <li><a v-link="{ name: 'partner' }"><i class="fa fa-building"></i> Partner</a></li>
+                            </ul>
+                        @endif
+                    @endif
                 @endif
 
 

@@ -24,60 +24,21 @@
                             </div>
                             <dl class="property-fields">
                                 <div class="property-row row">
-                                    <dt class="col-xs-4">Anrede</dt>
+                                    <dt class="col-xs-4">Praxisname</dt>
                                     <dd class="col-xs-7">
-                                        <input data-input="salutation" v-model="dentist.dentistmeta.salutation"
+                                        <input data-input="salutation" v-model="dentist.dentistmeta.praxisname"
                                                @blur="saveDentist" @keyup.enter="saveDentist">
                                     </dd>
                                 </div>
+
                                 <div class="property-row row">
-                                    <dt class="col-xs-4">Name</dt>
+                                    <dt class="col-xs-4">Name des Zahnarztes/-ärztin</dt>
                                     <dd class="col-xs-7">
                                         <input data-input="name" v-model="dentist.dentistmeta.name" @blur="saveDentist"
                                                @keyup.enter="saveDentist">
                                     </dd>
                                 </div>
-                                <div class="property-row row">
-                                    <dt class="col-xs-4">E-Mail</dt>
-                                    <dd class="col-xs-7">
-                                        <input v-if="dentist.confirmed == 1 || isAdmin || isUser" type="email"
-                                               v-model="dentist.dentistmeta.email" @blur="saveDentist"
-                                               @keyup.enter="saveDentist" {{ isLab ? 'disabled' : '' }}>
-                                        <div v-else>
-                                            <span class="no-input">
-                            <span class="label label-danger">Unbestätigt</span>
-                                            </span>
-                                        </div>
-                                    </dd>
-                                    <a class="action col-xs-1" v-on:click="approveDentist"
-                                       v-if="dentist.confirmed != '1'">
-                                        <i class="fa fa-check" aria-hidden="true" data-toggle="tooltip"
-                                           data-placement="right" title="Kontakt bestätigen"></i>
-                                    </a>
-                                    <a v-else href="mailto:{{ dentist.dentistmeta.email }}" class="action col-xs-1"><i
-                                        class="fa fa-mail"></i></a>
-                                </div>
 
-
-                                <div class="property-row row">
-                                    <dt class="col-xs-4">Angefragt am</dt>
-                                    <dd class="col-xs-7"><span class="no-input">{{ dentist.created_at.split(/[- :]/)[2].split(' ')[0] }}.{{ dentist.created_at.split(/[- :]/)[1] }}.{{ dentist.created_at.split(/[- :]/)[0] }} {{ dentist.created_at.split(/[- :]/)[2].split(' ')[1] }}:{{ dentist.created_at.split(/[- :]/)[3] }} Uhr</span>
-                                    </dd>
-                                </div>
-                                <div class="property-row row">
-                                    <dt class="col-xs-4">Telefon</dt>
-                                    <dd class="col-xs-7">
-                                        <input data-input="tel" v-model="dentist.dentistmeta.tel" @blur="saveDentist"
-                                               @keyup.enter="saveDentist">
-                                    </dd>
-                                </div>
-                                <div class="property-row row">
-                                    <dt class="col-xs-4">Mobil</dt>
-                                    <dd class="col-xs-7">
-                                        <input data-input="mobile" v-model="dentist.dentistmeta.mobile"
-                                               @blur="saveDentist" @keyup.enter="saveDentist">
-                                    </dd>
-                                </div>
                                 <div class="property-row row">
                                     <dt class="col-xs-4">Straße</dt>
                                     <dd class="col-xs-7">
@@ -100,6 +61,50 @@
                                     </dd>
                                 </div>
 
+                                <div class="property-row row">
+                                    <dt class="col-xs-4">E-Mail</dt>
+                                    <dd class="col-xs-7">
+                                        <input v-if="dentist.confirmed == 1 || isAdmin || isUser" type="email"
+                                               v-model="dentist.dentistmeta.email" @blur="saveDentist"
+                                               @keyup.enter="saveDentist" {{ isLab ? 'disabled' : '' }}>
+                                        <div v-else>
+                                            <span class="no-input">
+                            <span class="label label-danger">Unbestätigt</span>
+                                            </span>
+                                        </div>
+                                    </dd>
+                                    <a class="action col-xs-1" v-on:click="approveDentist"
+                                       v-if="dentist.confirmed != '1'">
+                                        <i class="fa fa-check" aria-hidden="true" data-toggle="tooltip"
+                                           data-placement="right" title="Kontakt bestätigen"></i>
+                                    </a>
+                                    <a v-else href="mailto:{{ dentist.dentistmeta.email }}" class="action col-xs-1"><i
+                                        class="fa fa-mail"></i></a>
+                                </div>
+
+                                <div class="property-row row">
+                                    <dt class="col-xs-4">Telefon</dt>
+                                    <dd class="col-xs-7">
+                                        <input data-input="tel" v-model="dentist.dentistmeta.tel" @blur="saveDentist"
+                                               @keyup.enter="saveDentist">
+                                    </dd>
+                                </div>
+                                <div class="property-row row">
+                                    <dt class="col-xs-4">Mobil</dt>
+                                    <dd class="col-xs-7">
+                                        <input data-input="mobile" v-model="dentist.dentistmeta.mobile"
+                                               @blur="saveDentist" @keyup.enter="saveDentist">
+                                    </dd>
+                                </div>
+
+                                <div class="property-row row">
+                                    <dt class="col-xs-4">Geburtsdatum</dt>
+                                    <dd class="col-xs-7">
+                                        <input v-datepicker="till" v-model="dentist.dentistmeta.birthday" class="form-control" @blur="saveDentist" @change="saveDentist">
+                                    </dd>
+                                </div>
+
+
                                 <!-- Dates-->
                                 <!--
                                 <div class="property-row row">
@@ -118,7 +123,11 @@
                                 </div>
                                 -->
 
-
+                                <div class="property-row row">
+                                    <dt class="col-xs-4">Erstellt am</dt>
+                                    <dd class="col-xs-7"><span class="no-input">{{ dentist.created_at.split(/[- :]/)[2].split(' ')[0] }}.{{ dentist.created_at.split(/[- :]/)[1] }}.{{ dentist.created_at.split(/[- :]/)[0] }} {{ dentist.created_at.split(/[- :]/)[2].split(' ')[1] }}:{{ dentist.created_at.split(/[- :]/)[3] }} Uhr</span>
+                                    </dd>
+                                </div>
                                 <div class="property-row row">
                                     <dt class="col-xs-4">Archiviert</dt>
                                     <dd class="col-xs-7">

@@ -6,7 +6,7 @@
 					<div class="header-wrap">
 						<div class="logo" style="height: 84px !important;">
 							<a href="{{ url('/') }}">
-								<img src="https://padento.de/img/logo.png" alt="Padento - Kostenlose Beratung Zahnersatz">
+								<img src="/images/edc-logo.webp" alt="Padento - Kostenlose Beratung Zahnersatz">
 							</a>
 						</div>
 						<div class="burger"></div>

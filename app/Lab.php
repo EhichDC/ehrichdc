@@ -18,6 +18,7 @@ class Lab extends Model
         'google_city',
         'slug',
         'directtoken',
+        'membership',
         'lat',
         'lon',
         'user_id',

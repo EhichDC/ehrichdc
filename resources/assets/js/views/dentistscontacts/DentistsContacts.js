@@ -172,6 +172,9 @@ export default {
             this.newdentistcontact.zip = '';
             this.newdentistcontact.email = '';
             this.newdentistcontact.phone = '';
+            this.newdentistcontact.place = '';
+            this.newdentistcontact.street = '';
+            this.newdentistcontact.praxisname = '';
 
         });
 
@@ -447,8 +450,8 @@ export default {
             if (date) {
                 var nicedate = date.split(/[- :]/)[2].split(' ')[0] + '.' +
                     date.split(/[- :]/)[1] + '.' +
-                    date.split(/[- :]/)[0] + ' – ' +
-                    date.split(/[- :]/)[3] + ':' + date.split(/[- :]/)[4];
+                    date.split(/[- :]/)[0] //+ ' – ' +
+                    //date.split(/[- :]/)[3] + ':' + date.split(/[- :]/)[4];
                 return nicedate;
             }
 

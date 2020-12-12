@@ -29,10 +29,7 @@ class LabRequest extends Request
             'lab.user.password'              => 'required|min:6|confirmed',
             // 'lab.user.password_confirmation' => 'required|min:6',
             'lab.lab.name'                   => 'required',
-            'lab.lab.labmeta.contact_person' => 'required',
-            'lab.lab.labmeta.street'         => 'required',
-            'lab.lab.labmeta.zip'            => 'required',
-            'lab.lab.labmeta.city'           => 'required',
+            'lab.lab.labmeta.contact_person' => 'required'
         ];
     }
 }

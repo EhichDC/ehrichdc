@@ -153,7 +153,7 @@ class DateController extends Controller
                         if ($date->date > Carbon::today()->toDateTimeString() && $date->date < Carbon::tomorrow() && $date->date < Carbon::now()) {
                             $now_old[] = $dateArray;
                         }
-                        if ($date->date > Carbon::today()->toDateTimeString() && $date->date < Carbon::tomorrow() && $date->date > Carbon::now()) {
+                        if ($date->date > Carbon::today()->toDateTimeString() && $date->date < Carbon::now()->addDays(2) && $date->date > Carbon::now()) {
                             $now_new[] = $dateArray;
                         }
                     } else { //if this in the appointemnts page  then get only the contact appoihtmetns WITHOUT dentists appothmetns

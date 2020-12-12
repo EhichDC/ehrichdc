@@ -6,6 +6,7 @@ export default {
     data() {
         return {
             contacts: [],
+            dentists: [],
             labs: [],
             feeds: [],
             properties: [],
@@ -63,6 +64,7 @@ export default {
 
         };
         this.$http.post(`/api/mydates?dentists=true`, this.fetchData).then(function (response) {
+            console.log('!!! dentists - dashboard, mydates api : response.data !!!', response.data)
             this.dates = response.data;
             this.oldDatePagination = response.data.old_dates;
             this.datePagination = response.data.dates;
@@ -86,7 +88,28 @@ export default {
             }.bind(this));
             $.getJSON('/api/latestcontacts', function (data) {
                 this.contacts = data;
+                console.log('!!! Dasboard.js - contact : data !!!', data)
             }.bind(this));
+            let dentistsettings = {
+                page: 1,
+                pagination: {
+                    total: 0,
+                    per_page: 10,
+                    from: 1,
+                    to: 0,
+                    current_page: 1,
+                },
+                orderby: {
+                    name: 'dentist_contacts.created_at',
+                    sort: 'desc'
+                }
+            };
+            this.$http.post('/api/alldentists', dentistsettings).then(function (response) {
+                console.log('!!! Dasboard.js - dentists : data !!!', response)
+                this.dentists = response.data.data.data
+            }.bind(this), function (error) {
+                $('#debug').addClass('active').find('.debugged-content').html(error.data);
+            }).bind(this);
         },
         whoAmI: function () {
             this.$http.get('/api/whoami')

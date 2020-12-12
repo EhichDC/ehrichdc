@@ -485,6 +485,9 @@ class PublicPageController extends Controller
             $comparsed_email = str_replace('..', '.', $p['email']);
             $comparsed_email = str_replace(' ', '', $comparsed_email);
             $meta->email      = trim($comparsed_email);
+            $meta->praxisname = $p['praxisname'];
+            $meta->city       = $p['place'];
+            $meta->street     = $p['street'];
             $meta->salutation = $salutation;
             $meta->tel        = phone_format($p['phone'], $country_code);
             $meta->ref        = 'Direkteingabe';

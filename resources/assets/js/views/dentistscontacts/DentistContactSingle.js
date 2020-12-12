@@ -186,6 +186,9 @@ export default {
                     this.$router.go({ name: 'home', params: {} });
                 }
                 this.dentist = response.data;
+                if (response.data.dentistmeta.birthday) {
+                    this.dentist.dentistmeta.birthday = moment( response.data.dentistmeta.birthday, "YYYY-MM-DD").format('DD.MM.YYYY');
+                }
                 if (response.data.latest_date && response.data.latest_date.date) {
                     this.labdate = moment(response.data.latest_date.date, "YYYY-MM-DD HH:mm").format('DD.MM.YYYY HH:mm');
                 }

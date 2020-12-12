@@ -10,6 +10,7 @@ use App\User;
 use App\Http\Requests;
 use App\Http\Requests\LabRequest;
 use Illuminate\Http\Request;
+use App\Role;
 
 class NewLabController extends Controller
 {
@@ -64,15 +65,44 @@ class NewLabController extends Controller
             $user->acceptDsgvo();
         }
 
-        $geo = getLocation($lab['lab']['labmeta']['zip'], $lab['lab']['labmeta']['country_code']);
+        $geo = ['longitude' => 0, 'latitude' => 0];
 
+        if (array_key_exists('zip', $lab['lab']['labmeta']) && array_key_exists('country_code', $lab['lab']['labmeta'])) {
+            $geo = getLocation($lab['lab']['labmeta']['zip'], $lab['lab']['labmeta']['country_code']);
+        }
+
+        $city = '';
+        if (array_key_exists('city', $lab['lab']['labmeta'])) {
+            $city = $lab['lab']['labmeta']['city'];
+        }
+
+        $zip = '';
+        if (array_key_exists('zip', $lab['lab']['labmeta'])) {
+            $zip = $lab['lab']['labmeta']['zip'];
+        }
+
+        $street = '';
+        if (array_key_exists('street', $lab['lab']['labmeta'])) {
+            $street = $lab['lab']['labmeta']['street'];
+        }
+
+        $country_code = '';
+        if (array_key_exists('country_code', $lab['lab']['labmeta'])) {
+            $country_code = $lab['lab']['labmeta']['country_code'];
+        }
+
+        $google_city = '';
+        if (array_key_exists('city', $lab['lab']['labmeta'])) {
+            $google_city = $lab['lab']['labmeta']['city'];
+        }
         $newLab = Lab::create([
             'user_id'     => $user->id,
             'name'        => $lab['lab']['name'],
             'status'      => 'inaktiv',
-            'google_city' => $lab['lab']['labmeta']['city'],
+            'google_city' => $google_city,
             'slug'        => str_slug($lab['lab']['name'], '-'),
             'directtoken' => UUid::generate('4'),
+            'membership'  => 6,
             'lat'         => $geo['latitude'],
             'lon'         => $geo['longitude'],
         ]);
@@ -80,11 +110,27 @@ class NewLabController extends Controller
         $labMeta = LabMeta::create([
             'contact_person' => $lab['lab']['labmeta']['contact_person'],
             'contact_mail'   => $lab['user']['email'],
-            'street'         => $lab['lab']['labmeta']['street'],
-            'city'           => $lab['lab']['labmeta']['city'],
-            'zip'            => $lab['lab']['labmeta']['zip'],
-            'country_code'   => $lab['lab']['labmeta']['country_code'],
+            'street'         => $street,
+            'city'           => $city,
+            'zip'            => $zip,
+            'country_code'   => $country_code,
         ]);
+
+        $dentistCrmUserRole = Role::where('name', 'dentist-crm-user')->first();
+
+        $labUser = $newLab->user;
+
+        if ($labUser->hasRole('dentist-crm-user')) {
+            $labUser->roles()->detach($dentistCrmUserRole);
+            $newLab->users->each(function ($user) use ($dentistCrmUserRole) {
+                $user->roles()->detach($dentistCrmUserRole);
+            });
+        } else {
+            $labUser->roles()->attach($dentistCrmUserRole);
+            $newLab->users->each(function ($user) use ($dentistCrmUserRole) {
+                $user->roles()->attach($dentistCrmUserRole);
+            });
+        }
 
         $newLab->labmeta()->save($labMeta);
 

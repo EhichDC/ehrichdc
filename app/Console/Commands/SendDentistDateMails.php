@@ -50,6 +50,11 @@ class SendDentistDateMails extends Command
                 ->fromSecondary()
                 ->xtags('Labor, Termin')
                 ->send();
+            mailer('Zahnarzt-Labormail', $date->dentist_contact, $date->lab, $date)
+                ->toCreator()
+                ->fromSecondary()
+                ->xtags('Labor, Termin')
+                ->send();
         }
     }
 }
