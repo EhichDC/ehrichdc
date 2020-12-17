@@ -81,9 +81,11 @@
                         <h4>Navigation</h4>
                         <ul class="nav">
                             <li><a v-link="{ name: 'home' }"><i class="fa fa-tachometer"></i> Übersicht</a></li>
-                            <li><a v-link="{ name: 'admin.contacts', params: {type: 'all'} }"><i class="fa fa-user"></i>
-                                    Kontakte</a></li>
-                            <li><a v-link="{ name: 'my.calendar' }"><i class="fa fa-calendar"></i> Termine</a></li>
+                            @if (Auth::user()->lab[0]->membership != 6)
+                                <li><a v-link="{ name: 'admin.contacts', params: {type: 'all'} }"><i class="fa fa-user"></i>
+                                        Kontakte</a></li>
+                                <li><a v-link="{ name: 'my.calendar' }"><i class="fa fa-calendar"></i> Termine</a></li>
+                            @endif
                             {{--<li v-if="whoami.lab[0].has_multi_user && whoami.lab[0].user_id === whoami.id">--}}
                         </ul>
                         <hr>
