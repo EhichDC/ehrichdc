@@ -214,6 +214,12 @@ class DentistContactController extends Controller
                         $query->where('dentist_contacts.lab_id', $lab->id);
                     }
                     $query->where('dentistmeta.city', 'like', "%{$name}%");
+                })
+                ->orWhere(function ($query) use ($lab, $name) {
+                    if ($lab) {
+                        $query->where('dentist_contacts.lab_id', $lab->id);
+                    }
+                    $query->where('dentistmeta.praxisname', 'like', "%{$name}%");
                 });
         } else {
             /*  if ($user->hasRole('user')) {

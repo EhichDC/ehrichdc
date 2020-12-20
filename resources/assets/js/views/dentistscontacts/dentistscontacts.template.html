@@ -104,8 +104,8 @@
                     <thead>
                     <tr>
                         <th class="sortable " @click="sortBy( 'dentist_contacts.id') " v-if="isAdmin">#</th>
-                        <th class="sortable " @click="sortBy( 'dentistmeta.name') ">Praxisname</th>
-                        <th class="sortable " @click="sortBy( 'dentistmeta.praxisname') ">Zahnarzt/-ärztin Name</th>
+                        <th class="sortable " @click="sortBy( 'dentistmeta.praxisname') ">Praxisname</th>
+                        <th class="sortable " @click="sortBy( 'dentistmeta.name') ">Zahnarzt/-ärztin Name</th>
                         <th class="sortable " @click="sortBy( 'created_at') ">Erstellungsdatum</th>
                         <th v-show="isAdmin">Labor</th>
                         <th class="sortable " @click="sortBy( 'dentistmeta.email') ">E-Mail</th>

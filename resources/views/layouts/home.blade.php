@@ -145,7 +145,6 @@ if (!isset($_COOKIE['orig_page'])) {
 
 @include('common.page-header')
 @yield('content')
-@include('common.page-footer')
 
 <link rel="stylesheet" type="text/css" href="{{ URL::asset('assets/css/cookieconsent.min.css') }}"/>
 <script type="text/javascript" src="{{ URL::asset('assets/js/cookieconsent.min.js') }}"></script>

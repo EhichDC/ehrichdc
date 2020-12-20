@@ -10,29 +10,7 @@
 							</a>
 						</div>
 						<div class="burger"></div>
-						<nav class="navigation" style="height: 100vh !important">
-							<button class="close-button" aria-label="Close alert" type="button">
-								<span aria-hidden="true">&times;</span>
-							</button>
-							<ul>
-								@foreach(\App\Link::orderBy('sort')->get() as $link)
-									<!-- if link is equal to a number  -->
-									@if($link->title == '✆ 05141 9780976' && isset($lab))
-										@if(Request::is('labor/*') || Request::is('mailtoken/*'))
-												<a href="tel:{{ $lab->labmeta->tel }}">✆ {{ $lab->labmeta->tel }}</a>
-										@else
-												<li>
-													<a href="{{ $link->url }}">{{ $link->title }}</a>
-												</li>
-										@endif
-									@else
-										<li>
-											<a href="{{ $link->url }}">{{ $link->title }}</a>
-										</li>
-									@endif
-								@endforeach
-							</ul>
-						</nav>
+
 					</div>
 				</div>
 			</div>

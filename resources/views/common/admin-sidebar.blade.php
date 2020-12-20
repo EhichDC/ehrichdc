@@ -189,7 +189,7 @@
                                     <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Zahnarzt
                                             Statistiken</a></li>
                                 @endif
-                                <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Zahnärzte
+                                <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> 
                                         Termine</a></li>
                                 @if (Auth::user()->labs[0]->membership != 6)
                                     <li><a v-link="{ name: 'lab.settings' }"><i class="fa fa-cog"></i> Termin-Einstellungen</a>
@@ -219,8 +219,7 @@
                                 <li><a v-link="{ name: 'dentiststats' }"><i class="fa fa-bar-chart"></i> Zahnarzt
                                         Statistiken</a></li>
                             @endif
-                            <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Zahnärzte
-                                    Termine</a></li>
+                            <li><a v-link="{ name: 'my.dentistsCalendar' }"><i class="fa fa-calendar"></i> Termine</a></li>
                             <li v-if="whoami.lab[0].user_id === whoami.id">
                                 <a v-link="{ name: 'lab.users' }"><i class="fa fa-user"></i> Laborbenutzer
                                    </a>
