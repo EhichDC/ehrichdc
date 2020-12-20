@@ -85,7 +85,7 @@ function getDevMail()
     $devMail = (new \App\Services\Setting())->getDevEmailAddress();
 
     if (!$devMail) {
-        $devMail = env('DEV_MAIL', 'info@padento.de');
+        $devMail = env('DEV_MAIL', 'info@ehrich-dc.de');
     }
 
     return $devMail;
@@ -157,10 +157,10 @@ function getLocation($address, $lang = 'de')
 function mailSignature()
 {
     return '<div style="font-size: 12px; text-align: center">'
-        . '<br><p>Ehrich Dental Consulting GmbH - Torplatz 1- 29223 Celle - Telefon 05141-9780976 - E-Mail: <a href="mailto:buero@padento.de">buero@padento.de</a><br>'
+        . '<br><p>Ehrich Dental Consulting GmbH - Torplatz 1- 29223 Celle - Telefon 05141-9780976 - E-Mail: <a href="mailto:buero@ehrich-dc.de">buero@ehrich-dc.de</a><br>'
         . 'Amtsgericht Lüneburg, HRB 205 391 - UST-ID Nr. DE294076454 -<br>'
         . 'Geschäftsführende Gesellschafterin: Marina Ehrich<br>'
-        . 'Web: <a href="https://www.padento.de">https://www.padento.de</a><br>'
+        . 'Web: <a href="https://www.crm.ehrich-dc.de">https://www.crm.ehrich-dc.de</a><br>'
         . '<br>Diese E-Mail enthält vertrauliche und/oder rechtlich geschützte Informationen.<br>'
         . '<br>Wenn Sie nicht der richtige Adressat sind, oder diese E-Mail irrtümlich erhalten haben, informieren Sie bitte den Absender und löschen Sie diese Mail. Das unerlaubte Kopieren sowie die unbefugte Weitergabe dieser E-Mail und der darin enthaltenen Informationen sind nicht gestattet.</p>';
 }
