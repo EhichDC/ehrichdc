@@ -95,7 +95,7 @@ export default {
         },
 
         initMap() {
-            this.map = new google.maps.Map(document.getElementById('map'), this.map_settings);
+            // this.map = new google.maps.Map(document.getElementById('map'), this.map_settings);
         },
 
         getCircleSettings () {
@@ -106,9 +106,9 @@ export default {
             });
         },
 
-        setMapCenter(location) {
-            this.map.setCenter(location);
-        },
+        // setMapCenter(location) {
+        //     this.map.setCenter(location);
+        // },
 
         addMarker(location, lab) {
             var contentString = "<h4>" + lab.name + "</h4>" +
@@ -116,24 +116,24 @@ export default {
                 "<p>Kontakt Person: " + lab.labmeta.contact_person + "</p>" +
                 "<p>Kontakt Telefonnummer: " + lab.labmeta.tel + "</p>";
 
-            var infowindow = new google.maps.InfoWindow({
-                content: contentString
-            });
+            // var infowindow = new google.maps.InfoWindow({
+            //     content: contentString
+            // });
 
-            var marker = new google.maps.Marker({
-                position: location,
-                map: this.map
-            });
-
-            marker.addListener('click', function () {
-                infowindow.open(this.map, marker);
-            });
+            // var marker = new google.maps.Marker({
+            //     position: location,
+            //     map: this.map
+            // });
+            //
+            // marker.addListener('click', function () {
+            //     infowindow.open(this.map, marker);
+            // });
         },
 
         setMarkers() {
-            this.showMap = true;
+            // this.showMap = true;
 
-            this.initMap();
+            // this.initMap();
 
             // this.results.labs.forEach(function(lab, index) {
 
@@ -157,48 +157,48 @@ export default {
 
         },
 
-        setCurrentZipMarker(zip, country) {
-            this.$http.get('/api/distribution/lookup/' + zip + '/' + country).then(function (response) {
-                var location = {lat: response.data.longitude, lng: response.data.latitude};
+        // setCurrentZipMarker(zip, country) {
+        //     this.$http.get('/api/distribution/lookup/' + zip + '/' + country).then(function (response) {
+        //         var location = {lat: response.data.longitude, lng: response.data.latitude};
+        //
+        //         var marker = new google.maps.Marker({
+        //             position: location,
+        //             map: this.map,
+        //             icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
+        //         });
+        //
+        //         this.setMapCenter(location);
+        //
+        //         var start = this.circleSettings.radius_start * 1;
+        //         var inc = this.circleSettings.radius_inc * 1;
+        //         var max = this.circleSettings.radius_max * 1;
+        //
+        //         for (var i = start; i <= max; i += inc) {
+        //             this.drawCircle(location, i)
+        //         }
+        //
+        //     })
+        //     ;
+        // },
 
-                var marker = new google.maps.Marker({
-                    position: location,
-                    map: this.map,
-                    icon: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png'
-                });
-
-                this.setMapCenter(location);
-
-                var start = this.circleSettings.radius_start * 1;
-                var inc = this.circleSettings.radius_inc * 1;
-                var max = this.circleSettings.radius_max * 1;
-
-                for (var i = start; i <= max; i += inc) {
-                    this.drawCircle(location, i)
-                }
-
-            })
-            ;
-        },
-
-        drawCircle(location, radius) {
-
-            function shadeColor2(color, percent) {
-                var f = parseInt(color.slice(1), 16), t = percent < 0 ? 0 : 255, p = percent < 0 ? percent * -1 : percent, R = f >> 16, G = f >> 8 & 0x00FF, B = f & 0x0000FF;
-                return "#" + (0x1000000 + (Math.round((t - R) * p) + R) * 0x10000 + (Math.round((t - G) * p) + G) * 0x100 + (Math.round((t - B) * p) + B)).toString(16).slice(1);
-            }
-
-            new google.maps.Circle({
-                strokeColor: shadeColor2('#FF0000', radius / 100),
-                strokeOpacity: 0.8,
-                strokeWeight: 2,
-                fillColor: shadeColor2('#FF0000', radius / 100),
-                fillOpacity: 0.15,
-                map: this.map,
-                center: location,
-                radius: radius * 1000   // in meters
-            });
-        },
+        // drawCircle(location, radius) {
+        //
+        //     function shadeColor2(color, percent) {
+        //         var f = parseInt(color.slice(1), 16), t = percent < 0 ? 0 : 255, p = percent < 0 ? percent * -1 : percent, R = f >> 16, G = f >> 8 & 0x00FF, B = f & 0x0000FF;
+        //         return "#" + (0x1000000 + (Math.round((t - R) * p) + R) * 0x10000 + (Math.round((t - G) * p) + G) * 0x100 + (Math.round((t - B) * p) + B)).toString(16).slice(1);
+        //     }
+        //
+        //     new google.maps.Circle({
+        //         strokeColor: shadeColor2('#FF0000', radius / 100),
+        //         strokeOpacity: 0.8,
+        //         strokeWeight: 2,
+        //         fillColor: shadeColor2('#FF0000', radius / 100),
+        //         fillOpacity: 0.15,
+        //         map: this.map,
+        //         center: location,
+        //         radius: radius * 1000   // in meters
+        //     });
+        // },
 
         getLabs: function (zip, email, country) {
             this.getCircleSettings();
@@ -209,10 +209,10 @@ export default {
                 this.results = response.data;
                 this.showresults = true;
 
-                if (this.showMap == true) {
-                    this.setCurrentZipMarker(zip, country);
-                    this.setMarkers();
-                }
+                // if (this.showMap == true) {
+                //     this.setCurrentZipMarker(zip, country);
+                //     this.setMarkers();
+                // }
 
             }.bind(this), function (response) {
                 // console.log(response.data);
