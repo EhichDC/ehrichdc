@@ -51,6 +51,11 @@
                     <li><a href="#"><i class="fa fa-rocket"></i> Marketing</a></li>
                     <li><a href="#"><i class="fa fa-building"></i> Partner</a></li>
                 </ul>
+                <h4>Rechtliches</h4>
+                <ul class="nav">
+                    <li><a target="_blank" href="https://ehrich-dental-consulting.de/impressum/">Impressum</a></li>
+                    <li><a target="_blank" href="https://ehrich-dental-consulting.de/datenschutz/">Datenschutzerklärung</a></li>
+                </ul>
             </div>
         </nav>
     </aside>

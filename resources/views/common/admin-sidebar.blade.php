@@ -363,7 +363,11 @@
                 {{--<li><a v-link="{ name: 'docs' }"><i class="fa fa-book" aria-hidden="true"></i> Dokumentation</a></li>--}}
                 {{--<li><a v-link="{ name: 'admin.settings.properties' }"><i class="fa fa-list"></i> Kontakteigenschaften</a></li>--}}
 
-
+                <h4>Rechtliches</h4>
+                <ul class="nav">
+                    <li><a target="_blank" href="https://ehrich-dental-consulting.de/impressum/">Impressum</a></li>
+                    <li><a target="_blank" href="https://ehrich-dental-consulting.de/datenschutz/">Datenschutzerklärung</a></li>
+                </ul>
             </div>
         </nav>
     </aside>
