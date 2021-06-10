@@ -363,7 +363,7 @@
                 {{--<li><a v-link="{ name: 'docs' }"><i class="fa fa-book" aria-hidden="true"></i> Dokumentation</a></li>--}}
                 {{--<li><a v-link="{ name: 'admin.settings.properties' }"><i class="fa fa-list"></i> Kontakteigenschaften</a></li>--}}
 
-                <h4>Datenschutz</h4>
+                <h4>Sonstiges</h4>
                 <ul class="nav">
                     <li><a target="_blank" href="/downloads/AVV-EDC-CRM.pdf">AVV</a></li>
                 </ul>
