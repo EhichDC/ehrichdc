@@ -66,6 +66,18 @@
                                     <a class="btn btn-link" href="{{ url('/password/reset') }}">Passwort vergessen?</a>
                                 </div>
                             </div>
+
+                            <div style="margin-top: 6rem; display: flex; gap: .5rem; justify-content: center;">
+                                <div>
+                                    <a target="_blank" href="/impressum/">Impressum</a>
+                                </div>
+                                <div style="border-left: 1px solid black; padding-left: .5rem;">
+                                    <a target="_blank" href="/datenschutz">Datenschutzerklärung</a>
+                                </div>
+                                <div style="border-left: 1px solid black; padding-left: .5rem;">
+                                    <a target="_blank" href="/downloads/AVV-EDC-CRM.pdf">AVV</a>
+                                </div>
+                            </div>
                         </form>
                     </div>
                 </div>
