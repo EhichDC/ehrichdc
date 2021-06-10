@@ -81,4 +81,3 @@
 		</div>
 	</div>
 </footer>
-<script src="//fast.wistia.net/assets/external/iframe-api-v1.js"></script>
