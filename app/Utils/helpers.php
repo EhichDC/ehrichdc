@@ -123,8 +123,8 @@ function getLocation($address, $lang = 'de')
 
     $address = $address . ' ' . $country;
 
-    $response = json_decode($client->get("https://maps.googleapis.com/maps/api/geocode/json?address=$address&region=$lang&key=$apiKey")->getBody(), true);
-
+//    $response = json_decode($client->get("https://maps.googleapis.com/maps/api/geocode/json?address=$address&region=$lang&key=$apiKey")->getBody(), true);
+    $response = [];
     if ($response['status'] != 'OK') {
         return null;
     }

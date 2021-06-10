@@ -111,7 +111,8 @@ class LabController extends Controller
     {
         $string      = str_replace(" ", "+", urlencode($string));
         $string      = $string . '+Deutschland';
-        $details_url = "http://maps.googleapis.com/maps/api/geocode/json?address=" . $string . "&region=de&language=de";
+//        $details_url = "http://maps.googleapis.com/maps/api/geocode/json?address=" . $string . "&region=de&language=de";
+        $details_url = "";
         $ch          = curl_init();
         curl_setopt($ch, CURLOPT_URL, $details_url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);

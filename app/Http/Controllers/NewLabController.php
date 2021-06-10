@@ -194,7 +194,8 @@ class NewLabController extends Controller
             $country = 'Österreich';
         }
         $string      = $string . '+' . $country;
-        $details_url = "http://maps.googleapis.com/maps/api/geocode/json?address=" . $string . "&region=" . $country_code . "&language=de";
+//        $details_url = "http://maps.googleapis.com/maps/api/geocode/json?address=" . $string . "&region=" . $country_code . "&language=de";
+        $details_url = "";
         $ch          = curl_init();
         curl_setopt($ch, CURLOPT_URL, $details_url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
