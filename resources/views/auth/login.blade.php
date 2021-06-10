@@ -72,7 +72,7 @@
                                     <a target="_blank" href="/impressum/">Impressum</a>
                                 </div>
                                 <div style="border-left: 1px solid black; padding-left: .5rem;">
-                                    <a target="_blank" href="/datenschutz">Datenschutzerklärung</a>
+                                    <a target="_blank" href="/datenschutzerklaerung">Datenschutzerklärung</a>
                                 </div>
                                 <div style="border-left: 1px solid black; padding-left: .5rem;">
                                     <a target="_blank" href="/downloads/AVV-EDC-CRM.pdf">AVV</a>
