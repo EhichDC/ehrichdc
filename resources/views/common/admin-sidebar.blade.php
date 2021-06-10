@@ -43,6 +43,7 @@
                     <li><a v-link="{ name: 'tools' }"><i class="fa fa-wrench" aria-hidden="true"></i> Tools</a></li>
                     <li><a href="/dashboard/karte" target="_blank"><i class="fa fa-map-marker"></i> Padento-Karte</a>
                     </li>
+                    <li><a target="_blank" href="/downloads/AVV-EDC-CRM.pdf"><i class="fa fa-book" aria-hidden="true"></i> AVV</a></li>
                 </ul>
                 <hr>
                 @endrole
@@ -56,6 +57,10 @@
                             Kontakte</a></li>
                     <li><a v-link="{ name: 'admin.labs' }"><i class="fa fa-user-md"></i> Labore</a></li>
                     <!-- li><a v-link="{ name: 'my.calendar' }"><i class="fa fa-calendar"></i> Rückruftermine</a></li -->
+                </ul>
+                <h4>Sonstiges</h4>
+                <ul class="nav">
+                    <li><a target="_blank" href="/downloads/AVV-EDC-CRM.pdf"><i class="fa fa-book" aria-hidden="true" /> AVV</a></li>
                 </ul>
                 <hr>
                 @endrole
@@ -148,6 +153,10 @@
                         <hr>
                     @endif
                 @endif
+                <h4>Sonstiges</h4>
+                <ul class="nav">
+                    <li><a target="_blank" href="/downloads/AVV-EDC-CRM.pdf"><i class="fa fa-book" aria-hidden="true"></i> AVV</a></li>
+                </ul>
                 @endrole
 
 
@@ -178,6 +187,10 @@
                                 <a v-link="{ name: 'admin.labSingle', params: { id: {{ Auth::user()->labs->first()->id }} } }"><i
                                             class="fa fa-pencil-square-o" aria-hidden="true"></i>Mein Profil bearbeiten</a>
                             </li>
+                        </ul>
+                        <h4>Sonstiges</h4>
+                        <ul class="nav">
+                            <li><a target="_blank" href="/downloads/AVV-EDC-CRM.pdf"><i class="fa fa-book" aria-hidden="true" /> AVV</a></li>
                         </ul>
                     @endif
                         @if (Auth::user()->labs[0]->membership == 6)
@@ -244,6 +257,10 @@
                         </ul>
                     @endif
                 @endif
+                <h4>Sonstiges</h4>
+                <ul class="nav">
+                    <li><a target="_blank" href="/downloads/AVV-EDC-CRM.pdf"><i class="fa fa-book" aria-hidden="true"></i> AVV</a></li>
+                </ul>
                 @endrole
 
 
@@ -362,11 +379,6 @@
                 {{--<li><a href="#"><i class="fa fa-facebook"></i> Facebook-Pixel-Reset</a></li>--}}
                 {{--<li><a v-link="{ name: 'docs' }"><i class="fa fa-book" aria-hidden="true"></i> Dokumentation</a></li>--}}
                 {{--<li><a v-link="{ name: 'admin.settings.properties' }"><i class="fa fa-list"></i> Kontakteigenschaften</a></li>--}}
-
-                <h4>Sonstiges</h4>
-                <ul class="nav">
-                    <li><a target="_blank" href="/downloads/AVV-EDC-CRM.pdf">AVV</a></li>
-                </ul>
             </div>
         </nav>
     </aside>
