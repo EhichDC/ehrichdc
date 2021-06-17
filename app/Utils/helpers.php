@@ -124,33 +124,40 @@ function getLocation($address, $lang = 'de')
     $address = $address . ' ' . $country;
 
 //    $response = json_decode($client->get("https://maps.googleapis.com/maps/api/geocode/json?address=$address&region=$lang&key=$apiKey")->getBody(), true);
-    $response = [];
-    if ($response['status'] != 'OK') {
-        return null;
-    }
+//    if ($response['status'] != 'OK') {
+//        return null;
+//    }
+//
+//    $result = $response['results'][0];
+//    $geometry = $result['geometry'];
+//
+//    $city = $state = null;
+//
+//    foreach ($result['address_components'] as $addressComponent) {
+//        if (in_array('locality', $addressComponent['types']) || in_array('administrative_area_level_3', $addressComponent['types'])) {
+//            $city = array_get($addressComponent, 'long_name');
+//        }
+//
+//        if (in_array('administrative_area_level_1', $addressComponent['types'])) {
+//            $state = array_get($addressComponent, 'long_name');
+//        }
+//    }
 
-    $result = $response['results'][0];
-    $geometry = $result['geometry'];
-
-    $city = $state = null;
-
-    foreach ($result['address_components'] as $addressComponent) {
-        if (in_array('locality', $addressComponent['types']) || in_array('administrative_area_level_3', $addressComponent['types'])) {
-            $city = array_get($addressComponent, 'long_name');
-        }
-
-        if (in_array('administrative_area_level_1', $addressComponent['types'])) {
-            $state = array_get($addressComponent, 'long_name');
-        }
-    }
-
+//    return [
+//        'longitude'         => $geometry['location']['lat'],
+//        'latitude'          => $geometry['location']['lng'],
+//        'location_type'     => $geometry['location_type'],
+//        'formatted_address' => $result['formatted_address'],
+//        'city'              => $city,
+//        'state'             => $state,
+//    ];
     return [
-        'longitude'         => $geometry['location']['lat'],
-        'latitude'          => $geometry['location']['lng'],
-        'location_type'     => $geometry['location_type'],
-        'formatted_address' => $result['formatted_address'],
-        'city'              => $city,
-        'state'             => $state,
+        'longitude'         => null,
+        'latitude'          => null,
+        'location_type'     => null,
+        'formatted_address' => null,
+        'city'              => null,
+        'state'             => null,
     ];
 }
 
