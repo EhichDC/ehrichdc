@@ -20,6 +20,7 @@
         @endif
     </title>
 
+    @if(Request::is('impressum/*') || Request::is('datenschutzerklaerung/*'))
     @if (app()->environment() != 'local')
     <!-- Facebook Pixel Code -->
         <script>
@@ -89,7 +90,9 @@
                 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
             })(window,document,'script','dataLayer','GTM-TR7X3RG');</script>
         <!-- End Google Tag Manager -->
+        @endif
     @endif
+
     @yield('head')
 <style>
     @media (min-width: 612px) {
@@ -125,9 +128,12 @@
 </style>
 </head>
 <body>
+
+@if(Request::is('impressum/*') || Request::is('datenschutzerklaerung/*'))
 <!-- Google Tag Manager (noscript) -->
 <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TR7X3RG"
                   height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+@endif
 <!-- End Google Tag Manager (noscript) -->
 <?php
 if (!isset($_COOKIE['orig_ref'])) {
@@ -171,9 +177,10 @@ if (!isset($_COOKIE['orig_page'])) {
 
 </script>
 
-
+@if(Request::is('impressum/*') || Request::is('datenschutzerklaerung/*'))
 <!--script type="text/javascript" src="{{ URL::asset('js/all.js') }}"></script-->
 <script type="text/javascript" src="{{ URL::asset('assets/js/scripts.js?v=1.1') }}"></script>
+@endif
 
 @yield('foot')
 <!--script src='//cdn.tinymce.com/4/tinymce.min.js'></script-->
