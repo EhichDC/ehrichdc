@@ -41,7 +41,7 @@ export default {
             editTaskForm: false,
             showresults: false,
             labs: [],
-
+            editWebsite: false,
             //todo dragging
             scrolling: false
         };
@@ -76,7 +76,7 @@ export default {
     },
 
     methods: {
-        getAllLabs () {
+        getAllLabs() {
             this.$http.get('/api/labs', this.data).then(function (response) {
                 if (response.data.data) {
                     this.$set('labs', response.data.data.data);
@@ -113,7 +113,7 @@ export default {
                 dentist_contact_id: this.dentist.id,
             };
 
-            this.$http.post('/api/dentist/sendReminder', form).then(function(response) {
+            this.$http.post('/api/dentist/sendReminder', form).then(function (response) {
                 Messenger().post({
                     message: 'Anfrage für Dokumente versendet',
                     type: 'success',
@@ -121,12 +121,12 @@ export default {
             });
         },
 
-        dentistUsed: function() {
+        dentistUsed: function () {
             let data = {
                 user_id: this.whoami.id,
                 dentist_contact_id: this.dentist.id
             };
-            this.$http.post('/api/dentist/used', data).then(function(response) {
+            this.$http.post('/api/dentist/used', data).then(function (response) {
                 // console.log(response.data);
                 if (response.data.user_id == this.whoami.id) {
                     $('#dentistcontact-error').hide();
@@ -134,7 +134,7 @@ export default {
                 } else {
                     $('#dentistcontact-error').html('Kontakt wird seid ' + moment(response.data.created_at, "YYYY-MM-DD HH:mm:ss").format('HH:mm:ss') + ' Uhr  von <strong>' + response.data.user.name + '</strong> verwendet. Zuletzt um ' + moment(response.data.updated_at, "YYYY-MM-DD HH:mm:ss").format('HH:mm:ss') + ' Uhr.');
                 }
-            }, function(response) {
+            }, function (response) {
                 console.log(response.data);
                 // $('#debug').addClass('active').find('.debugged-content').html(response.data);
                 Messenger().post({
@@ -149,9 +149,6 @@ export default {
         confirmMakequeued() {
             $('#confirmMakequeued').modal('show');
         },
-
-
-
 
 
         /*
@@ -178,23 +175,23 @@ export default {
 
         */
 
-        loadDentist: function() {
+        loadDentist: function () {
             var id = this.$route.params.id;
             var resource = this.$resource('/api/dentist{/id}');
-            resource.get({ id: id }).then(function(response) {
+            resource.get({id: id}).then(function (response) {
                 if (response.data.error == 'nicht deiner') {
-                    this.$router.go({ name: 'home', params: {} });
+                    this.$router.go({name: 'home', params: {}});
                 }
                 this.dentist = response.data;
                 if (response.data.dentistmeta.birthday) {
-                    this.dentist.dentistmeta.birthday = moment( response.data.dentistmeta.birthday, "YYYY-MM-DD").format('DD.MM.YYYY');
+                    this.dentist.dentistmeta.birthday = moment(response.data.dentistmeta.birthday, "YYYY-MM-DD").format('DD.MM.YYYY');
                 }
                 if (response.data.latest_date && response.data.latest_date.date) {
                     this.labdate = moment(response.data.latest_date.date, "YYYY-MM-DD HH:mm").format('DD.MM.YYYY HH:mm');
                 }
                 this.dentistUsed();
 
-            }.bind(this), function(response) {
+            }.bind(this), function (response) {
                 // $('#debug').addClass('active').find('.debugged-content').html(response.data);
                 Messenger().post({
                     message: 'Fehler beim Laden des Kontaktes',
@@ -204,23 +201,23 @@ export default {
             }.bind(this));
         },
 
-        initDatepicker: function() {
+        initDatepicker: function () {
 
         },
 
-        getEmployeeDate: function() {
+        getEmployeeDate: function () {
             var getemployeedate = this.$resource('/api/employeedate/get{/id}');
-            getemployeedate.get({ id: this.$route.params.id }).then(function(response) {
+            getemployeedate.get({id: this.$route.params.id}).then(function (response) {
                 this.userDate = response.data;
             }.bind(this));
         },
-        deleteEmployeeDate: function() {
+        deleteEmployeeDate: function () {
             this.userDate = '';
             this.saveEmployeeDate();
         },
 
 
-        deleteDate: function(event) {
+        deleteDate: function (event) {
             var key = $(event.target);
             var id = key.data('id');
             var resource = this.$resource('/api/date/delete/dentist');
@@ -237,11 +234,11 @@ export default {
                         className: 'btn-default'
                     }
                 },
-                callback: function(result) {
+                callback: function (result) {
                     if (result === false) {
                         return;
                     }
-                    resource.save({}, { id: id }).then(function(response) {
+                    resource.save({}, {id: id}).then(function (response) {
                         console.log(response.data);
                         // $('#debug').addClass('active').find('.debugged-content').html(response.data);
                         key.parent().parent().fadeOut();
@@ -250,7 +247,7 @@ export default {
                             type: 'success',
                             // showCloseButton: true
                         });
-                    }, function(response) {
+                    }, function (response) {
                         // $('#debug').addClass('active').find('.debugged-content').html(response.data);
                         Messenger().post({
                             message: 'Termin nicht gelöscht zurückgeleitet',
@@ -261,58 +258,90 @@ export default {
                 }
             });
         },
-        saveEmployeeDate: function() {
-            this.$http.post('/api/employeedate/dentist/save', { date: this.userDate, patient: this.dentist }).then(function(response) {
+        saveEmployeeDate: function () {
+            this.$http.post('/api/employeedate/dentist/save', {
+                date: this.userDate,
+                patient: this.dentist
+            }).then(function (response) {
                 console.log(response.data);
                 Messenger().post({
                     message: 'Mitarbeitertermin aktualisiert',
                     type: 'success'
                 });
-            }, function(response) {
+            }, function (response) {
                 console.log(response.data);
                 // $('#debug').addClass('active').find('.debugged-content').html(response.data);
             }.bind(this));
         },
-        update: function() {
+        update: function () {
             var id = this.$route.params.id;
             var resource = this.$resource('/api/dentist{/id}');
-            resource.get({ id: id }).then(function(response) {
+            resource.get({id: id}).then(function (response) {
                 // console.log(response.data);
                 this.dentist = response.data;
                 this.getTimeline();
             }.bind(this));
 
             var custom = this.$resource('/api/properties/all');
-            custom.get().then(function(response) {
+            custom.get().then(function (response) {
                 this.properties = response.data;
             }.bind(this));
         },
 
-        saveDentist: function(event) {
-            console.log(this.dentist.labdate);
+        parseValidLink: function (string) {
+            if (string.startsWith("http://") || string.startsWith("https://")) return string;
+            return "http://" + string;
+        },
+
+        linkValid: function (string) {
+            let url;
+
+            try {
+                url = new URL(string);
+            } catch (e) {
+                return false;
+            }
+
+            return url.protocol === "http:" || url.protocol === "https:";
+        },
+
+        enterEditWebsite(event) {
+            // open edit website state
+            this.editWebsite = true;
+            // focus into input
+            setTimeout(() => {
+                document.getElementById("editWebsiteInput").focus();
+            }, 100);
+        },
+
+        blurDentistWebsite(event) {
+            // toggle editWebsite state
+            this.toggleEditWebsite();
+            // save dentist
+            this.saveDentist(event);
+        },
+
+        saveDentist: function (event) {
             this.dentist.labdate = this.labdate;
             var that = this;
             var id = this.$route.params.id;
             var key = $(event.target);
-            console.log(this.dentist.archived);
             if (key.data('todo') == 'togglearchived') {
                 this.dentist.archived = key.data('archived');
             }
             if (key.data('input') == 'labdate') {
                 // key.hide();
-            };
-            console.log(this.dentist.archived);
+            }
             if (key.data('todo') == 'deletelabdate') {
                 // key.hide();
                 this.dentist.deletelabdate = 'yes';
             }
             var resource = this.$resource('/api/dentist{/id}/update');
-            // console.log(this.dentist.labdate);
-            resource.save({ id: id }, this.dentist).then(function(response) {
+            resource.save({id: id}, this.dentist).then(function (response) {
                 if (key.data('input') == 'labdate') {
                     this.loadDentist();
                     this.getTimeline();
-                    setTimeout(function() {
+                    setTimeout(function () {
                         key.fadeIn();
                     }, 1000);
                 }
@@ -333,7 +362,7 @@ export default {
 
                 }
                 this.dentistUsed();
-            }, function(response) {
+            }, function (response) {
                 // console.log(response.data);
                 this.debug = response.data;
                 Messenger().post({
@@ -353,26 +382,27 @@ export default {
         },
 
 
-        saveProps: function() {
+        saveProps: function () {
             for (var key in this.dentist.props) {
                 var id = this.dentist.props[key].pivot.id;
                 var resource = this.$resource('/api/settings/single-property{/id}');
-                resource.save({ id: id }, this.dentist.props[key].pivot).then(function(response) {
+                resource.save({id: id}, this.dentist.props[key].pivot).then(function (response) {
                     Messenger().post({
                         message: 'Kontakt gespeichert',
                         type: 'success'
                         // showCloseButton: true
                     });
-                }, function(response) {
+                }, function (response) {
                     // console.log(response.data);
                 });
-            };
+            }
+            ;
         },
-        saveNote: function(note) {
+        saveNote: function (note) {
             var id = this.$route.params.id;
             this.note = $('#note').val();
             // console.log(this.note);
-            this.$http.post('/api/dentist/' + id + '/note', { note: this.note }).then(function(response) {
+            this.$http.post('/api/dentist/' + id + '/note', {note: this.note}).then(function (response) {
                 $('#note').val('');
                 Messenger().post({
                     message: 'Notiz gespeichert',
@@ -380,15 +410,15 @@ export default {
                     // showCloseButton: true
                 });
 
-               //  this.getNoteTimeline();
+                //  this.getNoteTimeline();
                 this.dentistUsed();
-            }, function(response) {
+            }, function (response) {
                 // console.log(response.data);
             }.bind(this));
             this.update();
         },
 
-        approveDentist: function() {
+        approveDentist: function () {
             var tempThis = this;
             var approveDentistConfirm = bootbox.confirm({
                 title: 'Kontakt bestätigen',
@@ -403,7 +433,7 @@ export default {
                         className: 'btn-default'
                     }
                 },
-                callback: function(result) {
+                callback: function (result) {
                     if (result === false) {
                         return;
                     }
@@ -411,7 +441,7 @@ export default {
                     var resource = tempThis.$resource('/api/dentist{/id}/update');
                     tempThis.dentist.confirmed = '1';
                     tempThis.dentist.confirmed_by = tempThis.whoami.id;
-                    resource.save({ id: id }, tempThis.dentist).then(function(response) {
+                    resource.save({id: id}, tempThis.dentist).then(function (response) {
                         // console.log(response.data);
                         Messenger().post({
                             message: 'Kontakt bestätigt',
@@ -420,7 +450,7 @@ export default {
                         });
                         this.dentistUsed();
                         this.getTimeline();
-                    }, function(response) {
+                    }, function (response) {
                         // console.log(response.data);
                         Messenger().post({
                             message: 'Kontakt nicht bestätigt',
@@ -434,7 +464,7 @@ export default {
         },
 
 
-        activatePhase: function(event) {
+        activatePhase: function (event) {
 
 
             var id = this.$route.params.id;
@@ -455,7 +485,7 @@ export default {
                             className: 'btn-default'
                         }
                     },
-                    callback: function(result) {
+                    callback: function (result) {
                         if (result === false) {
                             return;
                         }
@@ -479,21 +509,21 @@ export default {
             }
             this.dentistUsed();
         },
-        unobtainable: function() {
+        unobtainable: function () {
             var id = this.$route.params.id;
-            Vue.http.get('/api/dentist/' + id + '/unobtainable').then(function(response) {
+            Vue.http.get('/api/dentist/' + id + '/unobtainable').then(function (response) {
                 this.dentistUsed();
-            }, function(response) {
+            }, function (response) {
             });
         },
-        whoAmI: function() {
+        whoAmI: function () {
             this.$http.get('/api/whoami')
                 .then(response => {
                     this.whoami = response.data;
                 });
         },
-        calendarClick: function() {
-            setTimeout(function() {
+        calendarClick: function () {
+            setTimeout(function () {
                 $('.fc-today-button').click();
             }, 500);
         },
@@ -532,8 +562,12 @@ export default {
                 });
         },
 
+        toggleEditWebsite() {
+            this.editWebsite = !this.editWebsite;
+        },
+
         deleteTask(task) {
-            if(!confirm('Willst du es wirklich löschen?')) {
+            if (!confirm('Willst du es wirklich löschen?')) {
                 return false;
             }
 
@@ -572,25 +606,25 @@ export default {
                 });
         },
 
-        handleTaskMove (/**Event*/evt, /**Event*/originalEvent) {
-            if(evt.relatedRect.top < 100) {
-              let self = this;
-              if(!this.scrolling) {
-                var container = $(".content");
-                $(".content").animate({ scrollTop:  $(".content").scrollTop()-200}, 1000, function () {
-                  self.scrolling = true
-                }).promise().done(function () {
-                  self.scrolling = false
-                });
-              }
+        handleTaskMove(/**Event*/evt, /**Event*/originalEvent) {
+            if (evt.relatedRect.top < 100) {
+                let self = this;
+                if (!this.scrolling) {
+                    var container = $(".content");
+                    $(".content").animate({scrollTop: $(".content").scrollTop() - 200}, 1000, function () {
+                        self.scrolling = true
+                    }).promise().done(function () {
+                        self.scrolling = false
+                    });
+                }
             }
-      	},
+        },
 
         filters: {
-            linebreaks: function(data) {
+            linebreaks: function (data) {
                 var text = [];
                 var lines = text.split(/\n/);
-                lines.each(function(line) {
+                lines.each(function (line) {
                     text += '<p>' + line + '</p>';
                 });
                 return text;

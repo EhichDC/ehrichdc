@@ -16,13 +16,29 @@
                             <div class="row">
                                 <div class="col-xs-11">
                                     <h4>{{ dentist.dentistmeta.name }}</h4>
-
                                 </div>
                                 <a href="javascript:window.print()" class="col-xs-1 action"><i class="fa fa-print"
                                                                                                aria-hidden="true"
                                                                                                class="printer"></i></a>
                             </div>
                             <dl class="property-fields">
+
+                                <div class="property-row row">
+                                    <dt class="col-xs-4">Website</dt>
+                                    <dd class="col-xs-7">
+                                        <a v-if="!editWebsite" v-bind:href="parseValidLink(dentist.dentistmeta.website)"
+                                           target="_blank">{{ dentist.dentistmeta.website ? dentist.dentistmeta.website : '-' }}</a>
+                                        <input v-if="editWebsite" id="editWebsiteInput" data-input="website"
+                                               v-model="dentist.dentistmeta.website"
+                                               @blur="blurDentistWebsite" @keyup.enter="blurDentistWebsite">
+<!--                                        <span v-if="!editWebsite && !linkValid(dentist.dentistmeta.website)">{{ dentist.dentistmeta.website ? dentist.dentistmeta.website : '-' }}</span>-->
+                                    </dd>
+                                    <a class="action col-xs-1" v-on:click="enterEditWebsite">
+                                        <i class="fa fa-edit" aria-hidden="true" data-toggle="tooltip"
+                                           data-placement="right" title="Website editieren"></i>
+                                    </a>
+                                </div>
+
                                 <div class="property-row row">
                                     <dt class="col-xs-4">Praxisname</dt>
                                     <dd class="col-xs-7">
@@ -79,7 +95,7 @@
                                            data-placement="right" title="Kontakt bestätigen"></i>
                                     </a>
                                     <a v-else href="mailto:{{ dentist.dentistmeta.email }}" class="action col-xs-1"><i
-                                        class="fa fa-mail"></i></a>
+                                            class="fa fa-mail"></i></a>
                                 </div>
 
                                 <div class="property-row row">
@@ -100,7 +116,8 @@
                                 <div class="property-row row">
                                     <dt class="col-xs-4">Geburtsdatum</dt>
                                     <dd class="col-xs-7">
-                                        <input v-datepicker="till" v-model="dentist.dentistmeta.birthday" class="form-control" @blur="saveDentist" @change="saveDentist">
+                                        <input v-datepicker="till" v-model="dentist.dentistmeta.birthday"
+                                               class="form-control" @blur="saveDentist" @change="saveDentist">
                                     </dd>
                                 </div>
 
@@ -271,7 +288,7 @@
                                         <dt class="col-xs-4" v-if="index == 0"></dt>
                                         <dt class="col-xs-4" v-else="index == 0"></dt>
                                         <dd class="col-xs-7"><span
-                                            class="no-input">{{ date.date | niceDate }}</span>
+                                                class="no-input">{{ date.date | niceDate }}</span>
                                             <span :class="date.phase_class">{{ date.phase_label }}</span>
                                         </dd>
                                         <a class="action col-xs-1" @click="deleteDate">
@@ -654,7 +671,7 @@
                                                 <!--li><small><a href="">Bearbeiten</a></small></li-->
                                                 <li v-if="isAdmin">
                                                     <small><a
-                                                        href="/api/note/{{ note.id }}/deletedentistnote">Löschen</a>
+                                                            href="/api/note/{{ note.id }}/deletedentistnote">Löschen</a>
                                                     </small>
                                                 </li>
                                             </ul>

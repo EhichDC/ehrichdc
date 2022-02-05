@@ -473,6 +473,7 @@ class DentistContactController extends Controller
         $meta->has_financing = $request['dentistmeta']['has_financing'];
         $meta->has_tacs      = $request['dentistmeta']['has_tacs'];
         $meta->insurance     = $request['dentistmeta']['insurance'];
+        $meta->website       = $request['dentistmeta']['website'];
         $meta->birthday     =  date("Y-m-d", strtotime($request['dentistmeta']['birthday']));
         $meta->praxisname     = $request['dentistmeta']['praxisname'];
 
