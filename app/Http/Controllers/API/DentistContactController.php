@@ -42,6 +42,22 @@ class DentistContactController extends Controller
             $dentist->delete();
             $dentist = $temp;
             Event::fire(new DentistDeleted($dentist));
+        } else {
+
+            $user = Auth::user();
+            if (!($user->hasRole('crm-user') || $user->hasRole('lab'))) abort(403, 'Access denied');
+
+            //if user has more than one lab
+            $lab = $user->lab->first();
+            if (!$lab) {
+                $lab = $user->labs->first();
+            }
+
+            $dentist = DentistContact::with('dentistmeta')->where('id', $request['id'])->where('dentist_contacts.lab_id', $lab->id);
+            $temp    = $dentist;
+            $dentist->delete();
+            $dentist = $temp;
+            Event::fire(new DentistDeleted($dentist));
         }
     }
 
