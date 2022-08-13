@@ -78,6 +78,7 @@ class DentistContactController extends Controller
 
     public function alldentists(Request $request)
     {
+
         $user = $request->user();
 
         if ($request->input('pagination')['per_page']) {
@@ -128,6 +129,59 @@ class DentistContactController extends Controller
             $results = $results->orderBy('dentist_contacts.created_at', 'desc');
         }
 
+        if ($request->input('searchfor')) {
+            $name = $request->input('searchfor');
+            $lab = null;
+            if ($user->hasRole('lab')) {
+                $lab = $user->lab->first();
+                if (!$lab) {
+                    $lab = $user->labs->first();
+                }
+            }
+            if ($user->hasRole('crm-user')) {
+                $lab = $user->lab->first();
+
+                if (!$lab) {
+                    $lab = $user->labs->first();
+                }
+            }
+            $results = $results->where(function ($query) use ($lab, $name) {
+                if ($lab) {
+                    $query->where('dentist_contacts.lab_id', $lab->id);
+                }
+                $query->where('dentistmeta.mobile', 'like', "%{$name}%")
+                    ->orWhere(function ($query) use ($lab, $name) {
+                        if ($lab) {
+                            $query->where('dentist_contacts.lab_id', $lab->id);
+                        }
+                        $query->where('dentistmeta.tel', 'like', "%{$name}%");
+                    })
+                    ->orWhere(function ($query) use ($lab, $name) {
+                        if ($lab) {
+                            $query->where('dentist_contacts.lab_id', $lab->id);
+                        }
+                        $query->where('dentistmeta.name', 'like', "%{$name}%");
+                    })
+                    ->orWhere(function ($query) use ($lab, $name) {
+                        if ($lab) {
+                            $query->where('dentist_contacts.lab_id', $lab->id);
+                        }
+                        $query->where('dentistmeta.city', 'like', "%{$name}%");
+                    })
+                    ->orWhere(function ($query) use ($lab, $name) {
+                        if ($lab) {
+                            $query->where('dentist_contacts.lab_id', $lab->id);
+                        }
+                        $query->where('dentistmeta.praxisname', 'like', "%{$name}%");
+                    });
+            });
+
+        } else {
+            /*  if ($user->hasRole('user')) {
+                  $results = $results->where('dentist_contacts.queued', '1');
+              }*/
+        }
+
         if ($request->input('filter')) {
             foreach ($request->input('filter') as $key => $filter) {
                 if ($key == 'status' && $filter['selected'] != '') {
@@ -172,59 +226,6 @@ class DentistContactController extends Controller
                     }
                 }
             }
-        }
-
-        if ($request->input('searchfor')) {
-            //$results = $results->search($request->input('searchfor'), $searchThrough);
-            $name = $request->input('searchfor');
-            $lab = null;
-            if ($user->hasRole('lab')) {
-                $lab = $user->lab->first();
-                if (!$lab) {
-                    $lab = $user->labs->first();
-                }
-            }
-            if ($user->hasRole('crm-user')) {
-                $lab = $user->lab->first();
-
-                if (!$lab) {
-                    $lab = $user->labs->first();
-                }
-            }
-            $results = $results->where(function ($query) use ($lab, $name) {
-                if ($lab) {
-                    $query->where('dentist_contacts.lab_id', $lab->id);
-                }
-                $query->where('dentistmeta.mobile', 'like', "%{$name}%");
-            })
-                ->orWhere(function ($query) use ($lab, $name) {
-                    if ($lab) {
-                        $query->where('dentist_contacts.lab_id', $lab->id);
-                    }
-                    $query->where('dentistmeta.tel', 'like', "%{$name}%");
-                })
-                ->orWhere(function ($query) use ($lab, $name) {
-                    if ($lab) {
-                        $query->where('dentist_contacts.lab_id', $lab->id);
-                    }
-                    $query->where('dentistmeta.name', 'like', "%{$name}%");
-                })
-                ->orWhere(function ($query) use ($lab, $name) {
-                    if ($lab) {
-                        $query->where('dentist_contacts.lab_id', $lab->id);
-                    }
-                    $query->where('dentistmeta.city', 'like', "%{$name}%");
-                })
-                ->orWhere(function ($query) use ($lab, $name) {
-                    if ($lab) {
-                        $query->where('dentist_contacts.lab_id', $lab->id);
-                    }
-                    $query->where('dentistmeta.praxisname', 'like', "%{$name}%");
-                });
-        } else {
-            /*  if ($user->hasRole('user')) {
-                  $results = $results->where('dentist_contacts.queued', '1');
-              }*/
         }
 
         if ($user->hasRole('admin')) {
