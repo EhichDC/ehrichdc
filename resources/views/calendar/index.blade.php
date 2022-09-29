@@ -42,6 +42,7 @@
                 ],
                 events: [
                         @foreach($dates as $d)
+                        @if($d->dentist_contact)
                         <?php
                         if ($d->patient && $d->patient->patientmeta->name) {
                             $title = '[P] ' . $d->patient->patientmeta->name;
@@ -69,6 +70,7 @@
                         @endif
 
                     },
+                        @endif
                         @endforeach
                         @foreach(json_decode($holidays) as $k => $v)
                         {
