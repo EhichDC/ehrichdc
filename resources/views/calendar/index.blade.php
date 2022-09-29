@@ -46,8 +46,16 @@
                         if ($d->patient && $d->patient->patientmeta->name) {
                             $title = '[P] ' . $d->patient->patientmeta->name;
                         } else {
-                            $title = '[Z] ' . $d->dentist_contact->dentistmeta->name;
+                            $title = '[Z] ';
                             $color = 'yellow';
+                            if ($d->dentist_contact) {
+                                if ($d->dentist_contact->dentistmeta) {
+                                    $title = '[Z] ' . $d->dentist_contact->dentistmeta->name;
+                                    $color = 'yellow';
+                                }
+                            } else {
+                                dd($d->dentist_contact);
+                            }
                         }
                         ?>
                     {
