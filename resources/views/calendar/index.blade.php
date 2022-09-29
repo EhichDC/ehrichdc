@@ -53,8 +53,6 @@
                                     $title = '[Z] ' . $d->dentist_contact->dentistmeta->name;
                                     $color = 'yellow';
                                 }
-                            } else {
-                                dd($d->dentist_contact);
                             }
                         }
                         ?>
