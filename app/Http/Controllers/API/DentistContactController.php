@@ -277,9 +277,13 @@ class DentistContactController extends Controller
 
 
         if ($user->hasRole('lab') || $user->hasRole('crm-user') || $request->filter['lab']['selected'] === 'current') {
-            $all = DentistContact::where('dentist_contacts.lab_id', $lab->id)->count();
+            $all = DentistContact::where('dentist_contacts.lab_id', $lab->id)
+                ->join('dentist_contact_metas as dentistmeta', 'dentistmeta.dentist_contact_id', '=', 'dentist_contacts.id')
+                ->count();
         } else {
-            $all = DentistContact::count();
+            $all = app(DentistContact::class)
+                ->join('dentist_contact_metas as dentistmeta', 'dentistmeta.dentist_contact_id', '=', 'dentist_contacts.id')
+                ->count();
         }
 
         $results = $results->with(['dentistmeta', 'lab']);

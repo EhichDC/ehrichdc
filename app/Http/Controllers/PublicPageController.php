@@ -8,6 +8,7 @@ use App\Events\ValidationFailed;
 use App\Services\Setting;
 use App\User;
 use Illuminate\Http\Request;
+use Validator;
 use Uuid;
 use Auth;
 use App\Http\Requests;
@@ -469,6 +470,19 @@ class PublicPageController extends Controller
             $p = $request->input('contact');
             $salutation = isset($p['salutation']) ? $p['salutation'] : "";
 
+            $validator = Validator::make(
+                $p,
+                [
+                    'name' => 'required',
+                    'praxisname' => 'required',
+                    'street' => 'required'
+                ]
+            );
+
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()]);
+            }
+
             $dentist            = new \App\DentistContact();
             $dentist->token     = Uuid::generate(4);
             $dentist->phase     = 1;
@@ -485,11 +499,11 @@ class PublicPageController extends Controller
             $comparsed_email = str_replace('..', '.', $p['email']);
             $comparsed_email = str_replace(' ', '', $comparsed_email);
             $meta->email      = trim($comparsed_email);
-            $meta->praxisname = $p['praxisname'];
-            $meta->city       = $p['place'];
-            $meta->street     = $p['street'];
+            $meta->praxisname = isset($p['praxisname']) ? $p['praxisname'] : '';
+            $meta->city       = isset($p['place']) ? $p['place'] : '';
+            $meta->street     = isset($p['street']) ? $p['street'] : '';
             $meta->salutation = $salutation;
-            $meta->tel        = phone_format($p['phone'], $country_code);
+            $meta->tel        = isset($p['phone']) ? phone_format($p['phone'], $country_code) : "";
             $meta->ref        = 'Direkteingabe';
             $meta->orig_ref   = 'Direkteingabe';
             $meta->orig_page  = 'Direkteingabe';
