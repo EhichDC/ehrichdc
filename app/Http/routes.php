@@ -71,7 +71,7 @@ Route::post('danke/blog', 'PublicPageController@newRequest');
 Route::get('zahnarzt/{name}', 'LabController@showDentist');
 //Route::get('videos', 'PublicPageController@videos');
 
-Route::get('/start/{lang?}', 'PublicPageController@backupstart');
+Route::get('/startpage/{lang?}', 'PublicPageController@backupstart');
 Route::get('impressum', 'PublicPageController@impressum');
 Route::get('datenschutzerklaerung', 'PublicPageController@datenschutzerklaerung');
 Route::post('wann', 'PatientController@bestTime');
