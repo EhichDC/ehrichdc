@@ -70,6 +70,8 @@ Route::post('danke', 'PublicPageController@newRequest');
 Route::post('danke/blog', 'PublicPageController@newRequest');
 Route::get('zahnarzt/{name}', 'LabController@showDentist');
 //Route::get('videos', 'PublicPageController@videos');
+
+Route::get('/start/{lang?}', 'PublicPageController@backupstart');
 Route::get('impressum', 'PublicPageController@impressum');
 Route::get('datenschutzerklaerung', 'PublicPageController@datenschutzerklaerung');
 Route::post('wann', 'PatientController@bestTime');
@@ -432,8 +434,7 @@ Route::get('scheduler', function () {
 Route::get('testform', 'PublicPageController@testform');
 Route::post('testform', 'PublicPageController@test');
 
-Route::get('/{lang?}', 'PublicPageController@startpage');
-Route::get('/start/{lang?}', 'PublicPageController@backupstart');
+Route::get('/', 'PublicPageController@startpage');
 
 Route::group(['prefix' => 'api', 'namespace' => 'API'], function () {
     Route::resource('zipcode', 'ZipCodeController');

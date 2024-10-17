@@ -205,7 +205,7 @@ class PublicPageController extends Controller
       }
     }
 
-    public function startpage($lang = 'de')
+    public function startpage()
     {
         return redirect("/login");
     }
