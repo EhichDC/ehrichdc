@@ -433,6 +433,7 @@ Route::get('testform', 'PublicPageController@testform');
 Route::post('testform', 'PublicPageController@test');
 
 Route::get('/{lang?}', 'PublicPageController@startpage');
+Route::get('/start/{lang?}', 'PublicPageController@backupstart');
 
 Route::group(['prefix' => 'api', 'namespace' => 'API'], function () {
     Route::resource('zipcode', 'ZipCodeController');

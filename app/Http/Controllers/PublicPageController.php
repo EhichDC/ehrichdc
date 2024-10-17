@@ -207,6 +207,11 @@ class PublicPageController extends Controller
 
     public function startpage($lang = 'de')
     {
+        return redirect("/login");
+    }
+
+    public function backupstart($lang = 'de')
+    {
         $setting = new Setting($lang);
 
         $data = [
