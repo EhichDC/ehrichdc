@@ -226,8 +226,7 @@ class PublicPageController extends Controller
             'formData'           => $setting->getFormData(),
         ];
 
-        // return view('/pages/startpage', $data);
-        return redirect("/login");
+         return view('/pages/startpage', $data);
     }
 
     public function formpage()
